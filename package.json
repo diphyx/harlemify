@@ -2,6 +2,16 @@
     "name": "harlemify",
     "version": "0.0.1",
     "description": "API state management for Nuxt powered by Harlem",
+    "keywords": [
+        "nuxt",
+        "nuxt-module",
+        "harlem",
+        "state-management",
+        "api",
+        "zod",
+        "vue",
+        "typescript"
+    ],
     "repository": {
         "type": "git",
         "url": "git+https://github.com/dalirnet/harlemify.git"
