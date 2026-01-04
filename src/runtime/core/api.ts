@@ -1,4 +1,4 @@
-import { resolve, type Resolvable } from "../utils/resolve";
+import { toValue, type MaybeRefOrGetter } from "vue";
 
 export enum ApiAction {
     GET = "get",
@@ -20,9 +20,9 @@ export enum ApiErrorSource {
     RESPONSE = "response",
 }
 
-export type ApiRequestHeader = Resolvable<Record<string, unknown>>;
-export type ApiRequestQuery = Resolvable<Record<string, unknown>>;
-export type ApiRequestBody = Resolvable<
+export type ApiRequestHeader = MaybeRefOrGetter<Record<string, unknown>>;
+export type ApiRequestQuery = MaybeRefOrGetter<Record<string, unknown>>;
+export type ApiRequestBody = MaybeRefOrGetter<
     string | number | ArrayBuffer | FormData | Blob | Record<string, any>
 >;
 
@@ -111,14 +111,14 @@ export function createApi(options?: ApiOptions) {
             baseURL: options?.url,
             method: requestOptions?.action ?? ApiAction.GET,
             headers: {
-                ...resolve(options?.headers),
-                ...resolve(requestOptions?.headers),
+                ...toValue(options?.headers),
+                ...toValue(requestOptions?.headers),
             } as any,
             query: {
-                ...resolve(requestOptions?.query),
-                ...resolve(options?.query),
+                ...toValue(requestOptions?.query),
+                ...toValue(options?.query),
             } as any,
-            body: resolve(requestOptions?.body) as any,
+            body: toValue(requestOptions?.body) as any,
             timeout: requestOptions?.timeout ?? options?.timeout,
             responseType: requestOptions?.responseType,
             retry: requestOptions?.retry,
