@@ -2,6 +2,8 @@
 
 API state management for Nuxt powered by [Harlem](https://harlemjs.com/)
 
+![Harlemify](docs/logo.svg)
+
 ## Features
 
 - Zod schema validation with field metadata
