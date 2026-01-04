@@ -56,7 +56,7 @@ export const userStore = createStore("user", UserSchema, {
 
 ## Documentation
 
-Full documentation available at [https://dalirnet.github.io/harlemify/](https://dalirnet.github.io/harlemify/)
+Full documentation available at [https://diphyx.github.io/harlemify/](https://diphyx.github.io/harlemify/)
 
 ## License
 
