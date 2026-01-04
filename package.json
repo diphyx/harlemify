@@ -14,7 +14,11 @@
     ],
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/dalirnet/harlemify.git"
+        "url": "git+https://github.com/diphyx/harlemify.git"
+    },
+    "homepage": "https://diphyx.github.io/harlemify/",
+    "bugs": {
+        "url": "https://github.com/diphyx/harlemify/issues"
     },
     "license": "MIT",
     "author": "Amir Reza Dalir",

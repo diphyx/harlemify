@@ -2,7 +2,7 @@
 
 API state management for Nuxt powered by [Harlem](https://harlemjs.com/)
 
-![Harlemify](docs/logo.svg)
+![Harlemify](https://raw.githubusercontent.com/diphyx/harlemify/main/docs/_media/icon.svg)
 
 ## Features
 
