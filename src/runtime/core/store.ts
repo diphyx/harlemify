@@ -31,6 +31,25 @@ import {
     type ApiOptions,
 } from "./api";
 
+export class StoreConfigurationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "StoreConfigurationError";
+    }
+}
+
+export interface StoreHooks {
+    before?: () => Promise<void> | void;
+    after?: (error?: Error) => Promise<void> | void;
+}
+
+export interface StoreOptions {
+    api?: ApiOptions;
+    indicator?: string;
+    hooks?: StoreHooks;
+    extensions?: Extension<BaseState>[];
+}
+
 export function createStore<
     T extends z.ZodRawShape,
     K extends keyof z.infer<z.ZodObject<T>> = "id" &
@@ -41,26 +60,47 @@ export function createStore<
     endpoints?: Partial<
         Record<Endpoint, EndpointDefinition<Partial<z.infer<z.ZodObject<T>>>>>
     >,
-    options?: {
-        api?: ApiOptions;
-        extensions?: Extension<BaseState>[];
-    },
+    options?: StoreOptions,
 ) {
-    const { indicator } = resolveSchema(schema);
-
     type Schema = z.infer<z.ZodObject<T>>;
     type SchemaIndicator = Required<Pick<Schema, K>>;
 
+    const { indicator } = resolveSchema(schema, {
+        indicator: options?.indicator as keyof Schema,
+    });
+    const hooks = options?.hooks;
+
     let apiClient: ReturnType<typeof createApi>;
+    let apiInitError: Error | null = null;
 
     function api() {
-        if (!apiClient) {
-            const config = useRuntimeConfig();
+        if (apiInitError) {
+            throw apiInitError;
+        }
 
-            apiClient = createApi({
-                ...config.public.harlemify?.api,
-                ...options?.api,
-            });
+        if (!apiClient) {
+            try {
+                const config = useRuntimeConfig();
+
+                if (!config) {
+                    throw new StoreConfigurationError(
+                        `Runtime config is not available. Ensure the store "${name}" is used within a Nuxt context.`,
+                    );
+                }
+
+                apiClient = createApi({
+                    ...config.public.harlemify?.api,
+                    ...options?.api,
+                });
+            } catch (error) {
+                apiInitError =
+                    error instanceof Error
+                        ? error
+                        : new StoreConfigurationError(
+                              `Failed to initialize API client for store "${name}": ${String(error)}`,
+                          );
+                throw apiInitError;
+            }
         }
 
         return apiClient;
@@ -212,17 +252,44 @@ export function createStore<
         });
     }
 
+    async function withEndpointStatus<T>(
+        key: Endpoint,
+        operation: () => Promise<T>,
+    ): Promise<T> {
+        await hooks?.before?.();
+
+        patchEndpointMemoryTo(key, {
+            status: EndpointStatus.PENDING,
+        });
+
+        try {
+            const result = await operation();
+
+            patchEndpointMemoryTo(key, {
+                status: EndpointStatus.SUCCESS,
+            });
+
+            await hooks?.after?.();
+
+            return result;
+        } catch (error: any) {
+            patchEndpointMemoryTo(key, {
+                status: EndpointStatus.FAILED,
+            });
+
+            await hooks?.after?.(error);
+
+            throw error;
+        }
+    }
+
     async function getUnit(
         unit?: SchemaIndicator & Partial<Schema>,
         options?: Omit<ApiActionOptions<ApiAction.GET>, "body">,
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.GET_UNIT);
 
-        patchEndpointMemoryTo(Endpoint.GET_UNIT, {
-            status: EndpointStatus.PENDING,
-        });
-
-        try {
+        return withEndpointStatus(Endpoint.GET_UNIT, async () => {
             const response = await api().get<Schema>(
                 resolveEndpointUrl(endpoint, unit),
                 options,
@@ -230,18 +297,8 @@ export function createStore<
 
             setMemorizedUnit(response);
 
-            patchEndpointMemoryTo(Endpoint.GET_UNIT, {
-                status: EndpointStatus.SUCCESS,
-            });
-
             return response;
-        } catch (error) {
-            patchEndpointMemoryTo(Endpoint.GET_UNIT, {
-                status: EndpointStatus.FAILED,
-            });
-
-            throw error;
-        }
+        });
     }
 
     async function getUnits(
@@ -249,11 +306,7 @@ export function createStore<
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.GET_UNITS);
 
-        patchEndpointMemoryTo(Endpoint.GET_UNITS, {
-            status: EndpointStatus.PENDING,
-        });
-
-        try {
+        return withEndpointStatus(Endpoint.GET_UNITS, async () => {
             const response = await api().get<Schema[]>(
                 resolveEndpointUrl(endpoint),
                 options,
@@ -261,41 +314,33 @@ export function createStore<
 
             setMemorizedUnits(response);
 
-            patchEndpointMemoryTo(Endpoint.GET_UNITS, {
-                status: EndpointStatus.SUCCESS,
-            });
-
             return response;
-        } catch (error) {
-            patchEndpointMemoryTo(Endpoint.GET_UNITS, {
-                status: EndpointStatus.FAILED,
-            });
-
-            throw error;
-        }
+        });
     }
 
     async function postUnit(
         unit: SchemaIndicator & Schema,
-        options?: ApiActionOptions<ApiAction.POST> & { validate?: boolean },
+        actionOptions?: ApiActionOptions<ApiAction.POST> & {
+            validate?: boolean;
+        },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.POST_UNIT);
-        const resolvedSchema = resolveSchema(schema, endpoint.action, unit);
+        const resolvedSchema = resolveSchema(schema, {
+            indicator,
+            endpoint,
+            unit,
+        });
 
-        if (options?.validate) {
+        if (actionOptions?.validate) {
             schema.pick<any>(resolvedSchema.keys).parse(unit);
         }
 
-        patchEndpointMemoryTo(Endpoint.POST_UNIT, {
-            status: EndpointStatus.PENDING,
-        });
-
-        try {
+        return withEndpointStatus(Endpoint.POST_UNIT, async () => {
             const response = await api().post<SchemaIndicator & Schema>(
                 resolveEndpointUrl(endpoint, unit),
                 {
-                    ...options,
-                    body: options?.body ?? resolvedSchema.values,
+                    ...actionOptions,
+                    body: actionOptions?.body ?? resolvedSchema.values,
                 },
             );
 
@@ -304,18 +349,8 @@ export function createStore<
                 ...response,
             });
 
-            patchEndpointMemoryTo(Endpoint.POST_UNIT, {
-                status: EndpointStatus.SUCCESS,
-            });
-
             return response;
-        } catch (error) {
-            patchEndpointMemoryTo(Endpoint.POST_UNIT, {
-                status: EndpointStatus.FAILED,
-            });
-
-            throw error;
-        }
+        });
     }
 
     async function postUnits(
@@ -327,19 +362,15 @@ export function createStore<
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.POST_UNITS);
 
-        patchEndpointMemoryTo(Endpoint.POST_UNITS, {
-            status: EndpointStatus.PENDING,
-        });
-
-        try {
+        return withEndpointStatus(Endpoint.POST_UNITS, async () => {
             const responses: (SchemaIndicator & Schema)[] = [];
 
             for (const unit of units) {
-                const resolvedSchema = resolveSchema(
-                    schema,
-                    endpoint.action,
+                const resolvedSchema = resolveSchema(schema, {
+                    indicator,
+                    endpoint,
                     unit,
-                );
+                });
 
                 if (options?.validate) {
                     schema.pick<any>(resolvedSchema.keys).parse(unit);
@@ -372,18 +403,8 @@ export function createStore<
                 responses.push(response);
             }
 
-            patchEndpointMemoryTo(Endpoint.POST_UNITS, {
-                status: EndpointStatus.SUCCESS,
-            });
-
             return responses;
-        } catch (error) {
-            patchEndpointMemoryTo(Endpoint.POST_UNITS, {
-                status: EndpointStatus.FAILED,
-            });
-
-            throw error;
-        }
+        });
     }
 
     async function putUnit(
@@ -391,17 +412,17 @@ export function createStore<
         options?: ApiActionOptions<ApiAction.PUT> & { validate?: boolean },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.PUT_UNIT);
-        const resolvedSchema = resolveSchema(schema, endpoint.action, unit);
+        const resolvedSchema = resolveSchema(schema, {
+            indicator,
+            endpoint,
+            unit,
+        });
 
         if (options?.validate) {
             schema.pick<any>(resolvedSchema.keys).parse(unit);
         }
 
-        patchEndpointMemoryTo(Endpoint.PUT_UNIT, {
-            status: EndpointStatus.PENDING,
-        });
-
-        try {
+        return withEndpointStatus(Endpoint.PUT_UNIT, async () => {
             const response = await api().put<SchemaIndicator & Schema>(
                 resolveEndpointUrl(endpoint, unit),
                 {
@@ -415,18 +436,8 @@ export function createStore<
                 ...response,
             });
 
-            patchEndpointMemoryTo(Endpoint.PUT_UNIT, {
-                status: EndpointStatus.SUCCESS,
-            });
-
             return response;
-        } catch (error) {
-            patchEndpointMemoryTo(Endpoint.PUT_UNIT, {
-                status: EndpointStatus.FAILED,
-            });
-
-            throw error;
-        }
+        });
     }
 
     async function putUnits(
@@ -435,19 +446,15 @@ export function createStore<
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.PUT_UNITS);
 
-        patchEndpointMemoryTo(Endpoint.PUT_UNITS, {
-            status: EndpointStatus.PENDING,
-        });
-
-        try {
+        return withEndpointStatus(Endpoint.PUT_UNITS, async () => {
             const responses: (SchemaIndicator & Schema)[] = [];
 
             for (const unit of units) {
-                const resolvedSchema = resolveSchema(
-                    schema,
-                    endpoint.action,
+                const resolvedSchema = resolveSchema(schema, {
+                    indicator,
+                    endpoint,
                     unit,
-                );
+                });
 
                 if (options?.validate) {
                     schema.pick<any>(resolvedSchema.keys).parse(unit);
@@ -471,18 +478,8 @@ export function createStore<
                 responses.push(response);
             }
 
-            patchEndpointMemoryTo(Endpoint.PUT_UNITS, {
-                status: EndpointStatus.SUCCESS,
-            });
-
             return responses;
-        } catch (error) {
-            patchEndpointMemoryTo(Endpoint.PUT_UNITS, {
-                status: EndpointStatus.FAILED,
-            });
-
-            throw error;
-        }
+        });
     }
 
     async function patchUnit(
@@ -490,17 +487,17 @@ export function createStore<
         options?: ApiActionOptions<ApiAction.PATCH> & { validate?: boolean },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.PATCH_UNIT);
-        const resolvedSchema = resolveSchema(schema, endpoint.action, unit);
+        const resolvedSchema = resolveSchema(schema, {
+            indicator,
+            endpoint,
+            unit,
+        });
 
         if (options?.validate) {
             schema.pick<any>(resolvedSchema.keys).partial().parse(unit);
         }
 
-        patchEndpointMemoryTo(Endpoint.PATCH_UNIT, {
-            status: EndpointStatus.PENDING,
-        });
-
-        try {
+        return withEndpointStatus(Endpoint.PATCH_UNIT, async () => {
             const response = await api().patch<
                 SchemaIndicator & Partial<Schema>
             >(resolveEndpointUrl(endpoint, unit), {
@@ -513,18 +510,8 @@ export function createStore<
                 ...response,
             });
 
-            patchEndpointMemoryTo(Endpoint.PATCH_UNIT, {
-                status: EndpointStatus.SUCCESS,
-            });
-
             return response;
-        } catch (error) {
-            patchEndpointMemoryTo(Endpoint.PATCH_UNIT, {
-                status: EndpointStatus.FAILED,
-            });
-
-            throw error;
-        }
+        });
     }
 
     async function patchUnits(
@@ -533,19 +520,15 @@ export function createStore<
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.PATCH_UNITS);
 
-        patchEndpointMemoryTo(Endpoint.PATCH_UNITS, {
-            status: EndpointStatus.PENDING,
-        });
-
-        try {
+        return withEndpointStatus(Endpoint.PATCH_UNITS, async () => {
             const responses: (SchemaIndicator & Partial<Schema>)[] = [];
 
             for (const unit of units) {
-                const resolvedSchema = resolveSchema(
-                    schema,
-                    endpoint.action,
+                const resolvedSchema = resolveSchema(schema, {
+                    indicator,
+                    endpoint,
                     unit,
-                );
+                });
 
                 if (options?.validate) {
                     schema.pick<any>(resolvedSchema.keys).partial().parse(unit);
@@ -568,18 +551,8 @@ export function createStore<
                 responses.push(response);
             }
 
-            patchEndpointMemoryTo(Endpoint.PATCH_UNITS, {
-                status: EndpointStatus.SUCCESS,
-            });
-
             return responses;
-        } catch (error) {
-            patchEndpointMemoryTo(Endpoint.PATCH_UNITS, {
-                status: EndpointStatus.FAILED,
-            });
-
-            throw error;
-        }
+        });
     }
 
     async function deleteUnit(
@@ -588,11 +561,7 @@ export function createStore<
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.DELETE_UNIT);
 
-        patchEndpointMemoryTo(Endpoint.DELETE_UNIT, {
-            status: EndpointStatus.PENDING,
-        });
-
-        try {
+        return withEndpointStatus(Endpoint.DELETE_UNIT, async () => {
             await api().del<SchemaIndicator & Partial<Schema>>(
                 resolveEndpointUrl(endpoint, unit),
                 options,
@@ -600,18 +569,8 @@ export function createStore<
 
             dropMemorizedUnit(unit);
 
-            patchEndpointMemoryTo(Endpoint.DELETE_UNIT, {
-                status: EndpointStatus.SUCCESS,
-            });
-
             return true;
-        } catch (error) {
-            patchEndpointMemoryTo(Endpoint.DELETE_UNIT, {
-                status: EndpointStatus.FAILED,
-            });
-
-            throw error;
-        }
+        });
     }
 
     async function deleteUnits(
@@ -620,11 +579,7 @@ export function createStore<
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.DELETE_UNITS);
 
-        patchEndpointMemoryTo(Endpoint.DELETE_UNITS, {
-            status: EndpointStatus.PENDING,
-        });
-
-        try {
+        return withEndpointStatus(Endpoint.DELETE_UNITS, async () => {
             for (const unit of units) {
                 await api().del<SchemaIndicator & Partial<Schema>>(
                     resolveEndpointUrl(endpoint, unit),
@@ -634,18 +589,8 @@ export function createStore<
                 dropMemorizedUnits([unit]);
             }
 
-            patchEndpointMemoryTo(Endpoint.DELETE_UNITS, {
-                status: EndpointStatus.SUCCESS,
-            });
-
             return true;
-        } catch (error) {
-            patchEndpointMemoryTo(Endpoint.DELETE_UNITS, {
-                status: EndpointStatus.FAILED,
-            });
-
-            throw error;
-        }
+        });
     }
 
     return {
