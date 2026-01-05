@@ -106,5 +106,5 @@ await getUnits();
 ## Next Steps
 
 - Learn about [Concepts](concepts.md) to understand how Harlemify works
-- Check the [API](api.md) and [Reference](reference.md) for detailed documentation
+- Check the [Guide](guide.md) and [Reference](reference.md) for detailed documentation
 - See [Examples](examples.md) for common use cases

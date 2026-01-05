@@ -123,6 +123,7 @@ All actions accept an optional `options` object:
 | `body`     | Override the auto-generated request body                             |
 | `validate` | Enable Zod validation before sending (POST/PUT/PATCH)                |
 | `position` | Where to add new items: `FIRST` (default) or `LAST` (postUnits only) |
+| `signal`   | AbortSignal for request cancellation                                 |
 
 ```typescript
 await getUnits({
@@ -133,6 +134,12 @@ await getUnits({
 await postUnits([{ id: 0, name: "Test" }], {
     validate: true,
 });
+
+// With abort controller
+const controller = new AbortController();
+await getUnits({ signal: controller.signal });
+// Cancel the request
+controller.abort();
 ```
 
 ## Standalone API Client
@@ -202,3 +209,59 @@ export const myStore = createStore(
     },
 );
 ```
+
+## Store Options
+
+The `createStore` function accepts an optional fourth parameter for store-level configuration:
+
+```typescript
+export const myStore = createStore(
+    "myStore",
+    MySchema,
+    {
+        /* endpoints */
+    },
+    {
+        api: {
+            /* API options */
+        },
+        indicator: "id",
+        hooks: {
+            before: async () => {
+                console.log("Request starting...");
+            },
+            after: async (error) => {
+                if (error) {
+                    console.error("Request failed:", error);
+                } else {
+                    console.log("Request completed");
+                }
+            },
+        },
+        extensions: [],
+    },
+);
+```
+
+| Option       | Type          | Description                         |
+| ------------ | ------------- | ----------------------------------- |
+| `api`        | `ApiOptions`  | Override API options for this store |
+| `indicator`  | `string`      | Override the primary key field name |
+| `hooks`      | `StoreHooks`  | Lifecycle hooks for API operations  |
+| `extensions` | `Extension[]` | Harlem extensions                   |
+
+### Lifecycle Hooks
+
+Hooks allow you to execute code before and after every API operation:
+
+```typescript
+interface StoreHooks {
+    before?: () => Promise<void> | void;
+    after?: (error?: Error) => Promise<void> | void;
+}
+```
+
+- `before`: Called before every API request starts
+- `after`: Called after every API request completes (receives error if failed)
+
+Both hooks support async functions.

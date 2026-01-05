@@ -1,7 +1,7 @@
 - [Home](/)
 - [Getting Started](getting-started.md)
 - [Concepts](concepts.md)
-- [API](api.md)
+- [Guide](guide.md)
 - [Examples](examples.md)
 - [Playground](playground.md)
 - [Reference](reference.md)
