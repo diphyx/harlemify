@@ -40,6 +40,7 @@ export interface ApiRequestOptions<
     retry?: number | false;
     retryDelay?: number;
     retryStatusCodes?: number[];
+    signal?: AbortSignal;
 }
 
 export interface ApiOptions {
@@ -124,6 +125,7 @@ export function createApi(options?: ApiOptions) {
             retry: requestOptions?.retry,
             retryDelay: requestOptions?.retryDelay,
             retryStatusCodes: requestOptions?.retryStatusCodes,
+            signal: requestOptions?.signal,
             onRequestError({ request, options, error }) {
                 throw new ApiRequestError({
                     method: options.method as string,
