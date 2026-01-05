@@ -1,20 +1,19 @@
 import { createVuePlugin } from "@harlem/core";
 import {
-    createClientSSRPlugin,
     createServerSSRPlugin,
+    createClientSSRPlugin,
+    getBridgingScript,
 } from "@harlem/plugin-ssr";
 
 export default defineNuxtPlugin((nuxtApp) => {
     const plugins = [];
 
-    if (nuxtApp.payload.serverRendered) {
-        if (import.meta.server) {
-            plugins.push(createServerSSRPlugin());
-        }
+    if (import.meta.server) {
+        plugins.push(createServerSSRPlugin());
+    }
 
-        if (import.meta.client) {
-            plugins.push(createClientSSRPlugin());
-        }
+    if (import.meta.client) {
+        plugins.push(createClientSSRPlugin());
     }
 
     const harlem = createVuePlugin({
@@ -22,4 +21,12 @@ export default defineNuxtPlugin((nuxtApp) => {
     });
 
     nuxtApp.vueApp.use(harlem);
+
+    useHead({
+        script: [
+            {
+                innerHTML: getBridgingScript(),
+            },
+        ],
+    });
 });

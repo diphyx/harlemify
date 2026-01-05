@@ -22,9 +22,9 @@ export enum EndpointStatus {
     FAILED = "failed",
 }
 
-export interface EndpointDefinition {
+export interface EndpointDefinition<T = Record<string, unknown>> {
     action: ApiAction;
-    url: string | ((keys: Record<PropertyKey, unknown>) => string);
+    url: string | ((params: T) => string);
 }
 
 export interface EndpointMemory {
@@ -38,8 +38,8 @@ export function makeEndpointStatusKey<
     return `${key}Is${status.charAt(0).toUpperCase() + status.slice(1)}` as any;
 }
 
-export function getEndpoint(
-    endpoints: Partial<Record<Endpoint, EndpointDefinition>> | undefined,
+export function getEndpoint<T = Record<string, unknown>>(
+    endpoints: Partial<Record<Endpoint, EndpointDefinition<T>>> | undefined,
     key: Endpoint,
 ) {
     const endpoint = endpoints?.[key];
@@ -50,15 +50,15 @@ export function getEndpoint(
     return endpoint;
 }
 
-export function resolveEndpointUrl<T extends Record<PropertyKey, unknown>>(
-    url: string | ((parameters: T) => string),
-    parameters: T = {} as T,
+export function resolveEndpointUrl<T>(
+    endpoint: EndpointDefinition<T>,
+    params?: { [key: string]: unknown },
 ) {
-    if (typeof url === "function") {
-        return url(parameters);
+    if (typeof endpoint.url === "function") {
+        return endpoint.url(params as T);
     }
 
-    return url;
+    return endpoint.url;
 }
 
 export function makeEndpointsStatus<T>(

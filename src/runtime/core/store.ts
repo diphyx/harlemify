@@ -19,6 +19,11 @@ import {
     type EndpointMemory,
 } from "../utils/endpoint";
 
+export enum StoreMemoryPosition {
+    FIRST = "first",
+    LAST = "last",
+}
+
 import {
     createApi,
     ApiAction,
@@ -26,26 +31,40 @@ import {
     type ApiOptions,
 } from "./api";
 
-export function createStore<T extends z.ZodRawShape>(
+export function createStore<
+    T extends z.ZodRawShape,
+    K extends keyof z.infer<z.ZodObject<T>> = "id" &
+        keyof z.infer<z.ZodObject<T>>,
+>(
     name: string,
     schema: z.ZodObject<T>,
-    endpoints?: Partial<Record<Endpoint, EndpointDefinition>>,
+    endpoints?: Partial<
+        Record<Endpoint, EndpointDefinition<Partial<z.infer<z.ZodObject<T>>>>>
+    >,
     options?: {
         api?: ApiOptions;
         extensions?: Extension<BaseState>[];
     },
 ) {
-    const config = useRuntimeConfig();
-
-    const api = createApi({
-        ...config.public.harlemify.api,
-        ...options?.api,
-    });
-
     const { indicator } = resolveSchema(schema);
 
     type Schema = z.infer<z.ZodObject<T>>;
-    type SchemaIndicator = { [indicator]: keyof Schema };
+    type SchemaIndicator = Required<Pick<Schema, K>>;
+
+    let apiClient: ReturnType<typeof createApi>;
+
+    function api() {
+        if (!apiClient) {
+            const config = useRuntimeConfig();
+
+            apiClient = createApi({
+                ...config.public.harlemify?.api,
+                ...options?.api,
+            });
+        }
+
+        return apiClient;
+    }
 
     const store = createHarlemStore(
         name,
@@ -72,14 +91,14 @@ export function createStore<T extends z.ZodRawShape>(
     function hasMemorizedUnits(
         ...units: (SchemaIndicator & Partial<Schema>)[]
     ) {
-        const output = {} as Record<keyof Schema, boolean>;
+        const output = {} as Record<string | number, boolean>;
 
         for (const unit of units) {
             const exists = memorizedUnits.value.some((memorizedUnit: any) => {
                 return memorizedUnit[indicator] === unit[indicator];
             });
 
-            output[unit[indicator]] = exists;
+            (output as any)[unit[indicator]] = exists;
         }
 
         return output;
@@ -194,7 +213,7 @@ export function createStore<T extends z.ZodRawShape>(
     }
 
     async function getUnit(
-        unit: SchemaIndicator & Partial<Schema>,
+        unit?: SchemaIndicator & Partial<Schema>,
         options?: Omit<ApiActionOptions<ApiAction.GET>, "body">,
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.GET_UNIT);
@@ -204,11 +223,10 @@ export function createStore<T extends z.ZodRawShape>(
         });
 
         try {
-            const resolvedUrl = resolveEndpointUrl(endpoint.url, {
-                [indicator]: unit[indicator],
-            });
-
-            const response = await api.get<Schema>(resolvedUrl, options);
+            const response = await api().get<Schema>(
+                resolveEndpointUrl(endpoint, unit),
+                options,
+            );
 
             setMemorizedUnit(response);
 
@@ -236,9 +254,10 @@ export function createStore<T extends z.ZodRawShape>(
         });
 
         try {
-            const resolvedUrl = resolveEndpointUrl(endpoint.url);
-
-            const response = await api.get<Schema[]>(resolvedUrl, options);
+            const response = await api().get<Schema[]>(
+                resolveEndpointUrl(endpoint),
+                options,
+            );
 
             setMemorizedUnits(response);
 
@@ -257,7 +276,7 @@ export function createStore<T extends z.ZodRawShape>(
     }
 
     async function postUnit(
-        unit: Schema,
+        unit: SchemaIndicator & Schema,
         options?: ApiActionOptions<ApiAction.POST> & { validate?: boolean },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.POST_UNIT);
@@ -272,16 +291,18 @@ export function createStore<T extends z.ZodRawShape>(
         });
 
         try {
-            const resolvedUrl = resolveEndpointUrl(endpoint.url, {
-                [indicator]: unit[indicator],
-            });
+            const response = await api().post<SchemaIndicator & Schema>(
+                resolveEndpointUrl(endpoint, unit),
+                {
+                    ...options,
+                    body: options?.body ?? resolvedSchema.values,
+                },
+            );
 
-            const response = await api.post<Schema>(resolvedUrl, {
-                ...options,
-                body: options?.body ?? resolvedSchema.values,
+            setMemorizedUnit({
+                ...unit,
+                ...response,
             });
-
-            setMemorizedUnit(response);
 
             patchEndpointMemoryTo(Endpoint.POST_UNIT, {
                 status: EndpointStatus.SUCCESS,
@@ -298,43 +319,64 @@ export function createStore<T extends z.ZodRawShape>(
     }
 
     async function postUnits(
-        units: Schema[],
-        options?: ApiActionOptions<ApiAction.POST> & { validate?: boolean },
+        units: (SchemaIndicator & Schema)[],
+        options?: ApiActionOptions<ApiAction.POST> & {
+            validate?: boolean;
+            position?: StoreMemoryPosition;
+        },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.POST_UNITS);
-
-        const body = units.map((unit) => {
-            const resolvedSchema = resolveSchema(schema, endpoint.action, unit);
-
-            if (options?.validate) {
-                schema.pick<any>(resolvedSchema.keys).parse(unit);
-            }
-
-            return resolvedSchema.values;
-        });
 
         patchEndpointMemoryTo(Endpoint.POST_UNITS, {
             status: EndpointStatus.PENDING,
         });
 
         try {
-            const resolvedUrl = resolveEndpointUrl(endpoint.url);
+            const responses: (SchemaIndicator & Schema)[] = [];
 
-            const response = await api.post<Schema[]>(resolvedUrl, {
-                ...options,
-                body: options?.body ?? body,
-            });
+            for (const unit of units) {
+                const resolvedSchema = resolveSchema(
+                    schema,
+                    endpoint.action,
+                    unit,
+                );
 
-            setMemorizedUnits([
-                ...(memorizedUnits.value as unknown as Schema[]),
-                ...response,
-            ]);
+                if (options?.validate) {
+                    schema.pick<any>(resolvedSchema.keys).parse(unit);
+                }
+
+                const response = await api().post<SchemaIndicator & Schema>(
+                    resolveEndpointUrl(endpoint, unit),
+                    {
+                        ...options,
+                        body: options?.body ?? resolvedSchema.values,
+                    },
+                );
+
+                const clonedUnits: any[] = [...memorizedUnits.value];
+
+                if (options?.position === StoreMemoryPosition.LAST) {
+                    clonedUnits.push({
+                        ...unit,
+                        ...response,
+                    });
+                } else {
+                    clonedUnits.unshift({
+                        ...unit,
+                        ...response,
+                    });
+                }
+
+                setMemorizedUnits(clonedUnits);
+
+                responses.push(response);
+            }
 
             patchEndpointMemoryTo(Endpoint.POST_UNITS, {
                 status: EndpointStatus.SUCCESS,
             });
 
-            return response;
+            return responses;
         } catch (error) {
             patchEndpointMemoryTo(Endpoint.POST_UNITS, {
                 status: EndpointStatus.FAILED,
@@ -345,7 +387,7 @@ export function createStore<T extends z.ZodRawShape>(
     }
 
     async function putUnit(
-        unit: Schema,
+        unit: SchemaIndicator & Schema,
         options?: ApiActionOptions<ApiAction.PUT> & { validate?: boolean },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.PUT_UNIT);
@@ -360,16 +402,18 @@ export function createStore<T extends z.ZodRawShape>(
         });
 
         try {
-            const resolvedUrl = resolveEndpointUrl(endpoint.url, {
-                [indicator]: unit[indicator],
-            });
+            const response = await api().put<SchemaIndicator & Schema>(
+                resolveEndpointUrl(endpoint, unit),
+                {
+                    ...options,
+                    body: options?.body ?? resolvedSchema.values,
+                },
+            );
 
-            const response = await api.put<Schema>(resolvedUrl, {
-                ...options,
-                body: options?.body ?? resolvedSchema.values,
+            setMemorizedUnit({
+                ...unit,
+                ...response,
             });
-
-            setMemorizedUnit(response);
 
             patchEndpointMemoryTo(Endpoint.PUT_UNIT, {
                 status: EndpointStatus.SUCCESS,
@@ -386,40 +430,52 @@ export function createStore<T extends z.ZodRawShape>(
     }
 
     async function putUnits(
-        units: Schema[],
+        units: (SchemaIndicator & Schema)[],
         options?: ApiActionOptions<ApiAction.PUT> & { validate?: boolean },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.PUT_UNITS);
-
-        const body = units.map((unit) => {
-            const resolvedSchema = resolveSchema(schema, endpoint.action, unit);
-
-            if (options?.validate) {
-                schema.pick<any>(resolvedSchema.keys).parse(unit);
-            }
-
-            return resolvedSchema.values;
-        });
 
         patchEndpointMemoryTo(Endpoint.PUT_UNITS, {
             status: EndpointStatus.PENDING,
         });
 
         try {
-            const resolvedUrl = resolveEndpointUrl(endpoint.url);
+            const responses: (SchemaIndicator & Schema)[] = [];
 
-            const response = await api.put<Schema[]>(resolvedUrl, {
-                ...options,
-                body: options?.body ?? body,
-            });
+            for (const unit of units) {
+                const resolvedSchema = resolveSchema(
+                    schema,
+                    endpoint.action,
+                    unit,
+                );
 
-            setMemorizedUnits(response);
+                if (options?.validate) {
+                    schema.pick<any>(resolvedSchema.keys).parse(unit);
+                }
+
+                const response = await api().put<SchemaIndicator & Schema>(
+                    resolveEndpointUrl(endpoint, unit),
+                    {
+                        ...options,
+                        body: options?.body ?? resolvedSchema.values,
+                    },
+                );
+
+                editMemorizedUnits([
+                    {
+                        ...unit,
+                        ...response,
+                    },
+                ]);
+
+                responses.push(response);
+            }
 
             patchEndpointMemoryTo(Endpoint.PUT_UNITS, {
                 status: EndpointStatus.SUCCESS,
             });
 
-            return response;
+            return responses;
         } catch (error) {
             patchEndpointMemoryTo(Endpoint.PUT_UNITS, {
                 status: EndpointStatus.FAILED,
@@ -445,19 +501,17 @@ export function createStore<T extends z.ZodRawShape>(
         });
 
         try {
-            const resolvedUrl = resolveEndpointUrl(endpoint.url, {
-                [indicator]: unit[indicator],
+            const response = await api().patch<
+                SchemaIndicator & Partial<Schema>
+            >(resolveEndpointUrl(endpoint, unit), {
+                ...options,
+                body: options?.body ?? resolvedSchema.values,
             });
 
-            const response = await api.patch<SchemaIndicator & Partial<Schema>>(
-                resolvedUrl,
-                {
-                    ...options,
-                    body: options?.body ?? resolvedSchema.values,
-                },
-            );
-
-            editMemorizedUnit(response);
+            editMemorizedUnit({
+                ...unit,
+                ...response,
+            });
 
             patchEndpointMemoryTo(Endpoint.PATCH_UNIT, {
                 status: EndpointStatus.SUCCESS,
@@ -479,37 +533,46 @@ export function createStore<T extends z.ZodRawShape>(
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.PATCH_UNITS);
 
-        const body = units.map((unit) => {
-            const resolvedSchema = resolveSchema(schema, endpoint.action, unit);
-
-            if (options?.validate) {
-                schema.pick<any>(resolvedSchema.keys).partial().parse(unit);
-            }
-
-            return resolvedSchema.values;
-        });
-
         patchEndpointMemoryTo(Endpoint.PATCH_UNITS, {
             status: EndpointStatus.PENDING,
         });
 
         try {
-            const resolvedUrl = resolveEndpointUrl(endpoint.url);
+            const responses: (SchemaIndicator & Partial<Schema>)[] = [];
 
-            const response = await api.patch<
-                (SchemaIndicator & Partial<Schema>)[]
-            >(resolvedUrl, {
-                ...options,
-                body: options?.body ?? body,
-            });
+            for (const unit of units) {
+                const resolvedSchema = resolveSchema(
+                    schema,
+                    endpoint.action,
+                    unit,
+                );
 
-            editMemorizedUnits(response);
+                if (options?.validate) {
+                    schema.pick<any>(resolvedSchema.keys).partial().parse(unit);
+                }
+
+                const response = await api().patch<
+                    SchemaIndicator & Partial<Schema>
+                >(resolveEndpointUrl(endpoint, unit), {
+                    ...options,
+                    body: options?.body ?? resolvedSchema.values,
+                });
+
+                editMemorizedUnits([
+                    {
+                        ...unit,
+                        ...response,
+                    },
+                ]);
+
+                responses.push(response);
+            }
 
             patchEndpointMemoryTo(Endpoint.PATCH_UNITS, {
                 status: EndpointStatus.SUCCESS,
             });
 
-            return response;
+            return responses;
         } catch (error) {
             patchEndpointMemoryTo(Endpoint.PATCH_UNITS, {
                 status: EndpointStatus.FAILED,
@@ -530,12 +593,8 @@ export function createStore<T extends z.ZodRawShape>(
         });
 
         try {
-            const resolvedUrl = resolveEndpointUrl(endpoint.url, {
-                [indicator]: unit[indicator],
-            });
-
-            await api.del<SchemaIndicator & Partial<Schema>>(
-                resolvedUrl,
+            await api().del<SchemaIndicator & Partial<Schema>>(
+                resolveEndpointUrl(endpoint, unit),
                 options,
             );
 
@@ -566,14 +625,14 @@ export function createStore<T extends z.ZodRawShape>(
         });
 
         try {
-            const resolvedUrl = resolveEndpointUrl(endpoint.url);
+            for (const unit of units) {
+                await api().del<SchemaIndicator & Partial<Schema>>(
+                    resolveEndpointUrl(endpoint, unit),
+                    options,
+                );
 
-            await api.del<(SchemaIndicator & Partial<Schema>)[]>(
-                resolvedUrl,
-                options,
-            );
-
-            dropMemorizedUnits(units);
+                dropMemorizedUnits([unit]);
+            }
 
             patchEndpointMemoryTo(Endpoint.DELETE_UNITS, {
                 status: EndpointStatus.SUCCESS,

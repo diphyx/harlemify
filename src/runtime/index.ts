@@ -26,4 +26,4 @@ export {
 
 export { type SchemaMeta, getMeta, resolveSchema } from "./utils/schema";
 
-export { createStore } from "./core/store";
+export { createStore, StoreMemoryPosition } from "./core/store";
