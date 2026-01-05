@@ -35,7 +35,7 @@ import { z, createStore, Endpoint, ApiAction } from "@diphyx/harlemify";
 
 const UserSchema = z.object({
     id: z.number().meta({
-        indicator: true, // Primary key
+        indicator: true, // Primary key for identifying units
     }),
     name: z.string().meta({
         actions: [ApiAction.POST, ApiAction.PUT, ApiAction.PATCH],
@@ -43,6 +43,7 @@ const UserSchema = z.object({
     email: z.string().meta({
         actions: [ApiAction.POST],
     }),
+    createdAt: z.string(), // No meta = read-only field
 });
 ```
 
@@ -106,5 +107,6 @@ await getUnits();
 ## Next Steps
 
 - Learn about [Concepts](concepts.md) to understand how Harlemify works
-- Check the [Guide](guide.md) and [Reference](reference.md) for detailed documentation
+- Check the [Guide](guide.md) for detailed API documentation
 - See [Examples](examples.md) for common use cases
+- View the [Reference](reference.md) for complete type definitions

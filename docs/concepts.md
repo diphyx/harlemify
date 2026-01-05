@@ -125,7 +125,7 @@ setMemorizedUnit(null); // Clear when modal closes
 | `setMemorizedUnits`  | Replace the entire collection                   |
 | `editMemorizedUnit`  | Merge changes into the single unit              |
 | `editMemorizedUnits` | Merge changes into matching units in collection |
-| `dropMemorizedUnit`  | Remove the single unit (set to null)            |
+| `dropMemorizedUnit`  | Remove the single unit if indicator matches     |
 | `dropMemorizedUnits` | Remove specific units from collection           |
 
 ## API
@@ -137,6 +137,7 @@ The **API** client handles HTTP communication with your backend. It provides met
 - Dynamic headers (static values, refs, or functions)
 - Query parameters
 - Request/response error handling
+- Abort controller for request cancellation
 
 Each store has its own API instance accessible via the `api` property, or you can create a standalone client using `createApi()`.
 
@@ -181,6 +182,27 @@ endpointsStatus.getUnitsIsPending.value; // boolean
 endpointsStatus.getUnitsIsSuccess.value; // boolean
 endpointsStatus.getUnitsIsFailed.value; // boolean
 endpointsStatus.getUnitsIsIdle.value; // boolean
+```
+
+## Lifecycle Hooks
+
+Hooks allow you to execute code before and after every API operation:
+
+```typescript
+export const userStore = createStore("user", UserSchema, endpoints, {
+    hooks: {
+        before: async () => {
+            console.log("Request starting...");
+        },
+        after: async (error) => {
+            if (error) {
+                console.error("Request failed:", error);
+            } else {
+                console.log("Request completed");
+            }
+        },
+    },
+});
 ```
 
 ## Validation

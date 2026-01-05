@@ -1,4 +1,4 @@
-# API
+# Guide
 
 ## Store Actions
 
@@ -112,18 +112,19 @@ Deletes multiple units. Each unit is deleted individually and removed from `memo
 await deleteUnits([{ id: 1 }, { id: 2 }]);
 ```
 
-## Options
+## Action Options
 
 All actions accept an optional `options` object:
 
-| Option     | Description                                                          |
-| ---------- | -------------------------------------------------------------------- |
-| `query`    | Query parameters appended to the URL                                 |
-| `headers`  | Additional headers for this request                                  |
-| `body`     | Override the auto-generated request body                             |
-| `validate` | Enable Zod validation before sending (POST/PUT/PATCH)                |
-| `position` | Where to add new items: `FIRST` (default) or `LAST` (postUnits only) |
-| `signal`   | AbortSignal for request cancellation                                 |
+| Option     | Type                  | Description                                           |
+| ---------- | --------------------- | ----------------------------------------------------- |
+| `query`    | `MaybeRefOrGetter`    | Query parameters appended to the URL                  |
+| `headers`  | `MaybeRefOrGetter`    | Additional headers for this request                   |
+| `body`     | `MaybeRefOrGetter`    | Override the auto-generated request body              |
+| `timeout`  | `number`              | Request timeout in milliseconds                       |
+| `validate` | `boolean`             | Enable Zod validation before sending (POST/PUT/PATCH) |
+| `position` | `StoreMemoryPosition` | Where to add new items (postUnits only)               |
+| `signal`   | `AbortSignal`         | Signal for request cancellation                       |
 
 ```typescript
 await getUnits({
@@ -134,12 +135,29 @@ await getUnits({
 await postUnits([{ id: 0, name: "Test" }], {
     validate: true,
 });
+```
 
-// With abort controller
+## Request Cancellation
+
+Use an AbortController to cancel in-flight requests:
+
+```typescript
 const controller = new AbortController();
-await getUnits({ signal: controller.signal });
-// Cancel the request
+
+// Start the request
+const promise = getUnits({ signal: controller.signal });
+
+// Cancel it later
 controller.abort();
+
+// The promise will reject with an AbortError
+try {
+    await promise;
+} catch (error) {
+    if (error.name === "AbortError") {
+        console.log("Request was cancelled");
+    }
+}
 ```
 
 ## Standalone API Client
@@ -184,9 +202,6 @@ export default defineNuxtConfig({
         api: {
             url: "https://api.example.com",
             timeout: 10000,
-            headers: {
-                "Content-Type": "application/json",
-            },
         },
     },
 });
@@ -265,3 +280,38 @@ interface StoreHooks {
 - `after`: Called after every API request completes (receives error if failed)
 
 Both hooks support async functions.
+
+## Endpoint Memory
+
+Manage endpoint status directly:
+
+```typescript
+const { patchEndpointMemory, purgeEndpointMemory, endpointsStatus } = userStore;
+
+// Manually set endpoint status
+patchEndpointMemory({
+    key: Endpoint.GET_UNITS,
+    memory: { status: EndpointStatus.PENDING },
+});
+
+// Check status
+console.log(endpointsStatus.getUnitsIsPending.value); // true
+
+// Clear all endpoint memory
+purgeEndpointMemory();
+```
+
+## Checking Unit Existence
+
+Use `hasMemorizedUnits` to check if units exist in memory:
+
+```typescript
+const { hasMemorizedUnits, memorizedUnits } = productStore;
+
+// Returns an object mapping indicator values to boolean
+const exists = hasMemorizedUnits({ id: 1 }, { id: 2 }, { id: 99 });
+
+console.log(exists[1]); // true (if product with id 1 exists)
+console.log(exists[2]); // true (if product with id 2 exists)
+console.log(exists[99]); // false (if product with id 99 doesn't exist)
+```

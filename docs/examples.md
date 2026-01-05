@@ -230,6 +230,76 @@ async function toggleNotifications() {
 </template>
 ```
 
+## With Lifecycle Hooks
+
+```typescript
+import { z, createStore, Endpoint, ApiAction } from "@diphyx/harlemify";
+
+const UserSchema = z.object({
+    id: z.number().meta({ indicator: true }),
+    name: z.string().meta({ actions: [ApiAction.POST, ApiAction.PUT] }),
+});
+
+export const userStore = createStore(
+    "user",
+    UserSchema,
+    {
+        [Endpoint.GET_UNITS]: { action: ApiAction.GET, url: "/users" },
+        [Endpoint.POST_UNITS]: { action: ApiAction.POST, url: "/users" },
+    },
+    {
+        hooks: {
+            before: () => {
+                console.log("API request starting...");
+            },
+            after: (error) => {
+                if (error) {
+                    console.error("API request failed:", error.message);
+                } else {
+                    console.log("API request completed successfully");
+                }
+            },
+        },
+    },
+);
+```
+
+## Request Cancellation with AbortController
+
+```typescript
+import { ref } from "vue";
+import { productStore } from "~/stores/product";
+
+const { getUnits, endpointsStatus } = productStore;
+
+// Store the controller for the current request
+const controller = ref<AbortController | null>(null);
+
+async function fetchProducts() {
+    // Cancel any existing request
+    if (controller.value) {
+        controller.value.abort();
+    }
+
+    // Create new controller
+    controller.value = new AbortController();
+
+    try {
+        await getUnits({ signal: controller.value.signal });
+    } catch (error) {
+        if (error.name === "AbortError") {
+            console.log("Request was cancelled");
+        } else {
+            throw error;
+        }
+    }
+}
+
+function cancelRequest() {
+    controller.value?.abort();
+}
+```
+
 ## Dynamic Headers with Auth Token
 
 ```typescript
@@ -399,4 +469,46 @@ export const externalStore = createStore(
         },
     },
 );
+```
+
+## Custom Indicator
+
+```typescript
+import { z, createStore, Endpoint, ApiAction } from "@diphyx/harlemify";
+
+// Schema using UUID instead of numeric id
+const DocumentSchema = z.object({
+    uuid: z.string(),
+    title: z.string().meta({
+        actions: [ApiAction.POST, ApiAction.PUT],
+    }),
+    content: z.string().meta({
+        actions: [ApiAction.POST, ApiAction.PUT],
+    }),
+});
+
+// Override indicator in store options
+export const documentStore = createStore(
+    "document",
+    DocumentSchema,
+    {
+        [Endpoint.GET_UNITS]: { action: ApiAction.GET, url: "/documents" },
+        [Endpoint.POST_UNITS]: { action: ApiAction.POST, url: "/documents" },
+        [Endpoint.DELETE_UNITS]: {
+            action: ApiAction.DELETE,
+            url: (p) => `/documents/${p.uuid}`,
+        },
+    },
+    {
+        indicator: "uuid", // Use uuid as the primary key
+    },
+);
+
+// Now units are identified by uuid
+const { hasMemorizedUnits, deleteUnits } = documentStore;
+
+const exists = hasMemorizedUnits({ uuid: "abc-123" });
+console.log(exists["abc-123"]); // true or false
+
+await deleteUnits([{ uuid: "abc-123" }]);
 ```
