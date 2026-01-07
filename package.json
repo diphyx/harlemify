@@ -1,6 +1,6 @@
 {
     "name": "@diphyx/harlemify",
-    "version": "0.0.3",
+    "version": "1.0.0",
     "description": "API state management for Nuxt powered by Harlem",
     "keywords": [
         "nuxt",
