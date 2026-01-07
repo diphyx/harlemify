@@ -1,17 +1,17 @@
-import { z, createStore, Endpoint, ApiAction } from "../../src/runtime";
+import { z } from "zod";
 
 const ConfigSchema = z.object({
     id: z.number().meta({
         indicator: true,
     }),
     theme: z.enum(["light", "dark"]).meta({
-        actions: [ApiAction.PATCH],
+        methods: [EndpointMethod.PATCH],
     }),
     language: z.string().meta({
-        actions: [ApiAction.PATCH],
+        methods: [EndpointMethod.PATCH],
     }),
     notifications: z.boolean().meta({
-        actions: [ApiAction.PATCH],
+        methods: [EndpointMethod.PATCH],
     }),
 });
 
@@ -20,11 +20,11 @@ export type Config = z.infer<typeof ConfigSchema>;
 // Singleton store - uses *_UNIT endpoints only
 export const configStore = createStore("config", ConfigSchema, {
     [Endpoint.GET_UNIT]: {
-        action: ApiAction.GET,
+        method: EndpointMethod.GET,
         url: "/config",
     },
     [Endpoint.PATCH_UNIT]: {
-        action: ApiAction.PATCH,
+        method: EndpointMethod.PATCH,
         url: "/config",
     },
 });

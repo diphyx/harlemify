@@ -26,9 +26,7 @@
         </div>
 
         <footer class="footer">
-            <a href="https://github.com/diphyx/harlemify" target="_blank"
-                >@diphyx/harlemify</a
-            >
+            <a href="https://github.com/diphyx/harlemify" target="_blank">@diphyx/harlemify</a>
         </footer>
     </div>
 </template>

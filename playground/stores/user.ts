@@ -1,18 +1,15 @@
-import { z, createStore, Endpoint, ApiAction } from "../../src/runtime";
+import { z } from "zod";
 
 const UserSchema = z.object({
     id: z.number().meta({
         indicator: true,
     }),
     name: z.string().meta({
-        actions: [ApiAction.POST, ApiAction.PATCH],
+        methods: [EndpointMethod.POST, EndpointMethod.PATCH],
     }),
-    email: z
-        .string()
-        .email()
-        .meta({
-            actions: [ApiAction.POST, ApiAction.PATCH],
-        }),
+    email: z.email().meta({
+        methods: [EndpointMethod.POST, EndpointMethod.PATCH],
+    }),
 });
 
 export type User = z.infer<typeof UserSchema>;
@@ -20,23 +17,23 @@ export type User = z.infer<typeof UserSchema>;
 // Collection store with GET_UNIT for detail view
 export const userStore = createStore("user", UserSchema, {
     [Endpoint.GET_UNIT]: {
-        action: ApiAction.GET,
+        method: EndpointMethod.GET,
         url: (params) => `/users/${params.id}`,
     },
     [Endpoint.GET_UNITS]: {
-        action: ApiAction.GET,
+        method: EndpointMethod.GET,
         url: "/users",
     },
     [Endpoint.POST_UNITS]: {
-        action: ApiAction.POST,
+        method: EndpointMethod.POST,
         url: "/users",
     },
     [Endpoint.PATCH_UNITS]: {
-        action: ApiAction.PATCH,
+        method: EndpointMethod.PATCH,
         url: (params) => `/users/${params.id}`,
     },
     [Endpoint.DELETE_UNITS]: {
-        action: ApiAction.DELETE,
+        method: EndpointMethod.DELETE,
         url: (params) => `/users/${params.id}`,
     },
 });

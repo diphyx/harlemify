@@ -1,24 +1,14 @@
 <script setup lang="ts">
-import { ref } from "vue";
 import { userStore, type User } from "../stores/user";
 
-const {
-    memorizedUnits: users,
-    memorizedUnit: selectedUser,
-    endpointsStatus,
-    getUnits,
-    getUnit,
-    postUnits,
-    patchUnits,
-    deleteUnits,
-    setMemorizedUnit,
-} = userStore;
+const { user, users, getUser, getUsers, postUsers, patchUsers, deleteUsers, getUsersIsPending } =
+    useStoreAlias(userStore);
 
 const showModal = ref(false);
 const editing = ref<User | null>(null);
 const form = ref({ name: "", email: "" });
 
-onMounted(() => getUnits());
+onMounted(() => getUsers());
 
 function openCreate() {
     editing.value = null;
@@ -37,7 +27,7 @@ function openEdit(user: User) {
 
 async function save() {
     if (editing.value) {
-        await patchUnits([
+        await patchUsers([
             {
                 id: editing.value.id,
                 name: form.value.name,
@@ -45,19 +35,23 @@ async function save() {
             },
         ]);
     } else {
-        await postUnits([{ id: Date.now(), ...form.value }]);
+        await postUsers([{ id: Date.now(), ...form.value }]);
     }
     showModal.value = false;
 }
 
-async function remove(user: User) {
-    if (confirm(`Delete "${user.name}"?`)) {
-        await deleteUnits([{ id: user.id }]);
+async function remove(u: User) {
+    if (confirm(`Delete "${u.name}"?`)) {
+        await deleteUsers([{ id: u.id }]);
     }
 }
 
-async function select(user: User) {
-    await getUnit({ id: user.id });
+async function select(u: User) {
+    await getUser({ id: u.id });
+}
+
+function clearUser() {
+    userStore.memory.setUnit(null);
 }
 </script>
 
@@ -67,82 +61,51 @@ async function select(user: User) {
 
         <div class="page-title">
             <h1>Users</h1>
-            <p>
-                Collection store using <code>*Units</code> →
-                <code>memorizedUnits</code>
-            </p>
+            <p>Collection store using <code>useStoreAlias</code> composable</p>
         </div>
 
         <div class="toolbar">
             <h2>{{ users.length }} users</h2>
-            <button class="btn btn-primary" @click="openCreate">
-                Add User
-            </button>
+            <button class="btn btn-primary" @click="openCreate">Add User</button>
         </div>
 
-        <div v-if="endpointsStatus.getUnitsIsPending.value" class="loading">
-            Loading...
-        </div>
+        <div v-if="getUsersIsPending" class="loading">Loading...</div>
 
         <div v-else class="grid">
-            <div v-for="user in users" :key="user.id" class="card">
+            <div v-for="u in users" :key="u.id" class="card">
                 <div class="card-body">
-                    <h3>{{ user.name }}</h3>
-                    <p class="subtitle">{{ user.email }}</p>
+                    <h3>{{ u.name }}</h3>
+                    <p class="subtitle">{{ u.email }}</p>
                 </div>
                 <div class="card-footer">
-                    <button class="btn btn-sm" @click="select(user)">
-                        View
-                    </button>
-                    <button class="btn btn-sm" @click="openEdit(user)">
-                        Edit
-                    </button>
-                    <button class="btn btn-sm btn-danger" @click="remove(user)">
-                        Delete
-                    </button>
+                    <button class="btn btn-sm" @click="select(u)">View</button>
+                    <button class="btn btn-sm" @click="openEdit(u)">Edit</button>
+                    <button class="btn btn-sm btn-danger" @click="remove(u)">Delete</button>
                 </div>
             </div>
         </div>
 
-        <div v-if="selectedUser" class="detail">
-            <h3>Selected User (memorizedUnit)</h3>
-            <pre>{{ JSON.stringify(selectedUser, null, 2) }}</pre>
-            <button
-                class="btn btn-sm"
-                style="margin-top: 12px"
-                @click="setMemorizedUnit(null)"
-            >
-                Clear
-            </button>
+        <div v-if="user" class="detail">
+            <h3>Selected User (user)</h3>
+            <pre>{{ JSON.stringify(user, null, 2) }}</pre>
+            <button class="btn btn-sm" style="margin-top: 12px" @click="clearUser">Clear</button>
         </div>
 
-        <div
-            v-if="showModal"
-            class="modal-overlay"
-            @click.self="showModal = false"
-        >
+        <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
             <div class="modal">
                 <h2>{{ editing ? "Edit User" : "Add User" }}</h2>
                 <form @submit.prevent="save">
                     <div class="form-group">
                         <label>Name</label>
-                        <input v-model="form.name" required />
+                        <input v-model="form.name" required >
                     </div>
                     <div class="form-group">
                         <label>Email</label>
-                        <input v-model="form.email" type="email" required />
+                        <input v-model="form.email" type="email" required >
                     </div>
                     <div class="modal-actions">
-                        <button
-                            type="button"
-                            class="btn"
-                            @click="showModal = false"
-                        >
-                            Cancel
-                        </button>
-                        <button type="submit" class="btn btn-primary">
-                            Save
-                        </button>
+                        <button type="button" class="btn" @click="showModal = false">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
                     </div>
                 </form>
             </div>

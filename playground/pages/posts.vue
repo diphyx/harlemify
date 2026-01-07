@@ -1,21 +1,13 @@
 <script setup lang="ts">
-import { ref } from "vue";
 import { postStore, type Post } from "../stores/post";
 
-const {
-    memorizedUnits: posts,
-    endpointsStatus,
-    getUnits,
-    postUnits,
-    patchUnits,
-    deleteUnits,
-} = postStore;
+const { posts, getPosts, postPosts, patchPosts, deletePosts, getPostsIsPending } = useStoreAlias(postStore);
 
 const showModal = ref(false);
 const editing = ref<Post | null>(null);
 const form = ref({ title: "", body: "", userId: 1 });
 
-onMounted(() => getUnits());
+onMounted(() => getPosts());
 
 function openCreate() {
     editing.value = null;
@@ -31,7 +23,7 @@ function openEdit(post: Post) {
 
 async function save() {
     if (editing.value) {
-        await patchUnits([
+        await patchPosts([
             {
                 id: editing.value.id,
                 title: form.value.title,
@@ -39,14 +31,14 @@ async function save() {
             },
         ]);
     } else {
-        await postUnits([{ id: Date.now(), ...form.value }]);
+        await postPosts([{ id: Date.now(), ...form.value }]);
     }
     showModal.value = false;
 }
 
 async function remove(post: Post) {
     if (confirm(`Delete "${post.title}"?`)) {
-        await deleteUnits([{ id: post.id }]);
+        await deletePosts([{ id: post.id }]);
     }
 }
 </script>
@@ -57,75 +49,44 @@ async function remove(post: Post) {
 
         <div class="page-title">
             <h1>Posts</h1>
-            <p>
-                Collection store using <code>*Units</code> →
-                <code>memorizedUnits</code>
-            </p>
+            <p>Collection store using <code>useStoreAlias</code> composable</p>
         </div>
 
         <div class="toolbar">
             <h2>{{ posts.length }} posts</h2>
-            <button class="btn btn-primary" @click="openCreate">
-                Add Post
-            </button>
+            <button class="btn btn-primary" @click="openCreate">Add Post</button>
         </div>
 
-        <div v-if="endpointsStatus.getUnitsIsPending.value" class="loading">
-            Loading...
-        </div>
+        <div v-if="getPostsIsPending" class="loading">Loading...</div>
 
         <div v-else class="list">
-            <div
-                v-for="post in posts.slice(0, 15)"
-                :key="post.id"
-                class="list-item"
-            >
+            <div v-for="post in posts.slice(0, 15)" :key="post.id" class="list-item">
                 <div>
                     <h3>{{ post.title }}</h3>
                     <p>{{ post.body.substring(0, 80) }}...</p>
                 </div>
                 <div class="list-actions">
-                    <button class="btn btn-sm" @click="openEdit(post)">
-                        Edit
-                    </button>
-                    <button class="btn btn-sm btn-danger" @click="remove(post)">
-                        Delete
-                    </button>
+                    <button class="btn btn-sm" @click="openEdit(post)">Edit</button>
+                    <button class="btn btn-sm btn-danger" @click="remove(post)">Delete</button>
                 </div>
             </div>
         </div>
 
-        <div
-            v-if="showModal"
-            class="modal-overlay"
-            @click.self="showModal = false"
-        >
+        <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
             <div class="modal">
                 <h2>{{ editing ? "Edit Post" : "Add Post" }}</h2>
                 <form @submit.prevent="save">
                     <div class="form-group">
                         <label>Title</label>
-                        <input v-model="form.title" required />
+                        <input v-model="form.title" required >
                     </div>
                     <div class="form-group">
                         <label>Body</label>
-                        <textarea
-                            v-model="form.body"
-                            rows="4"
-                            required
-                        ></textarea>
+                        <textarea v-model="form.body" rows="4" required />
                     </div>
                     <div class="modal-actions">
-                        <button
-                            type="button"
-                            class="btn"
-                            @click="showModal = false"
-                        >
-                            Cancel
-                        </button>
-                        <button type="submit" class="btn btn-primary">
-                            Save
-                        </button>
+                        <button type="button" class="btn" @click="showModal = false">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
                     </div>
                 </form>
             </div>

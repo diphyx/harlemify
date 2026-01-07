@@ -14,8 +14,7 @@ export default defineNuxtConfig({
             meta: [
                 {
                     name: "description",
-                    content:
-                        "Interactive demo of Harlemify - API state management for Nuxt 3+",
+                    content: "Interactive demo of Harlemify - API state management for Nuxt 3+",
                 },
             ],
         },

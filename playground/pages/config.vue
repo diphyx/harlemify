@@ -1,16 +1,11 @@
 <script setup lang="ts">
 import { configStore } from "../stores/config";
 
-const {
-    memorizedUnit: config,
-    endpointsStatus,
-    getUnit,
-    patchUnit,
-} = configStore;
+const { config, getConfig, patchConfig, getConfigIsPending } = useStoreAlias(configStore);
 
 const languageInput = ref("");
 
-onMounted(() => getUnit());
+onMounted(() => getConfig());
 
 watch(
     config,
@@ -27,7 +22,7 @@ async function toggleTheme() {
     if (!config.value) return;
     const newTheme = config.value.theme === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", newTheme);
-    await patchUnit({
+    await patchConfig({
         id: config.value.id,
         theme: newTheme,
     });
@@ -35,7 +30,7 @@ async function toggleTheme() {
 
 async function updateLanguage() {
     if (!config.value || !languageInput.value.trim()) return;
-    await patchUnit({
+    await patchConfig({
         id: config.value.id,
         language: languageInput.value.trim(),
     });
@@ -43,7 +38,7 @@ async function updateLanguage() {
 
 async function toggleNotifications() {
     if (!config.value) return;
-    await patchUnit({
+    await patchConfig({
         id: config.value.id,
         notifications: !config.value.notifications,
     });
@@ -56,15 +51,10 @@ async function toggleNotifications() {
 
         <div class="page-title">
             <h1>Config</h1>
-            <p>
-                Singleton store using <code>*Unit</code> →
-                <code>memorizedUnit</code>
-            </p>
+            <p>Singleton store using <code>useStoreAlias</code> composable</p>
         </div>
 
-        <div v-if="endpointsStatus.getUnitIsPending.value" class="loading">
-            Loading...
-        </div>
+        <div v-if="getConfigIsPending" class="loading">Loading...</div>
 
         <div v-else-if="config" class="config-list">
             <div class="config-item">
@@ -79,8 +69,8 @@ async function toggleNotifications() {
                 <div>
                     <strong>Language</strong>
                 </div>
-                <form @submit.prevent="updateLanguage" class="config-input">
-                    <input v-model="languageInput" type="text" />
+                <form class="config-input" @submit.prevent="updateLanguage">
+                    <input v-model="languageInput" type="text" >
                     <button type="submit" class="btn btn-sm">Update</button>
                 </form>
             </div>
@@ -88,17 +78,13 @@ async function toggleNotifications() {
             <div class="config-item">
                 <div>
                     <strong>Notifications</strong>
-                    <span class="value">{{
-                        config.notifications ? "on" : "off"
-                    }}</span>
+                    <span class="value">{{ config.notifications ? "on" : "off" }}</span>
                 </div>
-                <button class="btn btn-sm" @click="toggleNotifications">
-                    Toggle
-                </button>
+                <button class="btn btn-sm" @click="toggleNotifications">Toggle</button>
             </div>
 
             <div class="detail">
-                <h3>Raw Data (memorizedUnit)</h3>
+                <h3>Raw Data (config)</h3>
                 <pre>{{ JSON.stringify(config, null, 2) }}</pre>
             </div>
         </div>
