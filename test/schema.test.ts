@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
 import { z } from "zod";
+import { describe, it, expect } from "vitest";
 
 import { getMeta, resolveSchema } from "../src/runtime/utils/schema";
-import { ApiAction } from "../src/runtime/core/api";
+import { EndpointMethod } from "../src/runtime/utils/endpoint";
 
 describe("getMeta", () => {
     it("returns undefined for field without meta", () => {
@@ -17,21 +17,21 @@ describe("getMeta", () => {
 
     it("returns meta with actions", () => {
         const field = z.string().meta({
-            actions: [ApiAction.POST, ApiAction.PUT],
+            methods: [EndpointMethod.POST, EndpointMethod.PUT],
         });
         expect(getMeta(field)).toEqual({
-            actions: [ApiAction.POST, ApiAction.PUT],
+            methods: [EndpointMethod.POST, EndpointMethod.PUT],
         });
     });
 
     it("returns meta with both indicator and actions", () => {
         const field = z.number().meta({
             indicator: true,
-            actions: [ApiAction.GET],
+            methods: [EndpointMethod.GET],
         });
         expect(getMeta(field)).toEqual({
             indicator: true,
-            actions: [ApiAction.GET],
+            methods: [EndpointMethod.GET],
         });
     });
 });
@@ -40,10 +40,10 @@ describe("resolveSchema", () => {
     const UserSchema = z.object({
         id: z.number().meta({ indicator: true }),
         name: z.string().meta({
-            actions: [ApiAction.POST, ApiAction.PUT, ApiAction.PATCH],
+            methods: [EndpointMethod.POST, EndpointMethod.PUT, EndpointMethod.PATCH],
         }),
         email: z.string().meta({
-            actions: [ApiAction.POST],
+            methods: [EndpointMethod.POST],
         }),
         createdAt: z.string(),
     });
@@ -83,21 +83,21 @@ describe("resolveSchema", () => {
 
         it("extracts keys for POST action", () => {
             const result = resolveSchema(UserSchema, {
-                endpoint: { action: ApiAction.POST, url: "/users" },
+                endpoint: { method: EndpointMethod.POST, url: "/users" },
             });
             expect(result.keys).toEqual({ name: true, email: true });
         });
 
         it("extracts keys for PATCH action", () => {
             const result = resolveSchema(UserSchema, {
-                endpoint: { action: ApiAction.PATCH, url: "/users" },
+                endpoint: { method: EndpointMethod.PATCH, url: "/users" },
             });
             expect(result.keys).toEqual({ name: true });
         });
 
         it("returns empty keys for GET action", () => {
             const result = resolveSchema(UserSchema, {
-                endpoint: { action: ApiAction.GET, url: "/users" },
+                endpoint: { method: EndpointMethod.GET, url: "/users" },
             });
             expect(result.keys).toEqual({});
         });
@@ -106,14 +106,14 @@ describe("resolveSchema", () => {
     describe("values extraction", () => {
         it("returns empty values when no unit", () => {
             const result = resolveSchema(UserSchema, {
-                endpoint: { action: ApiAction.POST, url: "/users" },
+                endpoint: { method: EndpointMethod.POST, url: "/users" },
             });
             expect(result.values).toEqual({});
         });
 
         it("extracts values for matching keys", () => {
             const result = resolveSchema(UserSchema, {
-                endpoint: { action: ApiAction.POST, url: "/users" },
+                endpoint: { method: EndpointMethod.POST, url: "/users" },
                 unit: { id: 1, name: "John", email: "john@example.com" },
             });
             expect(result.values).toEqual({
@@ -124,7 +124,7 @@ describe("resolveSchema", () => {
 
         it("excludes fields without matching action", () => {
             const result = resolveSchema(UserSchema, {
-                endpoint: { action: ApiAction.PATCH, url: "/users" },
+                endpoint: { method: EndpointMethod.PATCH, url: "/users" },
                 unit: { id: 1, name: "John", email: "john@example.com" },
             });
             expect(result.values).toEqual({ name: "John" });
@@ -132,7 +132,7 @@ describe("resolveSchema", () => {
 
         it("only includes values for fields in unit", () => {
             const result = resolveSchema(UserSchema, {
-                endpoint: { action: ApiAction.POST, url: "/users" },
+                endpoint: { method: EndpointMethod.POST, url: "/users" },
                 unit: { id: 1, name: "John" },
             });
             expect(result.values).toEqual({ name: "John" });

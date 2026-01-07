@@ -1,13 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ref, computed } from "vue";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import {
-    ApiErrorSource,
-    ApiError,
-    ApiRequestError,
-    ApiResponseError,
-    createApi,
-} from "../src/runtime/core/api";
+import { ApiErrorSource, ApiError, ApiRequestError, ApiResponseError, createApi } from "../src/runtime/core/api";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("$fetch", mockFetch);
@@ -115,22 +109,13 @@ describe("createApi", () => {
         const api = createApi();
 
         await api.put("/users/1", { body: { name: "Updated" } });
-        expect(mockFetch).toHaveBeenCalledWith(
-            "/users/1",
-            expect.objectContaining({ method: "put" }),
-        );
+        expect(mockFetch).toHaveBeenCalledWith("/users/1", expect.objectContaining({ method: "put" }));
 
         await api.patch("/users/1", { body: { name: "Patched" } });
-        expect(mockFetch).toHaveBeenCalledWith(
-            "/users/1",
-            expect.objectContaining({ method: "patch" }),
-        );
+        expect(mockFetch).toHaveBeenCalledWith("/users/1", expect.objectContaining({ method: "patch" }));
 
         await api.del("/users/1");
-        expect(mockFetch).toHaveBeenCalledWith(
-            "/users/1",
-            expect.objectContaining({ method: "delete" }),
-        );
+        expect(mockFetch).toHaveBeenCalledWith("/users/1", expect.objectContaining({ method: "delete" }));
     });
 
     it("request options override global options", async () => {
@@ -139,10 +124,7 @@ describe("createApi", () => {
         const api = createApi({ timeout: 5000 });
         await api.get("/test", { timeout: 10000 });
 
-        expect(mockFetch).toHaveBeenCalledWith(
-            "/test",
-            expect.objectContaining({ timeout: 10000 }),
-        );
+        expect(mockFetch).toHaveBeenCalledWith("/test", expect.objectContaining({ timeout: 10000 }));
     });
 
     it("passes retry and signal options", async () => {
@@ -278,23 +260,14 @@ describe("createApi", () => {
         const api = createApi();
 
         await api.post("/json", { body: { name: "John" } });
-        expect(mockFetch).toHaveBeenCalledWith(
-            "/json",
-            expect.objectContaining({ body: { name: "John" } }),
-        );
+        expect(mockFetch).toHaveBeenCalledWith("/json", expect.objectContaining({ body: { name: "John" } }));
 
         await api.post("/raw", { body: "raw string" });
-        expect(mockFetch).toHaveBeenCalledWith(
-            "/raw",
-            expect.objectContaining({ body: "raw string" }),
-        );
+        expect(mockFetch).toHaveBeenCalledWith("/raw", expect.objectContaining({ body: "raw string" }));
 
         const formData = new FormData();
         formData.append("file", "test");
         await api.post("/upload", { body: formData });
-        expect(mockFetch).toHaveBeenCalledWith(
-            "/upload",
-            expect.objectContaining({ body: formData }),
-        );
+        expect(mockFetch).toHaveBeenCalledWith("/upload", expect.objectContaining({ body: formData }));
     });
 });
