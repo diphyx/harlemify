@@ -1,6 +1,13 @@
-import type { BaseState } from "@harlem/core";
+import { capitalize } from "./transform";
+import type { Capitalize } from "./transform";
 
-import type { ApiAction } from "../core/api";
+export enum EndpointMethod {
+    GET = "get",
+    POST = "post",
+    PUT = "put",
+    PATCH = "patch",
+    DELETE = "delete",
+}
 
 export enum Endpoint {
     GET_UNIT = "getUnit",
@@ -23,73 +30,43 @@ export enum EndpointStatus {
 }
 
 export interface EndpointDefinition<T = Record<string, unknown>> {
-    action: ApiAction;
+    method: EndpointMethod;
     url: string | ((params: T) => string);
 }
 
-export interface EndpointMemory {
-    status: EndpointStatus;
-}
+export type EndpointStatusFlag<S extends EndpointStatus = EndpointStatus> = `Is${Capitalize<S>}`;
 
-type CapitalizeString<S extends string> = S extends `${infer F}${infer R}`
-    ? `${Uppercase<F>}${R}`
-    : S;
-
-export type EndpointStatusKey<
+export type EndpointStatusName<
     K extends Endpoint = Endpoint,
     S extends EndpointStatus = EndpointStatus,
-> = `${K}Is${CapitalizeString<S>}`;
+> = `${K}${EndpointStatusFlag<S>}`;
 
-export function makeEndpointStatusKey<
-    K extends Endpoint,
-    S extends EndpointStatus,
->(key: K, status: S): EndpointStatusKey<K, S> {
-    const capitalizedStatus = (status.charAt(0).toUpperCase() +
-        status.slice(1)) as CapitalizeString<S>;
-    return `${key}Is${capitalizedStatus}` as EndpointStatusKey<K, S>;
+export function makeEndpointStatusFlag<S extends EndpointStatus>(status: S): EndpointStatusFlag<S> {
+    return `Is${capitalize(status)}` as EndpointStatusFlag<S>;
+}
+
+export function makeEndpointStatusName<K extends Endpoint, S extends EndpointStatus>(
+    key: K,
+    status: S,
+): EndpointStatusName<K, S> {
+    return `${key}${makeEndpointStatusFlag(status)}` as EndpointStatusName<K, S>;
 }
 
 export function getEndpoint<T = Record<string, unknown>>(
     endpoints: Partial<Record<Endpoint, EndpointDefinition<T>>> | undefined,
-    key: Endpoint,
+    endpoint: Endpoint,
 ) {
-    const endpoint = endpoints?.[key];
-    if (!endpoint) {
-        throw new Error(`Endpoint "${key}" is not configured`);
+    if (!endpoints || !(endpoint in endpoints)) {
+        throw new Error(`Endpoint "${endpoint}" is not configured`);
     }
 
-    return endpoint;
+    return endpoints[endpoint]!;
 }
 
-export function resolveEndpointUrl<T>(
-    endpoint: EndpointDefinition<T>,
-    params?: { [key: string]: unknown },
-) {
+export function resolveEndpointUrl<T>(endpoint: EndpointDefinition<T>, params?: { [key: string]: unknown }) {
     if (typeof endpoint.url === "function") {
         return endpoint.url(params as T);
     }
 
     return endpoint.url;
-}
-
-export type EndpointsStatusMap<T> = {
-    [K in Endpoint as EndpointStatusKey<K, EndpointStatus>]: T;
-};
-
-export function makeEndpointsStatus<T>(
-    getter: (name: string, fn: (state: BaseState) => boolean) => T,
-): EndpointsStatusMap<T> {
-    const output = {} as EndpointsStatusMap<T>;
-
-    for (const key of Object.values(Endpoint)) {
-        for (const status of Object.values(EndpointStatus)) {
-            const statusKey = makeEndpointStatusKey(key, status);
-
-            output[statusKey] = getter(statusKey, (state) => {
-                return state.endpoints[key]?.status === status;
-            });
-        }
-    }
-
-    return output;
 }

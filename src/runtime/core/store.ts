@@ -1,41 +1,28 @@
-import { z } from "zod";
 import { defu } from "defu";
-import {
-    createStore as createHarlemStore,
-    type Extension,
-    type BaseState,
-} from "@harlem/core";
+import { createStore as createHarlemStore } from "@harlem/core";
 
+import type { z } from "zod";
+import type { ComputedRef } from "vue";
+import type { Extension, BaseState } from "@harlem/core";
+
+import { createApi } from "./api";
 import { resolveSchema } from "../utils/schema";
+import { pluralize } from "../utils/transform";
+import { Endpoint, EndpointStatus, getEndpoint, makeEndpointStatusName, resolveEndpointUrl } from "../utils/endpoint";
 
-import {
-    makeEndpointStatusKey,
-    getEndpoint,
-    resolveEndpointUrl,
-    makeEndpointsStatus,
-    Endpoint,
-    EndpointStatus,
-    type EndpointDefinition,
-    type EndpointMemory,
-} from "../utils/endpoint";
+import type { Api, EndpointMethodOptions, ApiOptions } from "./api";
+import type { EndpointDefinition, EndpointStatusName } from "../utils/endpoint";
+import type { Pluralize } from "../utils/transform";
+
+export enum StoreMemoryAction {
+    SET = "set",
+    EDIT = "edit",
+    DROP = "drop",
+}
 
 export enum StoreMemoryPosition {
     FIRST = "first",
     LAST = "last",
-}
-
-import {
-    createApi,
-    ApiAction,
-    type ApiActionOptions,
-    type ApiOptions,
-} from "./api";
-
-export class StoreConfigurationError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = "StoreConfigurationError";
-    }
 }
 
 export interface StoreHooks {
@@ -50,75 +37,108 @@ export interface StoreOptions {
     extensions?: Extension<BaseState>[];
 }
 
+type Indicator<T, I extends keyof T> = Required<Pick<T, I>>;
+type WithIndicator<T, I extends keyof T> = Indicator<T, I> & T;
+type PartialWithIndicator<T, I extends keyof T> = Indicator<T, I> & Partial<T>;
+
+type StoreEndpointReadOptions = Omit<EndpointMethodOptions<any>, "body">;
+type StoreEndpointWriteOptions = EndpointMethodOptions<any> & { validate?: boolean };
+type StoreEndpointWriteMultipleOptions = StoreEndpointWriteOptions & { position?: StoreMemoryPosition };
+
+type StoreMemory<T = unknown, I extends keyof T = keyof T> = {
+    setUnit: (unit: T | null) => void;
+    setUnits: (units: T[]) => void;
+    editUnit: (unit: PartialWithIndicator<T, I>) => void;
+    editUnits: (units: PartialWithIndicator<T, I>[]) => void;
+    dropUnit: (unit: PartialWithIndicator<T, I>) => void;
+    dropUnits: (units: PartialWithIndicator<T, I>[]) => void;
+};
+
+type StoreEndpoint<T = unknown, I extends keyof T = keyof T> = {
+    getUnit: (unit?: PartialWithIndicator<T, I>, options?: StoreEndpointReadOptions) => Promise<T>;
+    getUnits: (options?: StoreEndpointReadOptions) => Promise<T[]>;
+    postUnit: (unit: WithIndicator<T, I>, options?: StoreEndpointWriteOptions) => Promise<T>;
+    postUnits: (units: WithIndicator<T, I>[], options?: StoreEndpointWriteMultipleOptions) => Promise<T[]>;
+    putUnit: (unit: WithIndicator<T, I>, options?: StoreEndpointWriteOptions) => Promise<T>;
+    putUnits: (units: WithIndicator<T, I>[], options?: StoreEndpointWriteOptions) => Promise<T[]>;
+    patchUnit: (unit: PartialWithIndicator<T, I>, options?: StoreEndpointWriteOptions) => Promise<Partial<T>>;
+    patchUnits: (units: PartialWithIndicator<T, I>[], options?: StoreEndpointWriteOptions) => Promise<Partial<T>[]>;
+    deleteUnit: (unit: PartialWithIndicator<T, I>, options?: StoreEndpointReadOptions) => Promise<boolean>;
+    deleteUnits: (units: PartialWithIndicator<T, I>[], options?: StoreEndpointReadOptions) => Promise<boolean>;
+};
+
+type StoreMonitor = {
+    [K in Endpoint as EndpointStatusName<K, EndpointStatus>]: ComputedRef<boolean>;
+};
+
+export type Store<E extends string = string, T = unknown, I extends keyof T = keyof T> = {
+    store: any;
+    alias: {
+        unit: E;
+        units: Pluralize<E>;
+    };
+    indicator: I;
+    unit: ComputedRef<T | null>;
+    units: ComputedRef<T[]>;
+    memory: StoreMemory<T, I>;
+    endpoint: StoreEndpoint<T, I>;
+    monitor: StoreMonitor;
+};
+
 export function createStore<
+    E extends string,
     T extends z.ZodRawShape,
-    K extends keyof z.infer<z.ZodObject<T>> = "id" &
-        keyof z.infer<z.ZodObject<T>>,
+    S extends z.infer<z.ZodObject<T>> = z.infer<z.ZodObject<T>>,
+    I extends keyof S = "id" & keyof S,
 >(
-    name: string,
+    entity: E,
     schema: z.ZodObject<T>,
-    endpoints?: Partial<
-        Record<Endpoint, EndpointDefinition<Partial<z.infer<z.ZodObject<T>>>>>
-    >,
+    endpoints?: Partial<Record<Endpoint, EndpointDefinition<Partial<S>>>>,
     options?: StoreOptions,
-) {
-    type Schema = z.infer<z.ZodObject<T>>;
-    type SchemaIndicator = Required<Pick<Schema, K>>;
-
+): Store<E, S, I> {
     const { indicator } = resolveSchema(schema, {
-        indicator: options?.indicator as keyof Schema,
+        indicator: options?.indicator as keyof S,
     });
-    const hooks = options?.hooks;
 
-    let apiClient: ReturnType<typeof createApi>;
-    let apiInitError: Error | null = null;
+    let apiClient: Api;
 
     function api() {
-        if (apiInitError) {
-            throw apiInitError;
-        }
-
         if (!apiClient) {
-            try {
-                const config = useRuntimeConfig();
+            const config = useRuntimeConfig();
 
-                if (!config) {
-                    throw new StoreConfigurationError(
-                        `Runtime config is not available. Ensure the store "${name}" is used within a Nuxt context.`,
-                    );
-                }
-
-                apiClient = createApi({
-                    ...config.public.harlemify?.api,
-                    ...options?.api,
-                });
-            } catch (error) {
-                apiInitError =
-                    error instanceof Error
-                        ? error
-                        : new StoreConfigurationError(
-                              `Failed to initialize API client for store "${name}": ${String(error)}`,
-                          );
-                throw apiInitError;
-            }
+            apiClient = createApi({
+                ...(config.public.harlemify?.api ?? {}),
+                ...options?.api,
+            });
         }
 
         return apiClient;
     }
 
-    const store = createHarlemStore(
-        name,
-        {
-            memory: {
-                unit: null as Schema | null,
-                units: [] as Schema[],
-            },
-            endpoints: {} as Record<Endpoint, EndpointMemory>,
+    type State = {
+        memory: {
+            unit: S | null;
+            units: S[];
+        };
+        endpoints: Record<Endpoint, EndpointStatus>;
+    };
+
+    const state: State = {
+        memory: {
+            unit: null,
+            units: [],
         },
-        {
-            extensions: options?.extensions ?? [],
-        },
-    );
+        endpoints: {} as any,
+    };
+
+    const store = createHarlemStore(entity, state, {
+        extensions: options?.extensions ?? [],
+    });
+
+    const alias = {
+        unit: entity,
+        units: pluralize(entity),
+    };
 
     const memorizedUnit = store.getter("memorizedUnit", (state) => {
         return state.memory.unit;
@@ -128,172 +148,114 @@ export function createStore<
         return state.memory.units;
     });
 
-    function hasMemorizedUnits(
-        ...units: (SchemaIndicator & Partial<Schema>)[]
-    ) {
-        const output = {} as Record<string | number, boolean>;
+    const setMemorizedUnit = store.mutation("setMemorizedUnit", (state, unit: S | null = null) => {
+        state.memory.unit = unit;
+    });
 
+    const setMemorizedUnits = store.mutation("setMemorizedUnits", (state, units: S[] = []) => {
+        state.memory.units = units;
+    });
+
+    const editMemorizedUnit = store.mutation("editMemorizedUnit", (state, unit: PartialWithIndicator<S, I>) => {
+        if (state.memory.unit?.[indicator] === unit[indicator]) {
+            state.memory.unit = defu<any, any>(unit, state.memory.unit);
+        }
+    });
+
+    const editMemorizedUnits = store.mutation("editMemorizedUnits", (state, units: PartialWithIndicator<S, I>[]) => {
         for (const unit of units) {
-            const exists = memorizedUnits.value.some((memorizedUnit: any) => {
+            const index = state.memory.units.findIndex((memorizedUnit) => {
                 return memorizedUnit[indicator] === unit[indicator];
             });
 
-            (output as any)[unit[indicator]] = exists;
-        }
-
-        return output;
-    }
-
-    const setMemorizedUnit = store.mutation(
-        "setMemorizedUnit",
-        (state, unit: Schema | null = null) => {
-            state.memory.unit = unit;
-        },
-    );
-
-    const setMemorizedUnits = store.mutation(
-        "setMemorizedUnits",
-        (state, units: Schema[] = []) => {
-            state.memory.units = units;
-        },
-    );
-
-    const editMemorizedUnit = store.mutation(
-        "editMemorizedUnit",
-        (state, unit: SchemaIndicator & Partial<Schema>) => {
-            if (state.memory.unit?.[indicator] === unit[indicator]) {
-                state.memory.unit = defu<any, any>(unit, state.memory.unit);
+            if (index !== -1) {
+                state.memory.units[index] = defu<any, any>(unit, state.memory.units[index]);
             }
-        },
-    );
+        }
+    });
 
-    const editMemorizedUnits = store.mutation(
-        "editMemorizedUnits",
-        (state, units: (SchemaIndicator & Partial<Schema>)[]) => {
+    const dropMemorizedUnit = store.mutation("dropMemorizedUnit", (state, unit: PartialWithIndicator<S, I>) => {
+        if (state.memory.unit?.[indicator] === unit[indicator]) {
+            state.memory.unit = null;
+        }
+    });
+
+    const dropMemorizedUnits = store.mutation("dropMemorizedUnits", (state, units: PartialWithIndicator<S, I>[]) => {
+        state.memory.units = state.memory.units.filter((memorizedUnit) => {
             for (const unit of units) {
-                const index = state.memory.units.findIndex((memorizedUnit) => {
-                    return memorizedUnit[indicator] === unit[indicator];
-                });
-
-                if (index !== -1) {
-                    state.memory.units[index] = defu<any, any>(
-                        unit,
-                        state.memory.units[index],
-                    );
+                if (memorizedUnit[indicator] === unit[indicator]) {
+                    return false;
                 }
             }
-        },
-    );
 
-    const dropMemorizedUnit = store.mutation(
-        "dropMemorizedUnit",
-        (state, unit: SchemaIndicator & Partial<Schema>) => {
-            if (state.memory.unit?.[indicator] === unit[indicator]) {
-                state.memory.unit = null;
-            }
-        },
-    );
+            return true;
+        });
+    });
 
-    const dropMemorizedUnits = store.mutation(
-        "dropMemorizedUnits",
-        (state, units: (SchemaIndicator & Partial<Schema>)[]) => {
-            state.memory.units = state.memory.units.filter((memorizedUnit) => {
-                for (const unit of units) {
-                    if (memorizedUnit[indicator] === unit[indicator]) {
-                        return false;
-                    }
-                }
+    const monitor: Record<string, ComputedRef<boolean>> = {};
 
-                return true;
+    for (const endpoint of Object.values(Endpoint)) {
+        for (const endpointStatus of Object.values(EndpointStatus)) {
+            const statusKey = makeEndpointStatusName(endpoint, endpointStatus);
+
+            monitor[statusKey] = store.getter(statusKey, (state) => {
+                return state.endpoints[endpoint] === endpointStatus;
             });
+        }
+    }
+
+    const patchMonitor = store.mutation(
+        "patchMonitor",
+        (state, payload: { endpoint: Endpoint; status: EndpointStatus }) => {
+            state.endpoints[payload.endpoint] = payload.status;
         },
     );
 
-    const endpointsStatus = makeEndpointsStatus(store.getter);
+    function patchMonitorTo(endpoint: Endpoint, status: EndpointStatus) {
+        if (status === EndpointStatus.PENDING) {
+            const statusKey = makeEndpointStatusName(endpoint, EndpointStatus.PENDING);
 
-    const patchEndpointMemory = store.mutation(
-        "patchEndpointMemory",
-        (
-            state,
-            {
-                key,
-                memory,
-            }: {
-                key: Endpoint;
-                memory: EndpointMemory;
-            },
-        ) => {
-            state.endpoints[key] = memory;
-        },
-    );
-
-    const purgeEndpointMemory = store.mutation(
-        "purgeEndpointMemory",
-        (state) => {
-            state.endpoints = {} as Record<Endpoint, EndpointMemory>;
-        },
-    );
-
-    function patchEndpointMemoryTo(key: Endpoint, memory: EndpointMemory) {
-        if (memory.status === EndpointStatus.PENDING) {
-            const statusKey = makeEndpointStatusKey(
-                key,
-                EndpointStatus.PENDING,
-            );
-
-            if (endpointsStatus[statusKey].value) {
-                throw new Error(`Endpoint "${key}" is already pending`);
+            if (monitor[statusKey].value) {
+                throw new Error(`Endpoint "${endpoint}" is already pending`);
             }
         }
 
-        patchEndpointMemory({
-            key,
-            memory,
+        patchMonitor({
+            endpoint,
+            status,
         });
     }
 
-    async function withEndpointStatus<T>(
-        key: Endpoint,
-        operation: () => Promise<T>,
-    ): Promise<T> {
-        await hooks?.before?.();
+    async function withStatus<T>(key: Endpoint, operation: () => Promise<T>): Promise<T> {
+        await options?.hooks?.before?.();
 
-        patchEndpointMemoryTo(key, {
-            status: EndpointStatus.PENDING,
-        });
+        patchMonitorTo(key, EndpointStatus.PENDING);
 
         try {
             const result = await operation();
 
-            patchEndpointMemoryTo(key, {
-                status: EndpointStatus.SUCCESS,
-            });
+            patchMonitorTo(key, EndpointStatus.SUCCESS);
 
-            await hooks?.after?.();
+            await options?.hooks?.after?.();
 
             return result;
         } catch (error: any) {
-            patchEndpointMemoryTo(key, {
-                status: EndpointStatus.FAILED,
-            });
+            patchMonitorTo(key, EndpointStatus.FAILED);
 
-            await hooks?.after?.(error);
+            await options?.hooks?.after?.(error);
 
             throw error;
         }
     }
 
-    async function getUnit(
-        unit?: SchemaIndicator & Partial<Schema>,
-        options?: Omit<ApiActionOptions<ApiAction.GET>, "body">,
+    async function getUnitEndpoint(
+        unit?: PartialWithIndicator<S, I>,
+        options?: Omit<EndpointMethodOptions<any>, "body">,
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.GET_UNIT);
 
-        return withEndpointStatus(Endpoint.GET_UNIT, async () => {
-            const response = await api().get<Schema>(
-                resolveEndpointUrl(endpoint, unit),
-                options,
-            );
+        return withStatus(Endpoint.GET_UNIT, async () => {
+            const response = await api().get<S>(resolveEndpointUrl(endpoint, unit), options);
 
             setMemorizedUnit(response);
 
@@ -301,16 +263,11 @@ export function createStore<
         });
     }
 
-    async function getUnits(
-        options?: Omit<ApiActionOptions<ApiAction.GET>, "body">,
-    ) {
+    async function getUnitsEndpoint(options?: Omit<EndpointMethodOptions<any>, "body">) {
         const endpoint = getEndpoint(endpoints, Endpoint.GET_UNITS);
 
-        return withEndpointStatus(Endpoint.GET_UNITS, async () => {
-            const response = await api().get<Schema[]>(
-                resolveEndpointUrl(endpoint),
-                options,
-            );
+        return withStatus(Endpoint.GET_UNITS, async () => {
+            const response = await api().get<S[]>(resolveEndpointUrl(endpoint), options);
 
             setMemorizedUnits(response);
 
@@ -318,84 +275,56 @@ export function createStore<
         });
     }
 
-    async function postUnit(
-        unit: SchemaIndicator & Schema,
-        actionOptions?: ApiActionOptions<ApiAction.POST> & {
-            validate?: boolean;
-        },
+    async function postUnitEndpoint(
+        unit: WithIndicator<S, I>,
+        actionOptions?: EndpointMethodOptions<any> & { validate?: boolean },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.POST_UNIT);
-        const resolvedSchema = resolveSchema(schema, {
-            indicator,
-            endpoint,
-            unit,
-        });
+        const resolvedSchema = resolveSchema(schema, { indicator, endpoint, unit });
 
         if (actionOptions?.validate) {
             schema.pick<any>(resolvedSchema.keys).parse(unit);
         }
 
-        return withEndpointStatus(Endpoint.POST_UNIT, async () => {
-            const response = await api().post<SchemaIndicator & Schema>(
-                resolveEndpointUrl(endpoint, unit),
-                {
-                    ...actionOptions,
-                    body: actionOptions?.body ?? resolvedSchema.values,
-                },
-            );
-
-            setMemorizedUnit({
-                ...unit,
-                ...response,
+        return withStatus(Endpoint.POST_UNIT, async () => {
+            const response = await api().post<WithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
+                ...actionOptions,
+                body: actionOptions?.body ?? resolvedSchema.values,
             });
+
+            setMemorizedUnit({ ...unit, ...response });
 
             return response;
         });
     }
 
-    async function postUnits(
-        units: (SchemaIndicator & Schema)[],
-        options?: ApiActionOptions<ApiAction.POST> & {
-            validate?: boolean;
-            position?: StoreMemoryPosition;
-        },
+    async function postUnitsEndpoint(
+        units: WithIndicator<S, I>[],
+        options?: EndpointMethodOptions<any> & { validate?: boolean; position?: StoreMemoryPosition },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.POST_UNITS);
 
-        return withEndpointStatus(Endpoint.POST_UNITS, async () => {
-            const responses: (SchemaIndicator & Schema)[] = [];
+        return withStatus(Endpoint.POST_UNITS, async () => {
+            const responses: WithIndicator<S, I>[] = [];
 
             for (const unit of units) {
-                const resolvedSchema = resolveSchema(schema, {
-                    indicator,
-                    endpoint,
-                    unit,
-                });
+                const resolvedSchema = resolveSchema(schema, { indicator, endpoint, unit });
 
                 if (options?.validate) {
                     schema.pick<any>(resolvedSchema.keys).parse(unit);
                 }
 
-                const response = await api().post<SchemaIndicator & Schema>(
-                    resolveEndpointUrl(endpoint, unit),
-                    {
-                        ...options,
-                        body: options?.body ?? resolvedSchema.values,
-                    },
-                );
+                const response = await api().post<WithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
+                    ...options,
+                    body: options?.body ?? resolvedSchema.values,
+                });
 
                 const clonedUnits: any[] = [...memorizedUnits.value];
 
                 if (options?.position === StoreMemoryPosition.LAST) {
-                    clonedUnits.push({
-                        ...unit,
-                        ...response,
-                    });
+                    clonedUnits.push({ ...unit, ...response });
                 } else {
-                    clonedUnits.unshift({
-                        ...unit,
-                        ...response,
-                    });
+                    clonedUnits.unshift({ ...unit, ...response });
                 }
 
                 setMemorizedUnits(clonedUnits);
@@ -407,73 +336,51 @@ export function createStore<
         });
     }
 
-    async function putUnit(
-        unit: SchemaIndicator & Schema,
-        options?: ApiActionOptions<ApiAction.PUT> & { validate?: boolean },
+    async function putUnitEndpoint(
+        unit: WithIndicator<S, I>,
+        options?: EndpointMethodOptions<any> & { validate?: boolean },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.PUT_UNIT);
-        const resolvedSchema = resolveSchema(schema, {
-            indicator,
-            endpoint,
-            unit,
-        });
+        const resolvedSchema = resolveSchema(schema, { indicator, endpoint, unit });
 
         if (options?.validate) {
             schema.pick<any>(resolvedSchema.keys).parse(unit);
         }
 
-        return withEndpointStatus(Endpoint.PUT_UNIT, async () => {
-            const response = await api().put<SchemaIndicator & Schema>(
-                resolveEndpointUrl(endpoint, unit),
-                {
-                    ...options,
-                    body: options?.body ?? resolvedSchema.values,
-                },
-            );
-
-            setMemorizedUnit({
-                ...unit,
-                ...response,
+        return withStatus(Endpoint.PUT_UNIT, async () => {
+            const response = await api().put<WithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
+                ...options,
+                body: options?.body ?? resolvedSchema.values,
             });
+
+            setMemorizedUnit({ ...unit, ...response });
 
             return response;
         });
     }
 
-    async function putUnits(
-        units: (SchemaIndicator & Schema)[],
-        options?: ApiActionOptions<ApiAction.PUT> & { validate?: boolean },
+    async function putUnitsEndpoint(
+        units: WithIndicator<S, I>[],
+        options?: EndpointMethodOptions<any> & { validate?: boolean },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.PUT_UNITS);
 
-        return withEndpointStatus(Endpoint.PUT_UNITS, async () => {
-            const responses: (SchemaIndicator & Schema)[] = [];
+        return withStatus(Endpoint.PUT_UNITS, async () => {
+            const responses: WithIndicator<S, I>[] = [];
 
             for (const unit of units) {
-                const resolvedSchema = resolveSchema(schema, {
-                    indicator,
-                    endpoint,
-                    unit,
-                });
+                const resolvedSchema = resolveSchema(schema, { indicator, endpoint, unit });
 
                 if (options?.validate) {
                     schema.pick<any>(resolvedSchema.keys).parse(unit);
                 }
 
-                const response = await api().put<SchemaIndicator & Schema>(
-                    resolveEndpointUrl(endpoint, unit),
-                    {
-                        ...options,
-                        body: options?.body ?? resolvedSchema.values,
-                    },
-                );
+                const response = await api().put<WithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
+                    ...options,
+                    body: options?.body ?? resolvedSchema.values,
+                });
 
-                editMemorizedUnits([
-                    {
-                        ...unit,
-                        ...response,
-                    },
-                ]);
+                editMemorizedUnits([{ ...unit, ...response }]);
 
                 responses.push(response);
             }
@@ -482,71 +389,51 @@ export function createStore<
         });
     }
 
-    async function patchUnit(
-        unit: SchemaIndicator & Partial<Schema>,
-        options?: ApiActionOptions<ApiAction.PATCH> & { validate?: boolean },
+    async function patchUnitEndpoint(
+        unit: PartialWithIndicator<S, I>,
+        options?: EndpointMethodOptions<any> & { validate?: boolean },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.PATCH_UNIT);
-        const resolvedSchema = resolveSchema(schema, {
-            indicator,
-            endpoint,
-            unit,
-        });
+        const resolvedSchema = resolveSchema(schema, { indicator, endpoint, unit });
 
         if (options?.validate) {
             schema.pick<any>(resolvedSchema.keys).partial().parse(unit);
         }
 
-        return withEndpointStatus(Endpoint.PATCH_UNIT, async () => {
-            const response = await api().patch<
-                SchemaIndicator & Partial<Schema>
-            >(resolveEndpointUrl(endpoint, unit), {
+        return withStatus(Endpoint.PATCH_UNIT, async () => {
+            const response = await api().patch<PartialWithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
                 ...options,
                 body: options?.body ?? resolvedSchema.values,
             });
 
-            editMemorizedUnit({
-                ...unit,
-                ...response,
-            });
+            editMemorizedUnit({ ...unit, ...response });
 
             return response;
         });
     }
 
-    async function patchUnits(
-        units: (SchemaIndicator & Partial<Schema>)[],
-        options?: ApiActionOptions<ApiAction.PATCH> & { validate?: boolean },
+    async function patchUnitsEndpoint(
+        units: PartialWithIndicator<S, I>[],
+        options?: EndpointMethodOptions<any> & { validate?: boolean },
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.PATCH_UNITS);
 
-        return withEndpointStatus(Endpoint.PATCH_UNITS, async () => {
-            const responses: (SchemaIndicator & Partial<Schema>)[] = [];
+        return withStatus(Endpoint.PATCH_UNITS, async () => {
+            const responses: PartialWithIndicator<S, I>[] = [];
 
             for (const unit of units) {
-                const resolvedSchema = resolveSchema(schema, {
-                    indicator,
-                    endpoint,
-                    unit,
-                });
+                const resolvedSchema = resolveSchema(schema, { indicator, endpoint, unit });
 
                 if (options?.validate) {
                     schema.pick<any>(resolvedSchema.keys).partial().parse(unit);
                 }
 
-                const response = await api().patch<
-                    SchemaIndicator & Partial<Schema>
-                >(resolveEndpointUrl(endpoint, unit), {
+                const response = await api().patch<PartialWithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
                     ...options,
                     body: options?.body ?? resolvedSchema.values,
                 });
 
-                editMemorizedUnits([
-                    {
-                        ...unit,
-                        ...response,
-                    },
-                ]);
+                editMemorizedUnits([{ ...unit, ...response }]);
 
                 responses.push(response);
             }
@@ -555,17 +442,14 @@ export function createStore<
         });
     }
 
-    async function deleteUnit(
-        unit: SchemaIndicator & Partial<Schema>,
-        options?: Omit<ApiActionOptions<ApiAction.DELETE>, "body">,
+    async function deleteUnitEndpoint(
+        unit: PartialWithIndicator<S, I>,
+        options?: Omit<EndpointMethodOptions<any>, "body">,
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.DELETE_UNIT);
 
-        return withEndpointStatus(Endpoint.DELETE_UNIT, async () => {
-            await api().del<SchemaIndicator & Partial<Schema>>(
-                resolveEndpointUrl(endpoint, unit),
-                options,
-            );
+        return withStatus(Endpoint.DELETE_UNIT, async () => {
+            await api().del<PartialWithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), options);
 
             dropMemorizedUnit(unit);
 
@@ -573,18 +457,15 @@ export function createStore<
         });
     }
 
-    async function deleteUnits(
-        units: (SchemaIndicator & Partial<Schema>)[],
-        options?: Omit<ApiActionOptions<ApiAction.DELETE>, "body">,
+    async function deleteUnitsEndpoint(
+        units: PartialWithIndicator<S, I>[],
+        options?: Omit<EndpointMethodOptions<any>, "body">,
     ) {
         const endpoint = getEndpoint(endpoints, Endpoint.DELETE_UNITS);
 
-        return withEndpointStatus(Endpoint.DELETE_UNITS, async () => {
+        return withStatus(Endpoint.DELETE_UNITS, async () => {
             for (const unit of units) {
-                await api().del<SchemaIndicator & Partial<Schema>>(
-                    resolveEndpointUrl(endpoint, unit),
-                    options,
-                );
+                await api().del<PartialWithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), options);
 
                 dropMemorizedUnits([unit]);
             }
@@ -594,29 +475,31 @@ export function createStore<
     }
 
     return {
-        api,
         store,
-        memorizedUnit,
-        memorizedUnits,
-        hasMemorizedUnits,
-        endpointsStatus,
-        setMemorizedUnit,
-        setMemorizedUnits,
-        editMemorizedUnit,
-        editMemorizedUnits,
-        dropMemorizedUnit,
-        dropMemorizedUnits,
-        patchEndpointMemory,
-        purgeEndpointMemory,
-        getUnit,
-        getUnits,
-        postUnit,
-        postUnits,
-        putUnit,
-        putUnits,
-        patchUnit,
-        patchUnits,
-        deleteUnit,
-        deleteUnits,
-    };
+        alias,
+        indicator,
+        unit: memorizedUnit,
+        units: memorizedUnits,
+        memory: {
+            setUnit: setMemorizedUnit,
+            setUnits: setMemorizedUnits,
+            editUnit: editMemorizedUnit,
+            editUnits: editMemorizedUnits,
+            dropUnit: dropMemorizedUnit,
+            dropUnits: dropMemorizedUnits,
+        },
+        endpoint: {
+            getUnit: getUnitEndpoint,
+            getUnits: getUnitsEndpoint,
+            postUnit: postUnitEndpoint,
+            postUnits: postUnitsEndpoint,
+            putUnit: putUnitEndpoint,
+            putUnits: putUnitsEndpoint,
+            patchUnit: patchUnitEndpoint,
+            patchUnits: patchUnitsEndpoint,
+            deleteUnit: deleteUnitEndpoint,
+            deleteUnits: deleteUnitsEndpoint,
+        },
+        monitor,
+    } as any;
 }

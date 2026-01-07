@@ -1,12 +1,7 @@
-import { toValue, type MaybeRefOrGetter } from "vue";
+import { toValue } from "vue";
+import type { MaybeRefOrGetter } from "vue";
 
-export enum ApiAction {
-    GET = "get",
-    POST = "post",
-    PUT = "put",
-    PATCH = "patch",
-    DELETE = "delete",
-}
+import { EndpointMethod } from "../utils/endpoint";
 
 export enum ApiResponseType {
     JSON = "json",
@@ -22,12 +17,10 @@ export enum ApiErrorSource {
 
 export type ApiRequestHeader = MaybeRefOrGetter<Record<string, unknown>>;
 export type ApiRequestQuery = MaybeRefOrGetter<Record<string, unknown>>;
-export type ApiRequestBody = MaybeRefOrGetter<
-    string | number | ArrayBuffer | FormData | Blob | Record<string, any>
->;
+export type ApiRequestBody = MaybeRefOrGetter<string | number | ArrayBuffer | FormData | Blob | Record<string, any>>;
 
 export interface ApiRequestOptions<
-    A extends ApiAction = ApiAction,
+    A extends EndpointMethod = EndpointMethod,
     H extends ApiRequestHeader = ApiRequestHeader,
     Q extends ApiRequestQuery = ApiRequestQuery,
     B extends ApiRequestBody = ApiRequestBody,
@@ -51,8 +44,8 @@ export interface ApiOptions {
     timeout?: number;
 }
 
-export type ApiActionOptions<
-    A extends ApiAction,
+export type EndpointMethodOptions<
+    A extends EndpointMethod,
     H extends ApiRequestHeader = ApiRequestHeader,
     Q extends ApiRequestQuery = ApiRequestQuery,
     B extends ApiRequestBody = ApiRequestBody,
@@ -71,7 +64,7 @@ export class ApiError extends Error {
     url: string;
 
     constructor(options: ApiErrorOptions) {
-        super(options.message || "Unknown error");
+        super(options.message ?? "Unknown error");
 
         this.name = "ApiError";
         this.source = options.source;
@@ -98,20 +91,55 @@ export class ApiResponseError extends ApiError {
     }
 }
 
-export function createApi(options?: ApiOptions) {
-    async function request<
+export interface Api {
+    get: <T, H extends ApiRequestHeader = ApiRequestHeader, Q extends ApiRequestQuery = ApiRequestQuery>(
+        url: string,
+        options?: EndpointMethodOptions<EndpointMethod.GET, H, Q, never>,
+    ) => Promise<T>;
+    post: <
         T,
-        A extends ApiAction = ApiAction,
         H extends ApiRequestHeader = ApiRequestHeader,
         Q extends ApiRequestQuery = ApiRequestQuery,
         B extends ApiRequestBody = ApiRequestBody,
     >(
         url: string,
-        requestOptions?: ApiRequestOptions<A, H, Q, B> & ApiOptions,
-    ): Promise<T> {
-        return $fetch<T>(url, {
+        options?: EndpointMethodOptions<EndpointMethod.POST, H, Q, B>,
+    ) => Promise<T>;
+    put: <
+        T,
+        H extends ApiRequestHeader = ApiRequestHeader,
+        Q extends ApiRequestQuery = ApiRequestQuery,
+        B extends ApiRequestBody = ApiRequestBody,
+    >(
+        url: string,
+        options?: EndpointMethodOptions<EndpointMethod.PUT, H, Q, B>,
+    ) => Promise<T>;
+    patch: <
+        T,
+        H extends ApiRequestHeader = ApiRequestHeader,
+        Q extends ApiRequestQuery = ApiRequestQuery,
+        B extends ApiRequestBody = ApiRequestBody,
+    >(
+        url: string,
+        options?: EndpointMethodOptions<EndpointMethod.PATCH, H, Q, B>,
+    ) => Promise<T>;
+    del: <T, H extends ApiRequestHeader = ApiRequestHeader, Q extends ApiRequestQuery = ApiRequestQuery>(
+        url: string,
+        options?: EndpointMethodOptions<EndpointMethod.DELETE, H, Q, never>,
+    ) => Promise<T>;
+}
+
+export function createApi(options?: ApiOptions): Api {
+    async function request<
+        T,
+        A extends EndpointMethod = EndpointMethod,
+        H extends ApiRequestHeader = ApiRequestHeader,
+        Q extends ApiRequestQuery = ApiRequestQuery,
+        B extends ApiRequestBody = ApiRequestBody,
+    >(url: string, requestOptions?: ApiRequestOptions<A, H, Q, B> & ApiOptions): Promise<T> {
+        return $fetch(url, {
             baseURL: options?.url,
-            method: requestOptions?.action ?? ApiAction.GET,
+            method: requestOptions?.action ?? EndpointMethod.GET,
             headers: {
                 ...toValue(options?.headers),
                 ...toValue(requestOptions?.headers),
@@ -144,14 +172,13 @@ export function createApi(options?: ApiOptions) {
         });
     }
 
-    async function get<
-        T,
-        H extends ApiRequestHeader = ApiRequestHeader,
-        Q extends ApiRequestQuery = ApiRequestQuery,
-    >(url: string, options?: ApiActionOptions<ApiAction.GET, H, Q, never>) {
-        return request<T, ApiAction.GET, H, Q, never>(url, {
+    async function get<T, H extends ApiRequestHeader = ApiRequestHeader, Q extends ApiRequestQuery = ApiRequestQuery>(
+        url: string,
+        options?: EndpointMethodOptions<EndpointMethod.GET, H, Q, never>,
+    ) {
+        return request<T, EndpointMethod.GET, H, Q, never>(url, {
             ...options,
-            action: ApiAction.GET,
+            action: EndpointMethod.GET,
         });
     }
 
@@ -160,10 +187,10 @@ export function createApi(options?: ApiOptions) {
         H extends ApiRequestHeader = ApiRequestHeader,
         Q extends ApiRequestQuery = ApiRequestQuery,
         B extends ApiRequestBody = ApiRequestBody,
-    >(url: string, options?: ApiActionOptions<ApiAction.POST, H, Q, B>) {
-        return request<T, ApiAction.POST, H, Q, B>(url, {
+    >(url: string, options?: EndpointMethodOptions<EndpointMethod.POST, H, Q, B>) {
+        return request<T, EndpointMethod.POST, H, Q, B>(url, {
             ...options,
-            action: ApiAction.POST,
+            action: EndpointMethod.POST,
         });
     }
 
@@ -172,10 +199,10 @@ export function createApi(options?: ApiOptions) {
         H extends ApiRequestHeader = ApiRequestHeader,
         Q extends ApiRequestQuery = ApiRequestQuery,
         B extends ApiRequestBody = ApiRequestBody,
-    >(url: string, options?: ApiActionOptions<ApiAction.PUT, H, Q, B>) {
-        return request<T, ApiAction.PUT, H, Q, B>(url, {
+    >(url: string, options?: EndpointMethodOptions<EndpointMethod.PUT, H, Q, B>) {
+        return request<T, EndpointMethod.PUT, H, Q, B>(url, {
             ...options,
-            action: ApiAction.PUT,
+            action: EndpointMethod.PUT,
         });
     }
 
@@ -184,21 +211,20 @@ export function createApi(options?: ApiOptions) {
         H extends ApiRequestHeader = ApiRequestHeader,
         Q extends ApiRequestQuery = ApiRequestQuery,
         B extends ApiRequestBody = ApiRequestBody,
-    >(url: string, options?: ApiActionOptions<ApiAction.PATCH, H, Q, B>) {
-        return request<T, ApiAction.PATCH, H, Q, B>(url, {
+    >(url: string, options?: EndpointMethodOptions<EndpointMethod.PATCH, H, Q, B>) {
+        return request<T, EndpointMethod.PATCH, H, Q, B>(url, {
             ...options,
-            action: ApiAction.PATCH,
+            action: EndpointMethod.PATCH,
         });
     }
 
-    async function del<
-        T,
-        H extends ApiRequestHeader = ApiRequestHeader,
-        Q extends ApiRequestQuery = ApiRequestQuery,
-    >(url: string, options?: ApiActionOptions<ApiAction.DELETE, H, Q, never>) {
-        return request<T, ApiAction.DELETE, H, Q, never>(url, {
+    async function del<T, H extends ApiRequestHeader = ApiRequestHeader, Q extends ApiRequestQuery = ApiRequestQuery>(
+        url: string,
+        options?: EndpointMethodOptions<EndpointMethod.DELETE, H, Q, never>,
+    ) {
+        return request<T, EndpointMethod.DELETE, H, Q, never>(url, {
             ...options,
-            action: ApiAction.DELETE,
+            action: EndpointMethod.DELETE,
         });
     }
 

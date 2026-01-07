@@ -1,10 +1,4 @@
-import {
-    defineNuxtModule,
-    addPlugin,
-    createResolver,
-    addImportsDir,
-    updateRuntimeConfig,
-} from "@nuxt/kit";
+import { defineNuxtModule, addPlugin, createResolver, addImportsDir, updateRuntimeConfig } from "@nuxt/kit";
 
 import type { ApiOptions } from "./runtime";
 
@@ -28,6 +22,8 @@ export default defineNuxtModule<ModuleOptions>({
 
         addPlugin(resolve("./runtime", "plugin"));
         addImportsDir(resolve("./runtime", "core"));
+        addImportsDir(resolve("./runtime", "composables"));
+        addImportsDir(resolve("./runtime", "utils"));
 
         updateRuntimeConfig({
             public: {

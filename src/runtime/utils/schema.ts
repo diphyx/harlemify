@@ -1,11 +1,9 @@
-import { z } from "zod";
-
-import type { ApiAction } from "../core/api";
-import type { EndpointDefinition } from "./endpoint";
+import type { z } from "zod";
+import type { EndpointDefinition, EndpointMethod } from "./endpoint";
 
 export interface SchemaMeta {
     indicator?: boolean;
-    actions?: ApiAction[];
+    methods?: EndpointMethod[];
 }
 
 export function getMeta(field: any): SchemaMeta | undefined {
@@ -18,10 +16,10 @@ export interface ResolveSchemaOptions<S> {
     unit?: Partial<S>;
 }
 
-export function resolveSchema<
-    T extends z.ZodRawShape,
-    S extends z.infer<z.ZodObject<T>>,
->(schema: z.ZodObject<T>, options?: ResolveSchemaOptions<S>) {
+export function resolveSchema<T extends z.ZodRawShape, S extends z.infer<z.ZodObject<T>>>(
+    schema: z.ZodObject<T>,
+    options?: ResolveSchemaOptions<S>,
+) {
     const output = {
         indicator: (options?.indicator ?? "id") as keyof S,
         keys: {} as Record<keyof S, true>,
@@ -35,11 +33,11 @@ export function resolveSchema<
             output.indicator = key as keyof S;
         }
 
-        if (!options?.endpoint?.action || !meta?.actions) {
+        if (!options?.endpoint?.method || !meta?.methods) {
             continue;
         }
 
-        if (meta?.actions.includes(options.endpoint.action)) {
+        if (meta?.methods.includes(options.endpoint.method)) {
             output.keys[key as keyof S] = true;
 
             if (options?.unit && key in options.unit) {
