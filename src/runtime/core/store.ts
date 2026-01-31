@@ -5,6 +5,8 @@ import type { z } from "zod";
 import type { ComputedRef } from "vue";
 import type { Extension, BaseState } from "@harlem/core";
 
+import { useRuntimeConfig } from "#imports";
+
 import { createApi } from "./api";
 import { resolveSchema } from "../utils/schema";
 import { pluralize } from "../utils/transform";
