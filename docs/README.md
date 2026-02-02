@@ -7,7 +7,7 @@ Define your data schema once with Zod, and Harlemify handles the rest: type-safe
 ## Features
 
 - **Schema-Driven** - Zod schema defines types, validation, and API payloads
-- **Automatic API Client** - Built-in HTTP client with runtime configuration
+- **Custom Adapters** - Pluggable HTTP adapters for custom request handling
 - **Reactive Memory** - Unit and collection caching with Vue reactivity
 - **Request Monitoring** - Track pending, success, and failed states
 - **SSR Support** - Server-side rendering via Harlem SSR plugin
@@ -24,7 +24,10 @@ export default defineNuxtConfig({
     modules: ["@diphyx/harlemify"],
     harlemify: {
         api: {
-            url: "https://api.example.com",
+            adapter: {
+                baseURL: "https://api.example.com",
+                timeout: 10000,
+            },
         },
     },
 });
@@ -37,4 +40,4 @@ export default defineNuxtConfig({
 | **Type-Safe**   | Full TypeScript support with Zod schema inference |
 | **Declarative** | Define schema once, derive everything else        |
 | **Reactive**    | Powered by Vue's reactivity through Harlem        |
-| **Simple**      | Minimal boilerplate, maximum productivity         |
+| **Extensible**  | Custom adapters for any HTTP requirement          |
