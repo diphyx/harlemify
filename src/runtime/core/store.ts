@@ -6,12 +6,14 @@ import type { ComputedRef } from "vue";
 import type { Extension, BaseState } from "@harlem/core";
 
 import { createApi } from "./api";
+import { defineApiAdapter } from "./adapter";
 import { sharedConfig } from "../shared";
 import { resolveSchema } from "../utils/schema";
 import { pluralize } from "../utils/transform";
 import { Endpoint, EndpointStatus, getEndpoint, makeEndpointStatusName, resolveEndpointUrl } from "../utils/endpoint";
 
-import type { Api, EndpointMethodOptions, ApiOptions } from "./api";
+import type { Api, EndpointMethodOptions } from "./api";
+import type { ApiAdapter } from "./adapter";
 import type { EndpointDefinition, EndpointStatusName } from "../utils/endpoint";
 import type { Pluralize } from "../utils/transform";
 
@@ -32,7 +34,7 @@ export interface StoreHooks {
 }
 
 export interface StoreOptions {
-    api?: ApiOptions;
+    adapter?: ApiAdapter<any>;
     indicator?: string;
     hooks?: StoreHooks;
     extensions?: Extension<BaseState>[];
@@ -101,13 +103,17 @@ export function createStore<
         indicator: options?.indicator as keyof S,
     });
 
+    // Adapter hierarchy: endpoint.adapter → options.adapter → sharedConfig.api.adapter → default
+    const defaultAdapter = options?.adapter ?? defineApiAdapter(sharedConfig.api?.adapter);
+
     let apiClient: Api;
 
     function api() {
         if (!apiClient) {
             apiClient = createApi({
-                ...(sharedConfig.api ?? {}),
-                ...options?.api,
+                headers: sharedConfig.api?.headers,
+                query: sharedConfig.api?.query,
+                adapter: defaultAdapter,
             });
         }
 
@@ -247,14 +253,14 @@ export function createStore<
         }
     }
 
-    async function getUnitEndpoint(
-        unit?: PartialWithIndicator<S, I>,
-        options?: Omit<EndpointMethodOptions<any>, "body">,
-    ) {
+    async function getUnitEndpoint(unit?: PartialWithIndicator<S, I>, requestOptions?: StoreEndpointReadOptions) {
         const endpoint = getEndpoint(endpoints, Endpoint.GET_UNIT);
 
         return withStatus(Endpoint.GET_UNIT, async () => {
-            const response = await api().get<S>(resolveEndpointUrl(endpoint, unit), options);
+            const response = await api().get<S>(resolveEndpointUrl(endpoint, unit), {
+                ...requestOptions,
+                ...(endpoint.adapter && { adapter: endpoint.adapter }),
+            });
 
             setMemorizedUnit(response);
 
@@ -262,11 +268,14 @@ export function createStore<
         });
     }
 
-    async function getUnitsEndpoint(options?: Omit<EndpointMethodOptions<any>, "body">) {
+    async function getUnitsEndpoint(requestOptions?: StoreEndpointReadOptions) {
         const endpoint = getEndpoint(endpoints, Endpoint.GET_UNITS);
 
         return withStatus(Endpoint.GET_UNITS, async () => {
-            const response = await api().get<S[]>(resolveEndpointUrl(endpoint), options);
+            const response = await api().get<S[]>(resolveEndpointUrl(endpoint), {
+                ...requestOptions,
+                ...(endpoint.adapter && { adapter: endpoint.adapter }),
+            });
 
             setMemorizedUnits(response);
 
@@ -274,10 +283,7 @@ export function createStore<
         });
     }
 
-    async function postUnitEndpoint(
-        unit: WithIndicator<S, I>,
-        actionOptions?: EndpointMethodOptions<any> & { validate?: boolean },
-    ) {
+    async function postUnitEndpoint(unit: WithIndicator<S, I>, actionOptions?: StoreEndpointWriteOptions) {
         const endpoint = getEndpoint(endpoints, Endpoint.POST_UNIT);
         const resolvedSchema = resolveSchema(schema, { indicator, endpoint, unit });
 
@@ -289,6 +295,7 @@ export function createStore<
             const response = await api().post<WithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
                 ...actionOptions,
                 body: actionOptions?.body ?? resolvedSchema.values,
+                ...(endpoint.adapter && { adapter: endpoint.adapter }),
             });
 
             setMemorizedUnit({ ...unit, ...response });
@@ -297,10 +304,7 @@ export function createStore<
         });
     }
 
-    async function postUnitsEndpoint(
-        units: WithIndicator<S, I>[],
-        options?: EndpointMethodOptions<any> & { validate?: boolean; position?: StoreMemoryPosition },
-    ) {
+    async function postUnitsEndpoint(units: WithIndicator<S, I>[], requestOptions?: StoreEndpointWriteMultipleOptions) {
         const endpoint = getEndpoint(endpoints, Endpoint.POST_UNITS);
 
         return withStatus(Endpoint.POST_UNITS, async () => {
@@ -309,18 +313,19 @@ export function createStore<
             for (const unit of units) {
                 const resolvedSchema = resolveSchema(schema, { indicator, endpoint, unit });
 
-                if (options?.validate) {
+                if (requestOptions?.validate) {
                     schema.pick<any>(resolvedSchema.keys).parse(unit);
                 }
 
                 const response = await api().post<WithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
-                    ...options,
-                    body: options?.body ?? resolvedSchema.values,
+                    ...requestOptions,
+                    body: requestOptions?.body ?? resolvedSchema.values,
+                    ...(endpoint.adapter && { adapter: endpoint.adapter }),
                 });
 
                 const clonedUnits: any[] = [...memorizedUnits.value];
 
-                if (options?.position === StoreMemoryPosition.LAST) {
+                if (requestOptions?.position === StoreMemoryPosition.LAST) {
                     clonedUnits.push({ ...unit, ...response });
                 } else {
                     clonedUnits.unshift({ ...unit, ...response });
@@ -335,21 +340,19 @@ export function createStore<
         });
     }
 
-    async function putUnitEndpoint(
-        unit: WithIndicator<S, I>,
-        options?: EndpointMethodOptions<any> & { validate?: boolean },
-    ) {
+    async function putUnitEndpoint(unit: WithIndicator<S, I>, requestOptions?: StoreEndpointWriteOptions) {
         const endpoint = getEndpoint(endpoints, Endpoint.PUT_UNIT);
         const resolvedSchema = resolveSchema(schema, { indicator, endpoint, unit });
 
-        if (options?.validate) {
+        if (requestOptions?.validate) {
             schema.pick<any>(resolvedSchema.keys).parse(unit);
         }
 
         return withStatus(Endpoint.PUT_UNIT, async () => {
             const response = await api().put<WithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
-                ...options,
-                body: options?.body ?? resolvedSchema.values,
+                ...requestOptions,
+                body: requestOptions?.body ?? resolvedSchema.values,
+                ...(endpoint.adapter && { adapter: endpoint.adapter }),
             });
 
             setMemorizedUnit({ ...unit, ...response });
@@ -358,10 +361,7 @@ export function createStore<
         });
     }
 
-    async function putUnitsEndpoint(
-        units: WithIndicator<S, I>[],
-        options?: EndpointMethodOptions<any> & { validate?: boolean },
-    ) {
+    async function putUnitsEndpoint(units: WithIndicator<S, I>[], requestOptions?: StoreEndpointWriteOptions) {
         const endpoint = getEndpoint(endpoints, Endpoint.PUT_UNITS);
 
         return withStatus(Endpoint.PUT_UNITS, async () => {
@@ -370,13 +370,14 @@ export function createStore<
             for (const unit of units) {
                 const resolvedSchema = resolveSchema(schema, { indicator, endpoint, unit });
 
-                if (options?.validate) {
+                if (requestOptions?.validate) {
                     schema.pick<any>(resolvedSchema.keys).parse(unit);
                 }
 
                 const response = await api().put<WithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
-                    ...options,
-                    body: options?.body ?? resolvedSchema.values,
+                    ...requestOptions,
+                    body: requestOptions?.body ?? resolvedSchema.values,
+                    ...(endpoint.adapter && { adapter: endpoint.adapter }),
                 });
 
                 editMemorizedUnits([{ ...unit, ...response }]);
@@ -388,21 +389,19 @@ export function createStore<
         });
     }
 
-    async function patchUnitEndpoint(
-        unit: PartialWithIndicator<S, I>,
-        options?: EndpointMethodOptions<any> & { validate?: boolean },
-    ) {
+    async function patchUnitEndpoint(unit: PartialWithIndicator<S, I>, requestOptions?: StoreEndpointWriteOptions) {
         const endpoint = getEndpoint(endpoints, Endpoint.PATCH_UNIT);
         const resolvedSchema = resolveSchema(schema, { indicator, endpoint, unit });
 
-        if (options?.validate) {
+        if (requestOptions?.validate) {
             schema.pick<any>(resolvedSchema.keys).partial().parse(unit);
         }
 
         return withStatus(Endpoint.PATCH_UNIT, async () => {
             const response = await api().patch<PartialWithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
-                ...options,
-                body: options?.body ?? resolvedSchema.values,
+                ...requestOptions,
+                body: requestOptions?.body ?? resolvedSchema.values,
+                ...(endpoint.adapter && { adapter: endpoint.adapter }),
             });
 
             editMemorizedUnit({ ...unit, ...response });
@@ -411,10 +410,7 @@ export function createStore<
         });
     }
 
-    async function patchUnitsEndpoint(
-        units: PartialWithIndicator<S, I>[],
-        options?: EndpointMethodOptions<any> & { validate?: boolean },
-    ) {
+    async function patchUnitsEndpoint(units: PartialWithIndicator<S, I>[], requestOptions?: StoreEndpointWriteOptions) {
         const endpoint = getEndpoint(endpoints, Endpoint.PATCH_UNITS);
 
         return withStatus(Endpoint.PATCH_UNITS, async () => {
@@ -423,13 +419,14 @@ export function createStore<
             for (const unit of units) {
                 const resolvedSchema = resolveSchema(schema, { indicator, endpoint, unit });
 
-                if (options?.validate) {
+                if (requestOptions?.validate) {
                     schema.pick<any>(resolvedSchema.keys).partial().parse(unit);
                 }
 
                 const response = await api().patch<PartialWithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
-                    ...options,
-                    body: options?.body ?? resolvedSchema.values,
+                    ...requestOptions,
+                    body: requestOptions?.body ?? resolvedSchema.values,
+                    ...(endpoint.adapter && { adapter: endpoint.adapter }),
                 });
 
                 editMemorizedUnits([{ ...unit, ...response }]);
@@ -441,14 +438,14 @@ export function createStore<
         });
     }
 
-    async function deleteUnitEndpoint(
-        unit: PartialWithIndicator<S, I>,
-        options?: Omit<EndpointMethodOptions<any>, "body">,
-    ) {
+    async function deleteUnitEndpoint(unit: PartialWithIndicator<S, I>, requestOptions?: StoreEndpointReadOptions) {
         const endpoint = getEndpoint(endpoints, Endpoint.DELETE_UNIT);
 
         return withStatus(Endpoint.DELETE_UNIT, async () => {
-            await api().del<PartialWithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), options);
+            await api().del<PartialWithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
+                ...requestOptions,
+                ...(endpoint.adapter && { adapter: endpoint.adapter }),
+            });
 
             dropMemorizedUnit(unit);
 
@@ -456,15 +453,15 @@ export function createStore<
         });
     }
 
-    async function deleteUnitsEndpoint(
-        units: PartialWithIndicator<S, I>[],
-        options?: Omit<EndpointMethodOptions<any>, "body">,
-    ) {
+    async function deleteUnitsEndpoint(units: PartialWithIndicator<S, I>[], requestOptions?: StoreEndpointReadOptions) {
         const endpoint = getEndpoint(endpoints, Endpoint.DELETE_UNITS);
 
         return withStatus(Endpoint.DELETE_UNITS, async () => {
             for (const unit of units) {
-                await api().del<PartialWithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), options);
+                await api().del<PartialWithIndicator<S, I>>(resolveEndpointUrl(endpoint, unit), {
+                    ...requestOptions,
+                    ...(endpoint.adapter && { adapter: endpoint.adapter }),
+                });
 
                 dropMemorizedUnits([unit]);
             }

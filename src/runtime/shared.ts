@@ -1,7 +1,10 @@
+import type { ApiFetchAdapterOptions } from "./core/adapter";
+
 export type SharedConfig = {
     api?: {
-        url?: string;
-        timeout?: number;
+        headers?: Record<string, string>;
+        query?: Record<string, unknown>;
+        adapter?: ApiFetchAdapterOptions;
     };
 };
 

@@ -1,7 +1,9 @@
 import { ref, computed } from "vue";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { ApiErrorSource, ApiError, ApiRequestError, ApiResponseError, createApi } from "../src/runtime/core/api";
+import { ApiErrorSource, ApiError, ApiRequestError, ApiResponseError } from "../src/runtime/core/errors";
+import { createApi } from "../src/runtime/core/api";
+import { defineApiAdapter } from "../src/runtime/core/adapter";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("$fetch", mockFetch);
@@ -74,7 +76,9 @@ describe("createApi", () => {
     it("makes GET request with query params", async () => {
         mockFetch.mockResolvedValueOnce({ data: "test" });
 
-        const api = createApi({ url: "https://api.example.com" });
+        const api = createApi({
+            adapter: defineApiAdapter({ baseURL: "https://api.example.com" }),
+        });
         const result = await api.get("/users", { query: { page: 1 } });
 
         expect(mockFetch).toHaveBeenCalledWith(
@@ -118,26 +122,31 @@ describe("createApi", () => {
         expect(mockFetch).toHaveBeenCalledWith("/users/1", expect.objectContaining({ method: "delete" }));
     });
 
-    it("request options override global options", async () => {
+    it("request adapter overrides global adapter", async () => {
         mockFetch.mockResolvedValueOnce({});
 
-        const api = createApi({ timeout: 5000 });
-        await api.get("/test", { timeout: 10000 });
+        const api = createApi({
+            adapter: defineApiAdapter({ timeout: 5000 }),
+        });
+        await api.get("/test", {
+            adapter: defineApiAdapter({ timeout: 10000 }),
+        });
 
         expect(mockFetch).toHaveBeenCalledWith("/test", expect.objectContaining({ timeout: 10000 }));
     });
 
-    it("passes retry and signal options", async () => {
+    it("passes adapter options (retry, timeout) to $fetch", async () => {
         mockFetch.mockResolvedValueOnce({});
 
         const controller = new AbortController();
-        const api = createApi();
-        await api.get("/test", {
-            retry: 3,
-            retryDelay: 1000,
-            retryStatusCodes: [500, 502],
-            signal: controller.signal,
+        const api = createApi({
+            adapter: defineApiAdapter({
+                retry: 3,
+                retryDelay: 1000,
+                retryStatusCodes: [500, 502],
+            }),
         });
+        await api.get("/test", { signal: controller.signal });
 
         expect(mockFetch).toHaveBeenCalledWith(
             "/test",

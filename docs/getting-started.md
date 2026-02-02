@@ -16,8 +16,10 @@ export default defineNuxtConfig({
     modules: ["@diphyx/harlemify"],
     harlemify: {
         api: {
-            url: "https://api.example.com",
-            timeout: 10000,
+            adapter: {
+                baseURL: "https://api.example.com",
+                timeout: 10000,
+            },
         },
     },
 });

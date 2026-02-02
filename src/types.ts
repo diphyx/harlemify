@@ -1,4 +1,6 @@
 import "zod";
+import "@nuxt/schema";
+
 import type { SchemaMeta, SharedConfig } from "./runtime";
 
 declare module "zod" {

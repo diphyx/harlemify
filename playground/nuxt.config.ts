@@ -4,8 +4,10 @@ export default defineNuxtConfig({
     css: ["~/assets/style.css"],
     harlemify: {
         api: {
-            url: "/api",
-            timeout: 10000,
+            adapter: {
+                baseURL: "/api",
+                timeout: 10000,
+            },
         },
     },
     app: {

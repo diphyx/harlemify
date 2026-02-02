@@ -17,16 +17,34 @@ createStore(entity, schema, endpoints?, options?)
 
 ### Returns: Store
 
-| Property    | Type          | Description                  |
-| ----------- | ------------- | ---------------------------- |
-| `store`     | `HarlemStore` | Underlying Harlem store      |
-| `alias`     | `Object`      | Entity name aliases          |
-| `indicator` | `keyof T`     | Primary key field name       |
-| `unit`      | `ComputedRef` | Single cached unit           |
-| `units`     | `ComputedRef` | Cached unit collection       |
-| `memory`    | `Object`      | Memory mutation methods      |
-| `endpoint`  | `Object`      | API endpoint methods         |
-| `monitor`   | `Object`      | Endpoint status flags        |
+| Property    | Type          | Description             |
+| ----------- | ------------- | ----------------------- |
+| `store`     | `HarlemStore` | Underlying Harlem store |
+| `alias`     | `Object`      | Entity name aliases     |
+| `indicator` | `keyof T`     | Primary key field name  |
+| `unit`      | `ComputedRef` | Single cached unit      |
+| `units`     | `ComputedRef` | Cached unit collection  |
+| `memory`    | `Object`      | Memory mutation methods |
+| `endpoint`  | `Object`      | API endpoint methods    |
+| `monitor`   | `Object`      | Endpoint status flags   |
+
+---
+
+## defineApiAdapter
+
+Creates a built-in fetch adapter with configurable options.
+
+```typescript
+defineApiAdapter(options?)
+```
+
+| Parameter | Type                     | Description     |
+| --------- | ------------------------ | --------------- |
+| `options` | `ApiFetchAdapterOptions` | Adapter options |
+
+### Returns: ApiAdapter
+
+A function that handles HTTP requests.
 
 ---
 
@@ -35,33 +53,33 @@ createStore(entity, schema, endpoints?, options?)
 Composable for entity-named store access.
 
 ```typescript
-useStoreAlias(store)
+useStoreAlias(store);
 ```
 
 Returns properties aliased to entity name:
 
-| Property                   | Type          | Description              |
-| -------------------------- | ------------- | ------------------------ |
-| `[entity]`                 | `ComputedRef` | Single unit              |
-| `[entities]`               | `ComputedRef` | Unit collection          |
-| `set[Entity]`              | `Function`    | Set single unit          |
-| `set[Entities]`            | `Function`    | Set collection           |
-| `edit[Entity]`             | `Function`    | Merge into unit          |
-| `edit[Entities]`           | `Function`    | Merge into units         |
-| `drop[Entity]`             | `Function`    | Remove unit              |
-| `drop[Entities]`           | `Function`    | Remove units             |
-| `get[Entity]`              | `Function`    | Fetch single             |
-| `get[Entities]`            | `Function`    | Fetch collection         |
-| `post[Entity]`             | `Function`    | Create single            |
-| `post[Entities]`           | `Function`    | Create multiple          |
-| `put[Entity]`              | `Function`    | Replace single           |
-| `put[Entities]`            | `Function`    | Replace multiple         |
-| `patch[Entity]`            | `Function`    | Update single            |
-| `patch[Entities]`          | `Function`    | Update multiple          |
-| `delete[Entity]`           | `Function`    | Delete single            |
-| `delete[Entities]`         | `Function`    | Delete multiple          |
-| `get[Entity]Is{Status}`    | `ComputedRef` | Status flag              |
-| `get[Entities]Is{Status}`  | `ComputedRef` | Status flag              |
+| Property                  | Type          | Description      |
+| ------------------------- | ------------- | ---------------- |
+| `[entity]`                | `ComputedRef` | Single unit      |
+| `[entities]`              | `ComputedRef` | Unit collection  |
+| `set[Entity]`             | `Function`    | Set single unit  |
+| `set[Entities]`           | `Function`    | Set collection   |
+| `edit[Entity]`            | `Function`    | Merge into unit  |
+| `edit[Entities]`          | `Function`    | Merge into units |
+| `drop[Entity]`            | `Function`    | Remove unit      |
+| `drop[Entities]`          | `Function`    | Remove units     |
+| `get[Entity]`             | `Function`    | Fetch single     |
+| `get[Entities]`           | `Function`    | Fetch collection |
+| `post[Entity]`            | `Function`    | Create single    |
+| `post[Entities]`          | `Function`    | Create multiple  |
+| `put[Entity]`             | `Function`    | Replace single   |
+| `put[Entities]`           | `Function`    | Replace multiple |
+| `patch[Entity]`           | `Function`    | Update single    |
+| `patch[Entities]`         | `Function`    | Update multiple  |
+| `delete[Entity]`          | `Function`    | Delete single    |
+| `delete[Entities]`        | `Function`    | Delete multiple  |
+| `get[Entity]Is{Status}`   | `ComputedRef` | Status flag      |
+| `get[Entities]Is{Status}` | `ComputedRef` | Status flag      |
 
 ---
 
@@ -72,6 +90,14 @@ Creates a standalone API client.
 ```typescript
 createApi(options?)
 ```
+
+### Options
+
+| Property  | Type               | Description             |
+| --------- | ------------------ | ----------------------- |
+| `headers` | `MaybeRefOrGetter` | Global headers          |
+| `query`   | `MaybeRefOrGetter` | Global query parameters |
+| `adapter` | `ApiAdapter`       | Custom adapter          |
 
 ### Methods
 
@@ -132,18 +158,7 @@ enum EndpointStatus {
 ```typescript
 enum StoreMemoryPosition {
     FIRST = "first", // Default - add at beginning
-    LAST = "last",   // Add at end
-}
-```
-
-### ApiResponseType
-
-```typescript
-enum ApiResponseType {
-    JSON = "json",
-    TEXT = "text",
-    BLOB = "blob",
-    ARRAY_BUFFER = "arrayBuffer",
+    LAST = "last", // Add at end
 }
 ```
 
@@ -164,7 +179,7 @@ enum ApiErrorSource {
 
 ```typescript
 interface StoreOptions {
-    api?: ApiOptions;
+    adapter?: ApiAdapter<any>;
     indicator?: string;
     hooks?: StoreHooks;
     extensions?: Extension<BaseState>[];
@@ -184,10 +199,9 @@ interface StoreHooks {
 
 ```typescript
 interface ApiOptions {
-    url?: string;
     headers?: MaybeRefOrGetter<Record<string, unknown>>;
     query?: MaybeRefOrGetter<Record<string, unknown>>;
-    timeout?: number;
+    adapter?: ApiAdapter<any>;
 }
 ```
 
@@ -195,15 +209,9 @@ interface ApiOptions {
 
 ```typescript
 interface ApiRequestOptions {
-    method?: EndpointMethod;
     headers?: MaybeRefOrGetter<Record<string, unknown>>;
     query?: MaybeRefOrGetter<Record<string, unknown>>;
     body?: MaybeRefOrGetter<unknown>;
-    timeout?: number;
-    responseType?: ApiResponseType;
-    retry?: number | false;
-    retryDelay?: number;
-    retryStatusCodes?: number[];
     signal?: AbortSignal;
 }
 ```
@@ -214,6 +222,7 @@ interface ApiRequestOptions {
 interface EndpointDefinition<T = Record<string, unknown>> {
     method: EndpointMethod;
     url: string | ((params: T) => string);
+    adapter?: ApiAdapter<any>;
 }
 ```
 
@@ -224,6 +233,67 @@ interface SchemaMeta {
     indicator?: boolean;
     methods?: EndpointMethod[];
 }
+```
+
+---
+
+## Adapter Types
+
+### ApiAdapter
+
+Function signature for custom adapters.
+
+```typescript
+type ApiAdapter<T = unknown> = (request: ApiAdapterRequest) => Promise<ApiAdapterResponse<T>>;
+```
+
+### ApiAdapterRequest
+
+Request data passed to adapters.
+
+```typescript
+interface ApiAdapterRequest {
+    method: EndpointMethod;
+    url: string;
+    body?: unknown;
+    query?: Record<string, unknown>;
+    headers?: Record<string, string>;
+    signal?: AbortSignal;
+}
+```
+
+### ApiAdapterResponse
+
+Response structure returned by adapters.
+
+```typescript
+interface ApiAdapterResponse<T = unknown> {
+    data: T;
+    status?: number;
+}
+```
+
+### ApiFetchAdapterOptions
+
+Options for the built-in fetch adapter.
+
+```typescript
+interface ApiFetchAdapterOptions {
+    baseURL?: string;
+    timeout?: number;
+    retry?: number | false;
+    retryDelay?: number;
+    retryStatusCodes?: number[];
+    responseType?: "json" | "text" | "blob" | "arrayBuffer";
+}
+```
+
+### DefineApiAdapter
+
+Factory type for creating adapters.
+
+```typescript
+type DefineApiAdapter<T = unknown, O = unknown> = (options?: O) => ApiAdapter<T>;
 ```
 
 ---
@@ -286,31 +356,31 @@ try {
 
 ## Memory Methods
 
-| Method      | Signature                                    | Description          |
-| ----------- | -------------------------------------------- | -------------------- |
-| `setUnit`   | `(unit: T \| null) => void`                  | Set single unit      |
-| `setUnits`  | `(units: T[]) => void`                       | Set collection       |
-| `editUnit`  | `(unit: PartialWithIndicator<T>) => void`    | Merge into unit      |
-| `editUnits` | `(units: PartialWithIndicator<T>[]) => void` | Merge into units     |
-| `dropUnit`  | `(unit: PartialWithIndicator<T>) => void`    | Remove unit          |
-| `dropUnits` | `(units: PartialWithIndicator<T>[]) => void` | Remove units         |
+| Method      | Signature                                    | Description      |
+| ----------- | -------------------------------------------- | ---------------- |
+| `setUnit`   | `(unit: T \| null) => void`                  | Set single unit  |
+| `setUnits`  | `(units: T[]) => void`                       | Set collection   |
+| `editUnit`  | `(unit: PartialWithIndicator<T>) => void`    | Merge into unit  |
+| `editUnits` | `(units: PartialWithIndicator<T>[]) => void` | Merge into units |
+| `dropUnit`  | `(unit: PartialWithIndicator<T>) => void`    | Remove unit      |
+| `dropUnits` | `(units: PartialWithIndicator<T>[]) => void` | Remove units     |
 
 ---
 
 ## Endpoint Methods
 
-| Method        | Returns            | Description          |
-| ------------- | ------------------ | -------------------- |
-| `getUnit`     | `Promise<T>`       | Fetch single unit    |
-| `getUnits`    | `Promise<T[]>`     | Fetch collection     |
-| `postUnit`    | `Promise<T>`       | Create single        |
-| `postUnits`   | `Promise<T[]>`     | Create multiple      |
-| `putUnit`     | `Promise<T>`       | Replace single       |
-| `putUnits`    | `Promise<T[]>`     | Replace multiple     |
-| `patchUnit`   | `Promise<Partial>` | Update single        |
-| `patchUnits`  | `Promise<Partial[]>`| Update multiple     |
-| `deleteUnit`  | `Promise<boolean>` | Delete single        |
-| `deleteUnits` | `Promise<boolean>` | Delete multiple      |
+| Method        | Returns              | Description       |
+| ------------- | -------------------- | ----------------- |
+| `getUnit`     | `Promise<T>`         | Fetch single unit |
+| `getUnits`    | `Promise<T[]>`       | Fetch collection  |
+| `postUnit`    | `Promise<T>`         | Create single     |
+| `postUnits`   | `Promise<T[]>`       | Create multiple   |
+| `putUnit`     | `Promise<T>`         | Replace single    |
+| `putUnits`    | `Promise<T[]>`       | Replace multiple  |
+| `patchUnit`   | `Promise<Partial>`   | Update single     |
+| `patchUnits`  | `Promise<Partial[]>` | Update multiple   |
+| `deleteUnit`  | `Promise<boolean>`   | Delete single     |
+| `deleteUnits` | `Promise<boolean>`   | Delete multiple   |
 
 ---
 
@@ -320,10 +390,10 @@ Pattern: `{endpointName}Is{Status}`
 
 ```typescript
 // Examples
-monitor.getUnitIsIdle
-monitor.getUnitsIsPending
-monitor.postUnitIsSuccess
-monitor.deleteUnitsIsFailed
+monitor.getUnitIsIdle;
+monitor.getUnitsIsPending;
+monitor.postUnitIsSuccess;
+monitor.deleteUnitsIsFailed;
 ```
 
 ---
@@ -336,8 +406,16 @@ export default defineNuxtConfig({
     modules: ["@diphyx/harlemify"],
     harlemify: {
         api: {
-            url: string,     // Base URL
-            timeout: number, // Timeout in ms
+            headers: Record<string, string>,  // Global headers
+            query: Record<string, unknown>,   // Global query params
+            adapter: {
+                baseURL: string,              // Base URL
+                timeout: number,              // Timeout in ms
+                retry: number | false,        // Retry count
+                retryDelay: number,           // Retry delay in ms
+                retryStatusCodes: number[],   // Status codes to retry
+                responseType: string,         // Response type
+            },
         },
     },
 });

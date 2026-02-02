@@ -1,3 +1,4 @@
+import type { ApiAdapter } from "../core/adapter";
 import { capitalize } from "./transform";
 import type { Capitalize } from "./transform";
 
@@ -32,6 +33,8 @@ export enum EndpointStatus {
 export interface EndpointDefinition<T = Record<string, unknown>> {
     method: EndpointMethod;
     url: string | ((params: T) => string);
+    // Adapter uses `any` since response types vary per endpoint (single vs array)
+    adapter?: ApiAdapter<any>;
 }
 
 export type EndpointStatusFlag<S extends EndpointStatus = EndpointStatus> = `Is${Capitalize<S>}`;

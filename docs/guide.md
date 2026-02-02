@@ -51,10 +51,11 @@ A **unit** is a single data entity managed by the store. It represents one recor
 
 An **endpoint** maps a store action to an API URL:
 
-| Property | Description                                     |
-| -------- | ----------------------------------------------- |
-| `method` | The HTTP method (GET, POST, PUT, PATCH, DELETE) |
-| `url`    | Static string or function with parameters       |
+| Property  | Description                                     |
+| --------- | ----------------------------------------------- |
+| `method`  | The HTTP method (GET, POST, PUT, PATCH, DELETE) |
+| `url`     | Static string or function with parameters       |
+| `adapter` | Optional custom adapter for this endpoint       |
 
 ### Monitor
 
@@ -302,7 +303,6 @@ All endpoint methods accept options:
 | `query`    | `MaybeRefOrGetter`    | Query parameters                   |
 | `headers`  | `MaybeRefOrGetter`    | Additional headers                 |
 | `body`     | `MaybeRefOrGetter`    | Override request body              |
-| `timeout`  | `number`              | Request timeout in ms              |
 | `validate` | `boolean`             | Validate with Zod before send      |
 | `position` | `StoreMemoryPosition` | Where to add new items (postUnits) |
 | `signal`   | `AbortSignal`         | For request cancellation           |
@@ -477,6 +477,129 @@ export const userStore = createStore("user", UserSchema, endpoints, {
 
 ---
 
+## Custom Adapters
+
+Harlemify uses adapters to handle HTTP requests. You can customize request behavior at different levels.
+
+### Adapter Hierarchy
+
+Adapters are resolved in the following order (highest to lowest priority):
+
+1. **Endpoint adapter** - Per-endpoint custom adapter
+2. **Store adapter** - Store-level adapter option
+3. **Module adapter** - Global config in `nuxt.config.ts`
+4. **Default adapter** - Built-in fetch adapter
+
+### Built-in Adapter
+
+Use `defineApiAdapter` to create an adapter with custom options:
+
+```typescript
+import { defineApiAdapter } from "@diphyx/harlemify";
+
+const customAdapter = defineApiAdapter({
+    baseURL: "/api",
+    timeout: 5000,
+    retry: 3,
+    retryDelay: 1000,
+    retryStatusCodes: [500, 502, 503],
+    responseType: "json",
+});
+```
+
+### Adapter Options
+
+| Option             | Type              | Description                                   |
+| ------------------ | ----------------- | --------------------------------------------- |
+| `baseURL`          | `string`          | Base URL for requests                         |
+| `timeout`          | `number`          | Request timeout in ms                         |
+| `retry`            | `number \| false` | Number of retries (false to disable)          |
+| `retryDelay`       | `number`          | Delay between retries in ms                   |
+| `retryStatusCodes` | `number[]`        | HTTP status codes to retry                    |
+| `responseType`     | `string`          | Response type (json, text, blob, arrayBuffer) |
+
+### Custom Adapter
+
+Create a fully custom adapter for advanced scenarios like streaming or custom authentication:
+
+```typescript
+import type { ApiAdapter, ApiAdapterRequest } from "@diphyx/harlemify";
+
+const customAdapter: ApiAdapter<MyType> = async (request: ApiAdapterRequest) => {
+    console.log(`Fetching: ${request.url}`);
+
+    const response = await fetch(`https://api.example.com${request.url}`, {
+        method: request.method,
+        headers: request.headers as HeadersInit,
+        body: request.body ? JSON.stringify(request.body) : undefined,
+    });
+
+    const data = await response.json();
+    return { data, status: response.status };
+};
+```
+
+### Store-Level Adapter
+
+Apply an adapter to all endpoints in a store:
+
+```typescript
+import { defineApiAdapter } from "@diphyx/harlemify";
+
+const storeAdapter = defineApiAdapter({
+    baseURL: "/api",
+    timeout: 5000,
+});
+
+export const userStore = createStore(
+    "user",
+    UserSchema,
+    {
+        [Endpoint.GET_UNITS]: { method: EndpointMethod.GET, url: "/users" },
+        [Endpoint.POST_UNITS]: { method: EndpointMethod.POST, url: "/users" },
+    },
+    {
+        adapter: storeAdapter, // Used for all endpoints
+    },
+);
+```
+
+### Endpoint-Level Adapter
+
+Override the adapter for specific endpoints:
+
+```typescript
+import { defineApiAdapter } from "@diphyx/harlemify";
+import type { ApiAdapter } from "@diphyx/harlemify";
+
+// Custom adapter with longer timeout for detail requests
+const detailAdapter: ApiAdapter<User> = async (request) => {
+    const data = await $fetch<User>(request.url, {
+        baseURL: "/api",
+        method: request.method,
+        headers: request.headers as HeadersInit,
+        query: request.query,
+        timeout: 30000, // Longer timeout
+    });
+    return { data };
+};
+
+export const userStore = createStore("user", UserSchema, {
+    [Endpoint.GET_UNIT]: {
+        method: EndpointMethod.GET,
+        url: (params) => `/users/${params.id}`,
+        adapter: detailAdapter, // Custom adapter for this endpoint
+    },
+    [Endpoint.GET_UNITS]: {
+        method: EndpointMethod.GET,
+        url: "/users",
+        // Uses store or global adapter
+    },
+});
+```
+
+---
+
 ## API Configuration
 
 ### Global (nuxt.config.ts)
@@ -486,8 +609,17 @@ export default defineNuxtConfig({
     modules: ["@diphyx/harlemify"],
     harlemify: {
         api: {
-            url: "https://api.example.com",
-            timeout: 10000,
+            headers: {
+                "X-Custom-Header": "value",
+            },
+            query: {
+                apiKey: "your-api-key",
+            },
+            adapter: {
+                baseURL: "https://api.example.com",
+                timeout: 10000,
+                retry: 3,
+            },
         },
     },
 });
@@ -497,31 +629,10 @@ export default defineNuxtConfig({
 
 ```typescript
 export const externalStore = createStore("external", Schema, endpoints, {
-    api: {
-        url: "https://external-api.example.com",
+    adapter: defineApiAdapter({
+        baseURL: "https://external-api.example.com",
         timeout: 30000,
-        headers: {
-            "X-API-Key": "your-api-key",
-        },
-    },
-});
-```
-
-### Dynamic Headers
-
-```typescript
-import { ref } from "vue";
-
-const token = ref<string | null>(null);
-
-export const authStore = createStore("auth", Schema, endpoints, {
-    api: {
-        headers: {
-            Authorization() {
-                return token.value ? `Bearer ${token.value}` : "";
-            },
-        },
-    },
+    }),
 });
 ```
 
@@ -532,11 +643,13 @@ export const authStore = createStore("auth", Schema, endpoints, {
 Use without a store:
 
 ```typescript
-import { createApi } from "@diphyx/harlemify";
+import { createApi, defineApiAdapter } from "@diphyx/harlemify";
 
 const api = createApi({
-    url: "https://api.example.com",
-    timeout: 5000,
+    adapter: defineApiAdapter({
+        baseURL: "https://api.example.com",
+        timeout: 5000,
+    }),
 });
 
 const users = await api.get("/users", { query: { page: 1 } });

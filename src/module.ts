@@ -11,7 +11,11 @@ export default defineNuxtModule<SharedConfig>({
         },
     },
     defaults: {
-        api: {},
+        api: {
+            headers: {},
+            query: {},
+            adapter: {},
+        },
     },
     setup(options, nuxt) {
         const { resolve } = createResolver(import.meta.url);
