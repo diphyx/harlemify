@@ -75,4 +75,52 @@ describe("createCache", () => {
 
         expect(cache.get("key")).toBe(obj);
     });
+
+    it("returns size of cache", () => {
+        const cache = createCache<string, number>();
+
+        expect(cache.size()).toBe(0);
+
+        cache.set("a", 1);
+        cache.set("b", 2);
+
+        expect(cache.size()).toBe(2);
+    });
+
+    it("checks if key exists", () => {
+        const cache = createCache<string, number>();
+
+        cache.set("key", 42);
+
+        expect(cache.has("key")).toBe(true);
+        expect(cache.has("nonexistent")).toBe(false);
+    });
+
+    it("iterates over entries", () => {
+        const cache = createCache<string, number>();
+
+        cache.set("a", 1);
+        cache.set("b", 2);
+        cache.set("c", 3);
+
+        const entries = Array.from(cache.entries());
+
+        expect(entries).toEqual([
+            ["a", 1],
+            ["b", 2],
+            ["c", 3],
+        ]);
+    });
+
+    it("handles large number of entries", () => {
+        const cache = createCache<string, number>();
+
+        for (let i = 0; i < 100; i++) {
+            cache.set(`key${i}`, i);
+        }
+
+        expect(cache.size()).toBe(100);
+        expect(cache.get("key0")).toBe(0);
+        expect(cache.get("key99")).toBe(99);
+    });
 });
