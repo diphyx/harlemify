@@ -15,9 +15,17 @@ export interface SchemaFieldInfo<A extends string = string> {
     actions: A[];
 }
 
+const schemaFieldsCache = new WeakMap<z.ZodObject<any>, SchemaFieldInfo<any>[]>();
+
 export function getSchemaFields<T extends z.ZodRawShape, A extends string = string>(
     schema: z.ZodObject<T>,
 ): SchemaFieldInfo<A>[] {
+    const cached = schemaFieldsCache.get(schema);
+
+    if (cached) {
+        return cached as SchemaFieldInfo<A>[];
+    }
+
     const fields: SchemaFieldInfo<A>[] = [];
 
     for (const key in schema.shape) {
@@ -30,6 +38,8 @@ export function getSchemaFields<T extends z.ZodRawShape, A extends string = stri
         });
     }
 
+    schemaFieldsCache.set(schema, fields);
+
     return fields;
 }
 
@@ -38,12 +48,19 @@ export function getFieldsForAction<T extends z.ZodRawShape, A extends string = s
     action: A,
 ): string[] {
     const fields: string[] = [];
+
     for (const key in schema.shape) {
         const meta = getMeta(schema.shape[key]);
-        if (meta?.actions?.includes(action)) {
-            fields.push(key);
+
+        if (meta?.actions) {
+            const actionsSet = new Set(meta.actions);
+
+            if (actionsSet.has(action)) {
+                fields.push(key);
+            }
         }
     }
+
     return fields;
 }
 
@@ -74,7 +91,9 @@ export function resolveSchema<T extends z.ZodRawShape, S extends z.infer<z.ZodOb
             continue;
         }
 
-        if (meta.actions.includes(options.action)) {
+        const actionsSet = new Set(meta.actions);
+
+        if (actionsSet.has(options.action)) {
             output.keys[key as keyof S] = true;
 
             if (options?.unit && key in options.unit) {
