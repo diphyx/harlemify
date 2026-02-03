@@ -1,4 +1,4 @@
-import type { ApiAdapter } from "../core/adapter";
+import type { ApiAdapter } from "./adapter";
 import { capitalize } from "./transform";
 import type { Capitalize } from "./transform";
 
@@ -10,19 +10,6 @@ export enum EndpointMethod {
     DELETE = "delete",
 }
 
-export enum Endpoint {
-    GET_UNIT = "getUnit",
-    GET_UNITS = "getUnits",
-    POST_UNIT = "postUnit",
-    POST_UNITS = "postUnits",
-    PUT_UNIT = "putUnit",
-    PUT_UNITS = "putUnits",
-    PATCH_UNIT = "patchUnit",
-    PATCH_UNITS = "patchUnits",
-    DELETE_UNIT = "deleteUnit",
-    DELETE_UNITS = "deleteUnits",
-}
-
 export enum EndpointStatus {
     IDLE = "idle",
     PENDING = "pending",
@@ -30,45 +17,71 @@ export enum EndpointStatus {
     FAILED = "failed",
 }
 
-export interface EndpointDefinition<T = Record<string, unknown>> {
-    method: EndpointMethod;
-    url: string | ((params: T) => string);
-    // Adapter uses `any` since response types vary per endpoint (single vs array)
-    adapter?: ApiAdapter<any>;
+export type EndpointUrl<S> = string | ((params: Partial<S>) => string);
+
+export interface EndpointDefinition<S = Record<string, unknown>> {
+    readonly method: EndpointMethod;
+    readonly url: EndpointUrl<S>;
+    readonly adapter?: ApiAdapter<any>;
 }
 
-export type EndpointStatusFlag<S extends EndpointStatus = EndpointStatus> = `Is${Capitalize<S>}`;
+export interface EndpointChain<S> {
+    readonly method: EndpointMethod;
+    readonly url: EndpointUrl<S>;
+    readonly adapter?: ApiAdapter<any>;
+    withAdapter(adapter: ApiAdapter<any>): EndpointDefinition<S>;
+}
 
-export type EndpointStatusName<
-    K extends Endpoint = Endpoint,
-    S extends EndpointStatus = EndpointStatus,
-> = `${K}${EndpointStatusFlag<S>}`;
+export interface EndpointBuilder {
+    get<S = Record<string, unknown>>(url: EndpointUrl<S>): EndpointChain<S>;
+    post<S = Record<string, unknown>>(url: EndpointUrl<S>): EndpointChain<S>;
+    put<S = Record<string, unknown>>(url: EndpointUrl<S>): EndpointChain<S>;
+    patch<S = Record<string, unknown>>(url: EndpointUrl<S>): EndpointChain<S>;
+    delete<S = Record<string, unknown>>(url: EndpointUrl<S>): EndpointChain<S>;
+}
+
+function createEndpointChain<S>(method: EndpointMethod, url: EndpointUrl<S>): EndpointChain<S> {
+    return {
+        method,
+        url,
+        adapter: undefined,
+        withAdapter(adapter: ApiAdapter<any>): EndpointDefinition<S> {
+            return {
+                method,
+                url,
+                adapter,
+            };
+        },
+    };
+}
+
+export const Endpoint: EndpointBuilder = {
+    get<S>(url: EndpointUrl<S>): EndpointChain<S> {
+        return createEndpointChain(EndpointMethod.GET, url);
+    },
+    post<S>(url: EndpointUrl<S>): EndpointChain<S> {
+        return createEndpointChain(EndpointMethod.POST, url);
+    },
+    put<S>(url: EndpointUrl<S>): EndpointChain<S> {
+        return createEndpointChain(EndpointMethod.PUT, url);
+    },
+    patch<S>(url: EndpointUrl<S>): EndpointChain<S> {
+        return createEndpointChain(EndpointMethod.PATCH, url);
+    },
+    delete<S>(url: EndpointUrl<S>): EndpointChain<S> {
+        return createEndpointChain(EndpointMethod.DELETE, url);
+    },
+};
+
+export type EndpointStatusFlag<S extends EndpointStatus = EndpointStatus> = `Is${Capitalize<S>}`;
 
 export function makeEndpointStatusFlag<S extends EndpointStatus>(status: S): EndpointStatusFlag<S> {
     return `Is${capitalize(status)}` as EndpointStatusFlag<S>;
 }
 
-export function makeEndpointStatusName<K extends Endpoint, S extends EndpointStatus>(
-    key: K,
-    status: S,
-): EndpointStatusName<K, S> {
-    return `${key}${makeEndpointStatusFlag(status)}` as EndpointStatusName<K, S>;
-}
-
-export function getEndpoint<T = Record<string, unknown>>(
-    endpoints: Partial<Record<Endpoint, EndpointDefinition<T>>> | undefined,
-    endpoint: Endpoint,
-) {
-    if (!endpoints || !(endpoint in endpoints)) {
-        throw new Error(`Endpoint "${endpoint}" is not configured`);
-    }
-
-    return endpoints[endpoint]!;
-}
-
-export function resolveEndpointUrl<T>(endpoint: EndpointDefinition<T>, params?: { [key: string]: unknown }) {
+export function resolveEndpointUrl<S>(endpoint: EndpointDefinition<S>, params?: Partial<S>): string {
     if (typeof endpoint.url === "function") {
-        return endpoint.url(params as T);
+        return endpoint.url(params ?? ({} as Partial<S>));
     }
 
     return endpoint.url;

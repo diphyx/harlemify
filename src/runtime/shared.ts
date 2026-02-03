@@ -1,4 +1,4 @@
-import type { ApiFetchAdapterOptions } from "./core/adapter";
+import type { ApiFetchAdapterOptions } from "./utils/adapter";
 
 export type SharedConfig = {
     api?: {

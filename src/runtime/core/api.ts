@@ -1,8 +1,11 @@
 import { toValue } from "vue";
+
 import type { MaybeRefOrGetter } from "vue";
 
+import { defineApiAdapter } from "../utils/adapter";
 import { EndpointMethod } from "../utils/endpoint";
-import { defineApiAdapter, type ApiAdapter, type ApiAdapterRequest } from "./adapter";
+
+import type { ApiAdapter, ApiAdapterRequest } from "../utils/adapter";
 
 export type ApiRequestHeader = MaybeRefOrGetter<Record<string, unknown>>;
 export type ApiRequestQuery = MaybeRefOrGetter<Record<string, unknown>>;
@@ -83,7 +86,6 @@ export interface Api {
 }
 
 export function createApi(options?: ApiOptions): Api {
-    // Default adapter if none provided
     const defaultAdapter = options?.adapter ?? defineApiAdapter();
 
     async function request<
@@ -99,20 +101,15 @@ export function createApi(options?: ApiOptions): Api {
         },
     ): Promise<T> {
         const adapter = requestOptions?.adapter ?? defaultAdapter;
-
-        // Merge headers and query: api options → request options
         const adapterRequest: ApiAdapterRequest = {
             method: requestOptions?.action ?? EndpointMethod.GET,
             url,
             body: toValue(requestOptions?.body),
-            query: {
-                ...toValue(options?.query),
-                ...toValue(requestOptions?.query),
-            },
-            headers: {
-                ...toValue(options?.headers),
-                ...toValue(requestOptions?.headers),
-            } as Record<string, string>,
+            query: Object.assign({}, toValue(options?.query), toValue(requestOptions?.query)),
+            headers: Object.assign({}, toValue(options?.headers), toValue(requestOptions?.headers)) as Record<
+                string,
+                string
+            >,
             signal: requestOptions?.signal,
         };
 

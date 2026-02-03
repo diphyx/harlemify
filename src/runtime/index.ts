@@ -1,28 +1,85 @@
-export { EndpointMethod, Endpoint, EndpointStatus } from "./utils/endpoint";
+// Utils - Adapter
+export { defineApiAdapter } from "./utils/adapter";
+
+// Utils - Endpoint
+export { Endpoint, EndpointMethod, EndpointStatus, resolveEndpointUrl } from "./utils/endpoint";
+
+// Utils - Errors
+export { ApiErrorSource, ApiError, ApiRequestError, ApiResponseError } from "./utils/errors";
+
+// Utils - Memory
+export { Memory, createMemoryBuilder } from "./utils/memory";
+
+// Utils - Schema
 export { getMeta, resolveSchema } from "./utils/schema";
+
+// Core - API
 export { createApi } from "./core/api";
-export { ApiErrorSource, ApiError, ApiRequestError, ApiResponseError } from "./core/errors";
-export { createStore, StoreMemoryPosition } from "./core/store";
-export { defineApiAdapter } from "./core/adapter";
+
+// Core - Store
+export { createStore } from "./core/store";
+
+// Composables
 export { useStoreAlias } from "./composables/use";
 
-export type { SharedConfig } from "./shared";
-export type { EndpointDefinition } from "./utils/endpoint";
-export type { SchemaMeta } from "./utils/schema";
-export type {
-    Api,
-    ApiRequestHeader,
-    ApiRequestQuery,
-    ApiRequestBody,
-    ApiRequestOptions,
-    ApiOptions,
-    EndpointMethodOptions,
-} from "./core/api";
-export type { ApiErrorOptions } from "./core/errors";
+// Types - Adapter
 export type {
     ApiAdapter,
-    DefineApiAdapter,
     ApiAdapterRequest,
     ApiAdapterResponse,
     ApiFetchAdapterOptions,
-} from "./core/adapter";
+    DefineApiAdapter,
+} from "./utils/adapter";
+
+// Types - Endpoint
+export type { EndpointBuilder, EndpointChain, EndpointDefinition, EndpointUrl } from "./utils/endpoint";
+
+// Types - Errors
+export type { ApiErrorOptions } from "./utils/errors";
+
+// Types - Memory
+export type {
+    MemoryBuilder,
+    MemoryDefinition,
+    MemoryMutation,
+    MemoryTarget,
+    EditOptions,
+    AddOptions,
+    UnitMemoryBuilder,
+    UnitsMemoryBuilder,
+} from "./utils/memory";
+
+// Types - Schema
+export type { SchemaMeta } from "./utils/schema";
+
+// Types - API
+export type {
+    Api,
+    ApiOptions,
+    ApiRequestBody,
+    ApiRequestHeader,
+    ApiRequestOptions,
+    ApiRequestQuery,
+    EndpointMethodOptions,
+} from "./core/api";
+
+// Types - Store
+export type {
+    ActionDefinition,
+    ActionFunction,
+    ActionOptions,
+    ActionStatus,
+    ActionsConfig,
+    Store,
+    StoreActions,
+    StoreHooks,
+    StoreMemory,
+    StoreMonitor,
+    StoreOptions,
+} from "./core/store";
+
+// Types - Composables
+export type { StoreAlias } from "./composables/use";
+
+// Types - Shared
+export type { SharedConfig } from "./shared";
