@@ -95,7 +95,7 @@ function clearUser() {
             <ul>
                 <li><code>Endpoint.withAdapter</code> - Custom adapter per endpoint</li>
                 <li><code>createStore</code> with <code>adapter</code> option - Store-level adapter</li>
-                <li><code>getSchemaFields(schema)</code> - Get all schema field names</li>
+                <li><code>getSchemaFields(schema)</code> - Get all schema field info (cached)</li>
                 <li><code>getFieldsForAction(schema, action)</code> - Get fields for specific action</li>
                 <li><code>meta({ indicator: true })</code> - Mark field as unique identifier</li>
                 <li><code>userMemory.set(null)</code> - Clear unit state</li>
