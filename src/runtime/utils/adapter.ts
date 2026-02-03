@@ -1,7 +1,6 @@
-import type { EndpointMethod } from "../utils/endpoint";
+import type { EndpointMethod } from "./endpoint";
 import { ApiRequestError, ApiResponseError } from "./errors";
 
-// Minimal request data - common to all adapters
 export interface ApiAdapterRequest {
     method: EndpointMethod;
     url: string;
@@ -16,13 +15,10 @@ export interface ApiAdapterResponse<T = unknown> {
     status?: number;
 }
 
-// Adapter function signature
 export type ApiAdapter<T = unknown> = (request: ApiAdapterRequest) => Promise<ApiAdapterResponse<T>>;
 
-// Adapter factory type
 export type DefineApiAdapter<T = unknown, O = unknown> = (options?: O) => ApiAdapter<T>;
 
-// Options specific to the built-in fetch adapter
 export interface ApiFetchAdapterOptions {
     baseURL?: string;
     timeout?: number;
@@ -32,15 +28,6 @@ export interface ApiFetchAdapterOptions {
     responseType?: "json" | "text" | "blob" | "arrayBuffer";
 }
 
-/**
- * Creates a built-in fetch adapter with configurable options.
- *
- * Adapter hierarchy (highest to lowest priority):
- * 1. endpoint.adapter - Per-endpoint adapter
- * 2. storeOptions.adapter - Store-level adapter
- * 3. sharedConfig.api.adapter - Module config adapter options
- * 4. Default adapter (no options)
- */
 export function defineApiAdapter<T = unknown>(options?: ApiFetchAdapterOptions): ApiAdapter<T> {
     return async (request): Promise<ApiAdapterResponse<T>> => {
         const data = await $fetch<T>(request.url, {
@@ -71,6 +58,8 @@ export function defineApiAdapter<T = unknown>(options?: ApiFetchAdapterOptions):
             },
         });
 
-        return { data: data as T };
+        return {
+            data: data as T,
+        };
     };
 }
