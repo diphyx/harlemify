@@ -1,6 +1,25 @@
 - [Home](/)
-- [Getting Started](getting-started.md)
-- [Guide](guide.md)
-- [Adapters](adapters.md)
-- [Reference](reference.md)
-- [Playground](playground.md)
+- Getting Started
+  - [Installation](getting-started/README.md)
+  - [Your First Store](getting-started/first-store.md)
+- Core Concepts
+  - [Overview](core-concepts/README.md)
+  - [Schema](core-concepts/schema.md)
+  - [Endpoint Builder](core-concepts/endpoint.md)
+  - [Memory Builder](core-concepts/memory.md)
+  - [Monitor](core-concepts/monitor.md)
+- Store Patterns
+  - [Overview](store-patterns/README.md)
+  - [Collection Store](store-patterns/collection.md)
+  - [Singleton Store](store-patterns/singleton.md)
+  - [Nested Schema](store-patterns/nested.md)
+- Advanced
+  - [Custom Adapters](advanced/adapters.md)
+  - [Validation](advanced/validation.md)
+  - [Cancellation](advanced/cancellation.md)
+  - [Lifecycle Hooks](advanced/hooks.md)
+- API Reference
+  - [createStore](api/create-store.md)
+  - [useStoreAlias](api/use-store-alias.md)
+  - [Builders](api/builders.md)
+  - [Types](api/types.md)
