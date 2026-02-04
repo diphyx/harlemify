@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { useStoreAlias } from "../src/runtime/composables/use";
+import { useStoreAlias } from "../src/runtime/composables/alias";
 import { createStore } from "../src/runtime/core/store";
 import { Endpoint, EndpointStatus } from "../src/runtime/utils/endpoint";
 import { Memory } from "../src/runtime/utils/memory";

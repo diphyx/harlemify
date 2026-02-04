@@ -1,9 +1,9 @@
 import type { ComputedRef } from "vue";
 
-import { capitalize } from "../utils/transform";
+import { capitalize } from "../utils/text";
 
 import type { ActionFunction, ActionStatus, ActionsConfig, Store, StoreMemory } from "../core/store";
-import type { Capitalize, Pluralize } from "../utils/transform";
+import type { Capitalize, Pluralize } from "../utils/text";
 
 type MemoryState<E extends string, T> = {
     [P in E]: ComputedRef<T | null>;
