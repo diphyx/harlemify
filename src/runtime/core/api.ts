@@ -88,7 +88,7 @@ export interface Api {
 export function createApi(options?: ApiOptions): Api {
     const defaultAdapter = options?.adapter ?? defineApiAdapter();
 
-    async function request<
+    async function executeRequest<
         T,
         A extends EndpointMethod = EndpointMethod,
         H extends ApiRequestHeader = ApiRequestHeader,
@@ -121,7 +121,7 @@ export function createApi(options?: ApiOptions): Api {
             adapter?: ApiAdapter<T>;
         },
     ) {
-        return request<T, EndpointMethod.GET, H, Q, never>(url, {
+        return executeRequest<T, EndpointMethod.GET, H, Q, never>(url, {
             ...options,
             action: EndpointMethod.GET,
         });
@@ -138,7 +138,7 @@ export function createApi(options?: ApiOptions): Api {
             adapter?: ApiAdapter<T>;
         },
     ) {
-        return request<T, EndpointMethod.POST, H, Q, B>(url, {
+        return executeRequest<T, EndpointMethod.POST, H, Q, B>(url, {
             ...options,
             action: EndpointMethod.POST,
         });
@@ -155,7 +155,7 @@ export function createApi(options?: ApiOptions): Api {
             adapter?: ApiAdapter<T>;
         },
     ) {
-        return request<T, EndpointMethod.PUT, H, Q, B>(url, {
+        return executeRequest<T, EndpointMethod.PUT, H, Q, B>(url, {
             ...options,
             action: EndpointMethod.PUT,
         });
@@ -172,7 +172,7 @@ export function createApi(options?: ApiOptions): Api {
             adapter?: ApiAdapter<T>;
         },
     ) {
-        return request<T, EndpointMethod.PATCH, H, Q, B>(url, {
+        return executeRequest<T, EndpointMethod.PATCH, H, Q, B>(url, {
             ...options,
             action: EndpointMethod.PATCH,
         });
@@ -184,7 +184,7 @@ export function createApi(options?: ApiOptions): Api {
             adapter?: ApiAdapter<T>;
         },
     ) {
-        return request<T, EndpointMethod.DELETE, H, Q, never>(url, {
+        return executeRequest<T, EndpointMethod.DELETE, H, Q, never>(url, {
             ...options,
             action: EndpointMethod.DELETE,
         });
