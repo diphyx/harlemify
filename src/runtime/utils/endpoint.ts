@@ -1,6 +1,6 @@
 import type { ApiAdapter } from "./adapter";
-import { capitalize } from "./transform";
-import type { Capitalize } from "./transform";
+import { capitalize } from "./text";
+import type { Capitalize } from "./text";
 
 export enum EndpointMethod {
     GET = "get",

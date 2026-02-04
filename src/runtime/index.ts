@@ -11,7 +11,7 @@ export { ApiErrorSource, ApiError, ApiRequestError, ApiResponseError } from "./u
 export { Memory, createMemoryBuilder } from "./utils/memory";
 
 // Utils - Schema
-export { getMeta, resolveSchema } from "./utils/schema";
+export { getMeta, getSchemaFields, getFieldsForAction, resolveSchema } from "./utils/schema";
 
 // Core - API
 export { createApi } from "./core/api";
@@ -20,7 +20,7 @@ export { createApi } from "./core/api";
 export { createStore } from "./core/store";
 
 // Composables
-export { useStoreAlias } from "./composables/use";
+export { useStoreAlias } from "./composables/alias";
 
 // Types - Adapter
 export type {
@@ -50,7 +50,7 @@ export type {
 } from "./utils/memory";
 
 // Types - Schema
-export type { SchemaMeta } from "./utils/schema";
+export type { SchemaMeta, SchemaFieldInfo } from "./utils/schema";
 
 // Types - API
 export type {
@@ -79,7 +79,7 @@ export type {
 } from "./core/store";
 
 // Types - Composables
-export type { StoreAlias } from "./composables/use";
+export type { StoreAlias } from "./composables/alias";
 
-// Types - Shared
-export type { SharedConfig } from "./shared";
+// Types - Config
+export type { RuntimeConfig } from "./config";
