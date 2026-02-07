@@ -6,22 +6,14 @@ Complete API documentation for harlemify.
 
 | Function | Description |
 |----------|-------------|
-| [createStore](create-store.md) | Create a new store with API integration |
-| [useStoreAlias](use-store-alias.md) | Access store with entity-prefixed names |
+| [createStore](create-store.md) | Create a new store with model, view, and action layers |
+| [shape](shape.md) | Define a Zod-powered data shape |
 
-## Builders
-
-| Builder | Description |
-|---------|-------------|
-| [Endpoint](builders.md#endpoint-builder) | Define HTTP endpoints |
-| [Memory](builders.md#memory-builder) | Define state storage targets |
-
-## Types & Errors
+## Types & Enums
 
 | Category | Description |
 |----------|-------------|
-| [Types](types.md) | TypeScript interfaces and types |
-| [Errors](types.md#error-classes) | Error classes for handling failures |
+| [Types](types.md) | TypeScript interfaces, enums, and error classes |
 
 ## Import
 
@@ -29,28 +21,39 @@ Complete API documentation for harlemify.
 import {
     // Core
     createStore,
-    useStoreAlias,
 
-    // Builders
-    Endpoint,
-    Memory,
+    // Shape
+    shape,
+    type ShapeInfer,
 
-    // Adapters
-    defineApiAdapter,
-    createApi,
+    // Model
+    ModelKind,
 
-    // Types
-    type ApiAdapter,
-    type ActionOptions,
-    type StoreOptions,
+    // Action Enums
+    ActionOneMode,
+    ActionManyMode,
+    ActionStatus,
+    ActionConcurrent,
+    ActionApiMethod,
 
-    // Errors
-    ApiError,
-    ApiRequestError,
-    ApiResponseError,
+    // Action Types
+    type Action,
+    type ActionCallPayload,
+    type ActionError,
+    type ActionApiError,
+    type ActionHandleError,
+    type ActionCommitError,
+    type ActionConcurrentError,
 
-    // Enums
-    EndpointMethod,
-    EndpointStatus,
+    // Store Types
+    type Store,
+    type StoreConfig,
+
+    // Composables
+    useIsolatedActionStatus,
+    useIsolatedActionError,
+
+    // Config
+    type RuntimeConfig,
 } from "@diphyx/harlemify";
 ```

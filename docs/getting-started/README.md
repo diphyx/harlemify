@@ -22,11 +22,9 @@ Add harlemify to your Nuxt config:
 export default defineNuxtConfig({
     modules: ["@diphyx/harlemify"],
     harlemify: {
-        api: {
-            adapter: {
-                baseURL: "https://api.example.com",
-                timeout: 10000,
-            },
+        action: {
+            endpoint: "https://api.example.com",
+            timeout: 10000,
         },
     },
 });
@@ -36,11 +34,23 @@ export default defineNuxtConfig({
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `api.adapter.baseURL` | `string` | Base URL for all API requests |
-| `api.adapter.timeout` | `number` | Request timeout in milliseconds |
-| `api.adapter.retry` | `number` | Number of retry attempts |
-| `api.headers` | `object` | Global headers for all requests |
-| `api.query` | `object` | Global query parameters |
+| `action.endpoint` | `string` | Base endpoint URL prepended to all action API URLs |
+| `action.headers` | `Record<string, string>` | Default headers for all API requests |
+| `action.query` | `Record<string, unknown>` | Default query parameters for all API requests |
+| `action.timeout` | `number` | Request timeout in milliseconds |
+| `action.concurrent` | `ActionConcurrent` | Default concurrency strategy for all actions |
+| `model.identifier` | `string` | Default identifier field for array mutations |
+| `logger` | `number` | Consola log level (`-999` = silent, `999` = verbose) |
+
+## Auto-Imports
+
+Harlemify automatically imports `createStore` in your Nuxt project. The composables `useIsolatedActionStatus` and `useIsolatedActionError` are also auto-imported from the composables directory.
+
+You still need to manually import types and enums:
+
+```typescript
+import { shape, ActionOneMode, ActionManyMode, type ShapeInfer } from "@diphyx/harlemify";
+```
 
 ## Next Step
 

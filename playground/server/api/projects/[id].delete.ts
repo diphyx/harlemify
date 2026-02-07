@@ -6,6 +6,6 @@ export default defineEventHandler((event) => {
     if (index === -1) {
         throw createError({ statusCode: 404, message: "Project not found" });
     }
-    data.projects.splice(index, 1);
-    return { success: true };
+    const deleted = data.projects.splice(index, 1)[0];
+    return deleted;
 });

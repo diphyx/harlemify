@@ -1,190 +1,205 @@
 # Types
 
-TypeScript interfaces, types, and error classes.
-
-## Action Types
-
-### ActionDefinition
-
-```typescript
-interface ActionDefinition<S> {
-    endpoint: EndpointDefinition<S>;
-    memory?: MemoryDefinition;
-}
-```
-
-### ActionsConfig
-
-```typescript
-type ActionsConfig<S> = Record<string, ActionDefinition<S>>;
-```
-
-### ActionOptions
-
-```typescript
-interface ActionOptions {
-    query?: Record<string, unknown>;   // Query parameters
-    headers?: Record<string, string>;  // Additional headers
-    body?: unknown;                    // Override request body
-    signal?: AbortSignal;              // For cancellation
-    validate?: boolean;                // Validate with Zod
-    adapter?: ApiAdapter;              // Override adapter
-}
-```
-
-### ActionStatus
-
-```typescript
-interface ActionStatus {
-    current: () => EndpointStatus;
-    pending: () => boolean;
-    success: () => boolean;
-    failed: () => boolean;
-    idle: () => boolean;
-}
-```
-
-Each property is a function that returns the current value. Call them directly in templates or scripts.
-
----
+TypeScript interfaces, types, enums, and error classes.
 
 ## Store Types
 
-### StoreOptions
+### Store
 
 ```typescript
-interface StoreOptions {
-    adapter?: ApiAdapter<any>;
-    indicator?: string;
-    hooks?: StoreHooks;
-    extensions?: Extension<BaseState>[];
+interface Store<M, VD, AD> {
+    model: StoreModel<M>;
+    view: StoreView<M, VD>;
+    action: StoreAction<M, StoreView<M, VD>, AD>;
 }
 ```
 
-### StoreHooks
+### StoreConfig
 
 ```typescript
-interface StoreHooks {
-    before?: () => Promise<void> | void;
-    after?: (error?: Error) => Promise<void> | void;
-}
-```
-
-### StoreMemory
-
-```typescript
-interface StoreMemory<T, I extends keyof T> {
-    set: (data: T | T[] | null) => void;
-    edit: (data: Partial<T> | Partial<T>[]) => void;
-    drop: (data: Partial<T> | Partial<T>[]) => void;
-}
-```
-
-### StoreMonitor
-
-```typescript
-type StoreMonitor<A extends ActionsConfig<any>> = {
-    [K in keyof A]: ActionStatus;
-};
-```
-
----
-
-## Endpoint Types
-
-### EndpointDefinition
-
-```typescript
-interface EndpointDefinition<S> {
-    readonly method: EndpointMethod;
-    readonly url: string | ((params: Partial<S>) => string);
-    readonly adapter?: ApiAdapter<any>;
-}
-```
-
-### EndpointChain
-
-```typescript
-interface EndpointChain<S> {
-    readonly method: EndpointMethod;
-    readonly url: EndpointUrl<S>;
-    readonly adapter?: ApiAdapter<any>;
-    withAdapter(adapter: ApiAdapter<any>): EndpointDefinition<S>;
+interface StoreConfig<M, VD, AD> {
+    name: string;
+    model: (factory: ModelFactory) => M;
+    view: (factory: ViewFactory<M>) => VD;
+    action: (factory: ActionFactory<M, StoreView<M, VD>>) => AD;
 }
 ```
 
 ---
 
-## Memory Types
+## Model Types
 
-### MemoryDefinition
+### ModelFactory
 
 ```typescript
-interface MemoryDefinition {
-    readonly on: "unit" | "units";
-    readonly path: string[];
-    readonly mutation?: "set" | "edit" | "drop" | "add";
-    readonly position?: "first" | "last";
+interface ModelFactory {
+    one<S extends Shape>(shape: ShapeType<S>, options?: ModelOneOptions<S>): ModelOneDefinition<S>;
+    many<S extends Shape>(shape: ShapeType<S>, options?: ModelManyOptions<S>): ModelManyDefinition<S>;
+}
+```
+
+### ModelOneOptions
+
+```typescript
+interface ModelOneOptions<S> {
+    identifier?: keyof S;
+    default?: S;
+}
+```
+
+### ModelManyOptions
+
+```typescript
+interface ModelManyOptions<S> {
+    identifier?: keyof S;
+    default?: S[];
+}
+```
+
+### MutationsOneOptions
+
+```typescript
+interface MutationsOneOptions {
+    deep?: boolean;
+}
+```
+
+### MutationsManyOptions
+
+```typescript
+interface MutationsManyOptions {
+    by?: string;
+    prepend?: boolean;
+    unique?: boolean;
+    deep?: boolean;
 }
 ```
 
 ---
 
-## Adapter Types
+## View Types
 
-### ApiAdapter
-
-```typescript
-type ApiAdapter<T = unknown> = (
-    request: ApiAdapterRequest
-) => Promise<ApiAdapterResponse<T>>;
-```
-
-### ApiAdapterRequest
+### ViewFactory
 
 ```typescript
-interface ApiAdapterRequest {
-    method: EndpointMethod;
-    url: string;
-    body?: unknown;
-    query?: Record<string, unknown>;
-    headers?: Record<string, string>;
-    signal?: AbortSignal;
+interface ViewFactory<M> {
+    from<K extends keyof M>(source: K): ViewFromDefinition<M, K, ModelInstance<M, K>>;
+    from<K extends keyof M, R>(source: K, resolver: (value: ModelInstance<M, K>) => R): ViewFromDefinition<M, K, R>;
+    merge<K extends readonly (keyof M)[], R>(sources: K, resolver: (...values) => R): ViewMergeDefinition<M, K, R>;
 }
 ```
 
-### ApiAdapterResponse
+---
+
+## Action Types
+
+### ActionFactory
 
 ```typescript
-interface ApiAdapterResponse<T = unknown> {
-    data: T;
-    status?: number;
+interface ActionFactory<M, V> {
+    api: ActionApiFactory<M, V>;
+    handle<R>(callback: ActionHandleCallbackNoApi<M, V, R>): ActionHandleChain<M, V, R>;
+    commit: ActionCommitMethod<M, V, void>;
 }
 ```
 
-### ApiFetchAdapterOptions
+### ActionApiDefinition
 
 ```typescript
-interface ApiFetchAdapterOptions {
-    baseURL?: string;
+interface ActionApiDefinition<V> {
+    endpoint?: string;
+    url: MaybeRefOrGetter<string> | ((view: DeepReadonly<V>) => string);
+    method: ActionApiMethod;
+    headers?: MaybeRefOrGetter<Record<string, string>> | ((view: DeepReadonly<V>) => Record<string, string>);
+    query?: MaybeRefOrGetter<Record<string, unknown>> | ((view: DeepReadonly<V>) => Record<string, unknown>);
+    body?: MaybeRefOrGetter<unknown> | ((view: DeepReadonly<V>) => unknown);
     timeout?: number;
-    retry?: number | false;
-    retryDelay?: number;
-    retryStatusCodes?: number[];
-    responseType?: "json" | "text" | "blob" | "arrayBuffer";
+    concurrent?: ActionConcurrent;
 }
 ```
 
----
-
-## Schema Types
-
-### SchemaMeta
+### ActionCallPayload
 
 ```typescript
-interface SchemaMeta {
-    indicator?: boolean;
-    actions?: string[];
+interface ActionCallPayload<V, T = unknown, R = T> {
+    headers?: Record<string, string> | ((view: DeepReadonly<V>) => Record<string, string>);
+    query?: Record<string, unknown> | ((view: DeepReadonly<V>) => Record<string, unknown>);
+    body?: unknown | ((view: DeepReadonly<V>) => unknown);
+    timeout?: number;
+    signal?: AbortSignal;
+    transformer?: (response: T) => R;
+    concurrent?: ActionConcurrent;
+    bind?: ActionCallBind;
+    commit?: ActionCallCommit;
+}
+```
+
+### ActionCallBind
+
+```typescript
+interface ActionCallBind {
+    status?: Ref<ActionStatus>;
+    error?: Ref<ActionError | null>;
+}
+```
+
+### ActionCallCommit
+
+```typescript
+interface ActionCallCommit {
+    mode?: ActionOneMode | ActionManyMode;
+}
+```
+
+### Action
+
+```typescript
+interface Action<V, T = void> {
+    (payload?: ActionCallPayload<V, T>): Promise<T>;
+    <R>(payload: ActionCallPayload<V, T, R>): Promise<R>;
+    readonly loading: ComputedRef<boolean>;
+    readonly status: Readonly<Ref<ActionStatus>>;
+    readonly error: Readonly<Ref<ActionError | null>>;
+    readonly data: DeepReadonly<T> | null;
+    reset: () => void;
+}
+```
+
+### ActionHandleContext
+
+```typescript
+interface ActionHandleContext<M, V, ApiResponse = unknown> {
+    api: <T = ApiResponse>() => Promise<T>;
+    view: DeepReadonly<V>;
+    commit: ActionCommitter<M>;
+}
+```
+
+### ActionHandleContextNoApi
+
+```typescript
+interface ActionHandleContextNoApi<M, V> {
+    view: DeepReadonly<V>;
+    commit: ActionCommitter<M>;
+}
+```
+
+### Chain Types
+
+```typescript
+interface ActionApiChain<M, V, ApiResponse> {
+    handle<R>(callback: ActionHandleCallback<M, V, R, ApiResponse>): ActionHandleChain<M, V, R>;
+    commit: ActionCommitMethod<M, V, ApiResponse>;
+    readonly [DEFINITION]: ActionDefinition<M, V, ApiResponse>;
+}
+
+interface ActionHandleChain<M, V, R> {
+    commit: ActionCommitMethod<M, V, R>;
+    readonly [DEFINITION]: ActionDefinition<M, V, R>;
+}
+
+interface ActionCommitChain<M, V, R> {
+    readonly [DEFINITION]: ActionDefinition<M, V, R>;
 }
 ```
 
@@ -192,98 +207,173 @@ interface SchemaMeta {
 
 ## Enums
 
-### EndpointMethod
+### ActionOneMode
 
 ```typescript
-enum EndpointMethod {
-    GET = "get",
-    POST = "post",
-    PUT = "put",
+enum ActionOneMode {
+    SET = "set",
+    RESET = "reset",
     PATCH = "patch",
-    DELETE = "delete",
 }
 ```
 
-### EndpointStatus
+### ActionManyMode
 
 ```typescript
-enum EndpointStatus {
+enum ActionManyMode {
+    SET = "set",
+    RESET = "reset",
+    PATCH = "patch",
+    REMOVE = "remove",
+    ADD = "add",
+}
+```
+
+### ActionStatus
+
+```typescript
+enum ActionStatus {
     IDLE = "idle",
     PENDING = "pending",
     SUCCESS = "success",
-    FAILED = "failed",
+    ERROR = "error",
 }
 ```
 
-### ApiErrorSource
+### ActionConcurrent
 
 ```typescript
-enum ApiErrorSource {
-    REQUEST = "request",
-    RESPONSE = "response",
+enum ActionConcurrent {
+    BLOCK = "block",
+    SKIP = "skip",
+    CANCEL = "cancel",
+    ALLOW = "allow",
+}
+```
+
+### ActionApiMethod
+
+```typescript
+enum ActionApiMethod {
+    GET = "GET",
+    HEAD = "HEAD",
+    POST = "POST",
+    PUT = "PUT",
+    PATCH = "PATCH",
+    DELETE = "DELETE",
+}
+```
+
+### ModelKind
+
+```typescript
+enum ModelKind {
+    OBJECT = "object",
+    ARRAY = "array",
 }
 ```
 
 ---
 
-## Error Classes
+## Error Types
 
-### ApiError
+### ActionApiError
 
-Base error class for all API errors.
+Thrown when an HTTP request fails:
 
 ```typescript
-class ApiError extends Error {
-    name: "ApiError";
-    source: ApiErrorSource;
-    method: string;
-    url: string;
-    message: string;
+interface ActionApiError extends Error {
+    name: "ActionApiError";
+    status?: number;
+    statusText?: string;
+    data?: unknown;
 }
 ```
 
-### ApiRequestError
+### ActionHandleError
 
-Thrown when request fails before reaching server (network error, timeout).
+Thrown when a handle callback throws:
 
 ```typescript
-class ApiRequestError extends ApiError {
-    source: ApiErrorSource.REQUEST;
+interface ActionHandleError extends Error {
+    name: "ActionHandleError";
+    cause: Error;
 }
 ```
 
-### ApiResponseError
+### ActionCommitError
 
-Thrown when server returns an error response (4xx, 5xx).
+Thrown when a commit operation fails:
 
 ```typescript
-class ApiResponseError extends ApiError {
-    source: ApiErrorSource.RESPONSE;
+interface ActionCommitError extends Error {
+    name: "ActionCommitError";
+    cause: Error;
 }
+```
+
+### ActionConcurrentError
+
+Thrown when an action is blocked by the concurrency guard:
+
+```typescript
+interface ActionConcurrentError extends Error {
+    name: "ActionConcurrentError";
+}
+```
+
+### ActionError
+
+Union of all error types:
+
+```typescript
+type ActionError = ActionApiError | ActionHandleError | ActionCommitError | ActionConcurrentError;
 ```
 
 ### Error Handling
 
 ```typescript
-import { ApiRequestError, ApiResponseError } from "@diphyx/harlemify";
-
 try {
-    await listUser();
+    await store.action.fetch();
 } catch (error) {
-    if (error instanceof ApiResponseError) {
-        // Server error (4xx, 5xx)
-        console.error("Server error:", error.message);
-    } else if (error instanceof ApiRequestError) {
-        // Network/timeout error
-        console.error("Network error:", error.message);
-    } else if (error.name === "AbortError") {
-        // Request cancelled
-        console.log("Request was cancelled");
-    } else {
-        throw error;
+    const e = error as ActionError;
+
+    switch (e.name) {
+        case "ActionApiError":
+            console.error("HTTP error:", e.status, e.data);
+            break;
+        case "ActionHandleError":
+            console.error("Handle error:", e.cause);
+            break;
+        case "ActionCommitError":
+            console.error("Commit error:", e.cause);
+            break;
+        case "ActionConcurrentError":
+            console.warn("Action already pending");
+            break;
     }
 }
 ```
+
+---
+
+## Composables
+
+### useIsolatedActionStatus
+
+```typescript
+function useIsolatedActionStatus(): Ref<ActionStatus>
+```
+
+Returns a `Ref<ActionStatus>` initialized to `ActionStatus.IDLE`. Use with `bind` option to track action status independently.
+
+### useIsolatedActionError
+
+```typescript
+function useIsolatedActionError(): Ref<ActionError | null>
+```
+
+Returns a `Ref<ActionError | null>` initialized to `null`. Use with `bind` option to track action errors independently.
 
 ---
 
@@ -292,20 +382,18 @@ try {
 ```typescript
 // nuxt.config.ts
 export default defineNuxtConfig({
-    modules: ["@diphyx/harlemify"],
     harlemify: {
-        api: {
-            headers: Record<string, string>,  // Global headers
-            query: Record<string, unknown>,   // Global query params
-            adapter: {
-                baseURL: string,              // Base URL
-                timeout: number,              // Timeout in ms
-                retry: number | false,        // Retry count
-                retryDelay: number,           // Retry delay in ms
-                retryStatusCodes: number[],   // Status codes to retry
-                responseType: string,         // Response type
-            },
+        model: {
+            identifier: string,          // Default identifier field
         },
+        action: {
+            endpoint: string,            // Base endpoint URL
+            headers: Record<string, string>,  // Default headers
+            query: Record<string, unknown>,   // Default query params
+            timeout: number,             // Default timeout in ms
+            concurrent: ActionConcurrent, // Default concurrency strategy
+        },
+        logger: number,                  // Consola log level (-999 to 999)
     },
 });
 ```

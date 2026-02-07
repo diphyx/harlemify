@@ -4,25 +4,25 @@ import { test, expect } from "./fixtures";
  * Config Page E2E Tests
  *
  * Tests harlemify concepts demonstrated:
- * - Singleton store pattern (Memory.unit())
- * - Partial update/merge (Memory.unit().edit())
- * - Monitor states (configMonitor.get.pending)
- * - Schema meta with actions
- * - useStoreAlias composable
+ * - Singleton store pattern: model.one(shape)
+ * - ActionOneMode.SET - Replace entire value
+ * - ActionOneMode.PATCH - Partial update (merge)
+ * - Action status: action.get.status / action.get.loading / action.get.error
+ * - Derived computed views: view.theme / view.language
  */
 
-test.describe("Config - Singleton Store Pattern (Memory.unit())", () => {
+test.describe("Config - Singleton Store (model.one())", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
     });
 
-    test("loads singleton data into unit state on mount", async ({ page }) => {
-        // Verify config is loaded as a single object (unit), not array
+    test("loads singleton data into one() state on mount", async ({ page }) => {
+        // Verify config is loaded as a single object (one), not array
         const rawData = await page.locator(".detail pre").textContent();
         const config = JSON.parse(rawData || "{}");
 
-        // Unit should have all required fields
+        // Should have all required fields
         expect(config).toHaveProperty("id");
         expect(config).toHaveProperty("theme");
         expect(config).toHaveProperty("language");
@@ -33,7 +33,7 @@ test.describe("Config - Singleton Store Pattern (Memory.unit())", () => {
         expect(typeof config).toBe("object");
     });
 
-    test("unit state reflects in multiple UI bindings simultaneously", async ({ page }) => {
+    test("view reflects model state in multiple UI bindings simultaneously", async ({ page }) => {
         // Get displayed values
         const themeDisplay = await page.locator(".config-item").first().locator(".value").textContent();
         const notificationsDisplay = await page.locator(".config-item").nth(2).locator(".value").textContent();
@@ -61,18 +61,18 @@ test.describe("Config - Singleton Store Pattern (Memory.unit())", () => {
     });
 });
 
-test.describe("Config - Partial Update (Memory.unit().edit())", () => {
+test.describe("Config - Partial Update (ActionOneMode.PATCH)", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
     });
 
-    test("theme toggle preserves other fields (partial merge)", async ({ page }) => {
+    test("theme toggle preserves other fields (PATCH merges)", async ({ page }) => {
         // Get initial state
         const initialRawData = await page.locator(".detail pre").textContent();
         const initialConfig = JSON.parse(initialRawData || "{}");
 
-        // Toggle theme (PATCH request with Memory.unit().edit())
+        // Toggle theme (PATCH via action.update)
         await page.locator(".config-item").first().locator("button", { hasText: "Toggle" }).click();
         await page.waitForTimeout(500);
 
@@ -83,7 +83,7 @@ test.describe("Config - Partial Update (Memory.unit().edit())", () => {
         // Theme should change
         expect(updatedConfig.theme).not.toBe(initialConfig.theme);
 
-        // Other fields should be preserved (edit merges, doesn't replace)
+        // Other fields should be preserved (PATCH merges, doesn't replace)
         expect(updatedConfig.id).toBe(initialConfig.id);
         expect(updatedConfig.language).toBe(initialConfig.language);
         expect(updatedConfig.notifications).toBe(initialConfig.notifications);
@@ -136,7 +136,7 @@ test.describe("Config - Partial Update (Memory.unit().edit())", () => {
         // Notifications should toggle
         expect(updatedConfig.notifications).toBe(expectedNotifications);
 
-        // ID and theme preserved (language may be changed by other tests)
+        // ID and theme preserved
         expect(updatedConfig.id).toBe(initialConfig.id);
         expect(updatedConfig.theme).toBe(initialConfig.theme);
     });
@@ -149,20 +149,17 @@ test.describe("Config - Partial Update (Memory.unit().edit())", () => {
 
         // Edit 1: Toggle theme
         await page.locator(".config-item").first().locator("button", { hasText: "Toggle" }).click();
-        // Wait for theme to update
         await expect(page.locator(".detail pre")).toContainText(`"theme": "${expectedNewTheme}"`, { timeout: 5000 });
 
         // Edit 2: Update language with unique value
         const newLang = "es" + Date.now().toString().slice(-4);
         await page.locator(".config-input input").fill(newLang);
         await page.locator(".config-input button[type='submit']").click();
-        // Wait for language to update
         await expect(page.locator(".detail pre")).toContainText(newLang, { timeout: 5000 });
 
         // Edit 3: Toggle notifications
         const expectedNotifications = !initialConfig.notifications;
         await page.locator(".config-item").nth(2).locator("button", { hasText: "Toggle" }).click();
-        // Wait for notifications to update
         await expect(page.locator(".detail pre")).toContainText(`"notifications": ${expectedNotifications}`, {
             timeout: 5000,
         });
@@ -181,7 +178,7 @@ test.describe("Config - Partial Update (Memory.unit().edit())", () => {
     });
 });
 
-test.describe("Config - Monitor States (configMonitor)", () => {
+test.describe("Config - Action Status (action.get.status / action.get.loading)", () => {
     test("shows loading state during data fetch", async ({ page }) => {
         // Navigate and immediately check for loading
         await page.goto("/config");
@@ -210,43 +207,39 @@ test.describe("Config - Monitor States (configMonitor)", () => {
         await expect(page.locator(".config-list")).toBeVisible();
     });
 
-    test("monitor reflects success state after load", async ({ page }) => {
+    test("action status reflects success after load", async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
 
         // After successful load, we should see config data
-        // This indirectly verifies configMonitor.get.success is true
-        // (the template shows .config-list only when data is loaded)
         const rawData = await page.locator(".detail pre").textContent();
         expect(rawData).toBeTruthy();
         expect(() => JSON.parse(rawData || "")).not.toThrow();
     });
 
-    test("monitor status section is visible", async ({ page }) => {
+    test("action status section is visible", async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
 
-        await expect(page.locator("[data-testid='monitor-status']")).toBeVisible();
+        await expect(page.locator("[data-testid='action-status']")).toBeVisible();
     });
 
     test("get action shows success status after load", async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
 
-        // Check that get monitor shows success state
-        const getMonitor = page.locator(".monitor-item").filter({ hasText: "get" });
-        await expect(getMonitor.locator("[data-status='success']")).toBeVisible();
-        await expect(getMonitor.locator("[data-flag='success']")).toBeVisible();
+        // Check that get action shows success state
+        const getStatus = page.locator("[data-testid='status-get']");
+        await expect(getStatus.locator("[data-status='success']")).toBeVisible();
     });
 
     test("update action shows idle status initially", async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
 
-        // Check that update monitor shows idle state (no update performed yet)
-        const updateMonitor = page.locator(".monitor-item").filter({ hasText: "update" });
-        await expect(updateMonitor.locator("[data-status='idle']")).toBeVisible();
-        await expect(updateMonitor.locator("[data-flag='idle']")).toBeVisible();
+        // Check that update action shows idle state (no update performed yet)
+        const updateStatus = page.locator("[data-testid='status-update']");
+        await expect(updateStatus.locator("[data-status='idle']")).toBeVisible();
     });
 
     test("update action transitions to success after toggling theme", async ({ page }) => {
@@ -257,10 +250,9 @@ test.describe("Config - Monitor States (configMonitor)", () => {
         await page.locator(".config-item").first().locator("button", { hasText: "Toggle" }).click();
         await page.waitForTimeout(500);
 
-        // Check that update monitor shows success state
-        const updateMonitor = page.locator(".monitor-item").filter({ hasText: "update" });
-        await expect(updateMonitor.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
-        await expect(updateMonitor.locator("[data-flag='success']")).toBeVisible();
+        // Check that update action shows success state
+        const updateStatus = page.locator("[data-testid='status-update']");
+        await expect(updateStatus.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
     });
 
     test("update action transitions to success after updating language", async ({ page }) => {
@@ -273,47 +265,31 @@ test.describe("Config - Monitor States (configMonitor)", () => {
         await page.locator(".config-input button[type='submit']").click();
         await page.waitForTimeout(500);
 
-        // Check that update monitor shows success state
-        const updateMonitor = page.locator(".monitor-item").filter({ hasText: "update" });
-        await expect(updateMonitor.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
-        await expect(updateMonitor.locator("[data-flag='success']")).toBeVisible();
+        // Check that update action shows success state
+        const updateStatus = page.locator("[data-testid='status-update']");
+        await expect(updateStatus.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
     });
 
-    test("get and update have independent monitor states", async ({ page }) => {
+    test("get and update have independent action states", async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
 
         // After page load: get=success, update=idle
-        const getMonitor = page.locator(".monitor-item").filter({ hasText: "get" });
-        const updateMonitor = page.locator(".monitor-item").filter({ hasText: "update" });
+        const getStatus = page.locator("[data-testid='status-get']");
+        const updateStatus = page.locator("[data-testid='status-update']");
 
-        await expect(getMonitor.locator("[data-status='success']")).toBeVisible();
-        await expect(updateMonitor.locator("[data-status='idle']")).toBeVisible();
-    });
-
-    test("monitor current value matches the active flag", async ({ page }) => {
-        await page.goto("/config");
-        await page.waitForSelector(".config-list", { timeout: 10000 });
-
-        // Get should show success in both current value and flag
-        const getMonitor = page.locator(".monitor-item").filter({ hasText: "get" });
-        const currentValue = await getMonitor.locator(".monitor-state").textContent();
-
-        expect(currentValue).toBe("success");
-        await expect(getMonitor.locator("[data-flag='success']")).toBeVisible();
-        await expect(getMonitor.locator("[data-flag='idle']")).not.toBeVisible();
-        await expect(getMonitor.locator("[data-flag='pending']")).not.toBeVisible();
-        await expect(getMonitor.locator("[data-flag='failed']")).not.toBeVisible();
+        await expect(getStatus.locator("[data-status='success']")).toBeVisible();
+        await expect(updateStatus.locator("[data-status='idle']")).toBeVisible();
     });
 });
 
-test.describe("Config - useStoreAlias Composable", () => {
+test.describe("Config - Store Destructured API ({ view, action })", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
     });
 
-    test("config (unit) is reactive computed ref", async ({ page }) => {
+    test("view.config is reactive computed ref", async ({ page }) => {
         // Initial state
         const initialTheme = await page.locator(".config-item").first().locator(".value").textContent();
 
@@ -326,8 +302,8 @@ test.describe("Config - useStoreAlias Composable", () => {
         expect(updatedTheme).not.toBe(initialTheme);
     });
 
-    test("getConfig action fetches and populates unit state", async ({ page }) => {
-        // Page calls getConfig() on mount - verify it worked
+    test("action.get fetches and populates model state", async ({ page }) => {
+        // Page calls action.get() on mount - verify it worked
         const rawData = await page.locator(".detail pre").textContent();
         const config = JSON.parse(rawData || "{}");
 
@@ -338,7 +314,7 @@ test.describe("Config - useStoreAlias Composable", () => {
         expect(typeof config.notifications).toBe("boolean");
     });
 
-    test("updateConfig action sends partial data and merges response", async ({ page }) => {
+    test("action.update sends partial data and merges response", async ({ page }) => {
         // Get initial full state
         const initialRawData = await page.locator(".detail pre").textContent();
         const initialConfig = JSON.parse(initialRawData || "{}");
@@ -536,40 +512,53 @@ test.describe("Config - Raw Data Display", () => {
 });
 
 test.describe("Config - Feature Info Verification", () => {
-    test("documents Memory.unit() singleton pattern", async ({ page }) => {
+    test("documents model.one(shape) singleton pattern", async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("Memory.unit()");
+        await expect(page.locator(".feature-info")).toContainText("model.one(shape)");
     });
 
-    test("documents Memory.unit().edit() partial update", async ({ page }) => {
+    test("documents ActionOneMode.SET", async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("Memory.unit().edit()");
+        await expect(page.locator(".feature-info")).toContainText("ActionOneMode.SET");
     });
 
-    test("documents configMonitor.[action].current()", async ({ page }) => {
+    test("documents ActionOneMode.PATCH", async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("configMonitor.[action].current()");
+        await expect(page.locator(".feature-info")).toContainText("ActionOneMode.PATCH");
     });
 
-    test("documents configMonitor.[action].idle()/pending()/success()/failed()", async ({ page }) => {
+    test("documents action.get.status", async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText(
-            "configMonitor.[action].idle()/pending()/success()/failed()",
-        );
+        await expect(page.locator(".feature-info")).toContainText("action.get.status");
     });
 
-    test("documents schema meta actions", async ({ page }) => {
+    test("documents action.get.loading", async ({ page }) => {
         await page.goto("/config");
         await page.waitForSelector(".config-list", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText(".meta({ actions:");
+        await expect(page.locator(".feature-info")).toContainText("action.get.loading");
+    });
+
+    test("documents action.get.error", async ({ page }) => {
+        await page.goto("/config");
+        await page.waitForSelector(".config-list", { timeout: 10000 });
+
+        await expect(page.locator(".feature-info")).toContainText("action.get.error");
+    });
+
+    test("documents derived computed views", async ({ page }) => {
+        await page.goto("/config");
+        await page.waitForSelector(".config-list", { timeout: 10000 });
+
+        await expect(page.locator(".feature-info")).toContainText("view.theme");
+        await expect(page.locator(".feature-info")).toContainText("view.language");
     });
 });

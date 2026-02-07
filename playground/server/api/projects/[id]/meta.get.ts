@@ -6,6 +6,6 @@ export default defineEventHandler((event) => {
     if (!project) {
         throw createError({ statusCode: 404, message: "Project not found" });
     }
-    // Returns just the meta object - stored in unit.meta via Memory.unit("meta")
+    // Returns just the meta object - committed via handle + commit("current", ActionOneMode.PATCH)
     return project.meta;
 });

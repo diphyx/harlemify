@@ -4,11 +4,11 @@ Harlemify supports three main store patterns for different use cases.
 
 ## Pattern Comparison
 
-| Pattern | Memory | Use Case | Example |
-|---------|--------|----------|---------|
-| [Collection](collection.md) | `Memory.units()` | Lists of items | Users, Products, Posts |
-| [Singleton](singleton.md) | `Memory.unit()` | Single entity | Config, Settings, Current User |
-| [Nested](nested.md) | `Memory.unit("field")` | Complex objects | Project with milestones |
+| Pattern | Model | Use Case | Example |
+|---------|-------|----------|---------|
+| [Collection](collection.md) | `many()` | Lists of items | Users, Products, Posts |
+| [Singleton](singleton.md) | `one()` | Single entity | Config, Settings, Current User |
+| [Nested](nested.md) | `one()` with handle chains | Complex objects with sub-resources | Project with milestones |
 
 ## Choosing a Pattern
 
@@ -24,43 +24,77 @@ Harlemify supports three main store patterns for different use cases.
 
 ### Use Nested When:
 - Complex objects with sub-resources
-- Need to load parts separately
-- Deep object structures
+- Need to load parts separately via different endpoints
+- Deep object structures with lazy-loaded fields
 
 ## Quick Examples
 
 **Collection:**
 ```typescript
-const userActions = {
-    list: {
-        endpoint: Endpoint.get("/users"),
-        memory: Memory.units(),
-    },
-};
+model({ many }) {
+    return {
+        list: many(userShape),
+    };
+},
+action({ api }) {
+    return {
+        list: api
+            .get({
+                url: "/users",
+            })
+            .commit("list", ActionManyMode.SET),
+        create: api
+            .post({
+                url: "/users",
+            })
+            .commit("list", ActionManyMode.ADD),
+    };
+},
 ```
 
 **Singleton:**
 ```typescript
-const configActions = {
-    get: {
-        endpoint: Endpoint.get("/config"),
-        memory: Memory.unit(),
-    },
-};
+model({ one }) {
+    return {
+        config: one(configShape),
+    };
+},
+action({ api }) {
+    return {
+        get: api.get({ url: "/config" }).commit("config", ActionOneMode.SET),
+        update: api.patch({ url: "/config" }).commit("config", ActionOneMode.PATCH),
+    };
+},
 ```
 
 **Nested:**
 ```typescript
-const projectActions = {
-    milestones: {
-        endpoint: Endpoint.get<Project>((p) => `/projects/${p.id}/milestones`),
-        memory: Memory.unit("milestones"),
-    },
-};
+model({ one }) {
+    return {
+        current: one(projectShape),
+    };
+},
+action({ api }) {
+    return {
+        get: api
+            .get({
+                url: "/projects/1",
+            })
+            .commit("current", ActionOneMode.SET),
+        milestones: api
+            .get({
+                url: "/projects/1/milestones",
+            })
+            .handle(async ({ api, commit }) => {
+                const milestones = await api();
+                commit("current", ActionOneMode.PATCH, { milestones });
+            }),
+    };
+},
 ```
 
 ## Next Steps
 
 - [Collection Store](collection.md) - Full CRUD example
 - [Singleton Store](singleton.md) - Config/settings example
-- [Nested Schema](nested.md) - Complex objects example
+- [Nested Store](nested.md) - Complex objects example

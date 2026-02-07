@@ -8,122 +8,152 @@ Use collection stores for managing lists of items with CRUD operations.
 - Data with Create, Read, Update, Delete operations
 - Items identified by a unique ID
 
-## Schema
+## Shape
 
 ```typescript
-import { z } from "zod";
+import { shape, type ShapeInfer } from "@diphyx/harlemify";
 
-enum ProductAction {
-    LIST = "list",
-    CREATE = "create",
-    UPDATE = "update",
-    DELETE = "delete",
-}
-
-const productSchema = z.object({
-    id: z.number().meta({ indicator: true }),
-    name: z.string().meta({
-        actions: [ProductAction.CREATE, ProductAction.UPDATE],
-    }),
-    price: z.number().meta({
-        actions: [ProductAction.CREATE, ProductAction.UPDATE],
-    }),
-    stock: z.number(),
+const postShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        userId: factory.number(),
+        title: factory.string(),
+        body: factory.string(),
+    };
 });
 
-export type Product = z.infer<typeof productSchema>;
+type Post = ShapeInfer<typeof postShape>;
 ```
 
-## Actions
+## Store
 
 ```typescript
-const productActions = {
-    [ProductAction.LIST]: {
-        endpoint: Endpoint.get("/products"),
-        memory: Memory.units(),
-    },
-    [ProductAction.CREATE]: {
-        endpoint: Endpoint.post("/products"),
-        memory: Memory.units().add(),
-    },
-    [ProductAction.UPDATE]: {
-        endpoint: Endpoint.patch<Product>((p) => `/products/${p.id}`),
-        memory: Memory.units().edit(),
-    },
-    [ProductAction.DELETE]: {
-        endpoint: Endpoint.delete<Product>((p) => `/products/${p.id}`),
-        memory: Memory.units().drop(),
-    },
-};
+import { createStore, ActionManyMode } from "@diphyx/harlemify";
 
-export const productStore = createStore("product", productSchema, productActions);
+export const postStore = createStore({
+    name: "posts",
+    model({ one, many }) {
+        return {
+            current: one(postShape),
+            list: many(postShape),
+        };
+    },
+    view({ from, merge }) {
+        return {
+            post: from("current"),
+            posts: from("list"),
+            count: from("list", (model) => {
+                return model.length;
+            }),
+            overview: merge(["current", "list"], (current, list) => {
+                return {
+                    selectedTitle: current?.title ?? null,
+                    total: list.length,
+                    byUser: list.reduce(
+                        (acc, p) => {
+                            acc[p.userId] = (acc[p.userId] || 0) + 1;
+                            return acc;
+                        },
+                        {} as Record<number, number>,
+                    ),
+                };
+            }),
+        };
+    },
+    action({ api, handle }) {
+        return {
+            list: api
+                .get({
+                    url: "/posts",
+                })
+                .commit("list", ActionManyMode.SET),
+            create: api
+                .post({
+                    url: "/posts",
+                })
+                .commit("list", ActionManyMode.ADD),
+            update: api
+                .patch({
+                    url(view) {
+                        return `/posts/${view.post.value?.id}`;
+                    },
+                })
+                .commit("list", ActionManyMode.PATCH),
+            delete: api
+                .delete({
+                    url(view) {
+                        return `/posts/${view.post.value?.id}`;
+                    },
+                })
+                .commit("list", ActionManyMode.REMOVE),
+            sort: handle(async ({ view, commit }) => {
+                const sorted = [...view.posts.value].sort((a, b) => {
+                    return a.title.localeCompare(b.title);
+                });
+                commit("list", ActionManyMode.SET, sorted);
+                return sorted;
+            }),
+        };
+    },
+});
 ```
 
-## Memory Operations
+## Mutation Operations
 
-| Action | Memory | Effect |
-|--------|--------|--------|
-| List | `Memory.units()` | Replace entire array |
-| Create | `Memory.units().add()` | Append new item |
-| Update | `Memory.units().edit()` | Update item by indicator |
-| Delete | `Memory.units().drop()` | Remove item by indicator |
+| Action | Commit Mode | Effect |
+|--------|-------------|--------|
+| List | `ActionManyMode.SET` | Replace entire array |
+| Create | `ActionManyMode.ADD` | Append new item |
+| Update | `ActionManyMode.PATCH` | Update item by identifier |
+| Delete | `ActionManyMode.REMOVE` | Remove item by identifier |
 
 ## Component Usage
 
 ```vue
 <script setup lang="ts">
-import { productStore } from "~/stores/product";
+import { postStore } from "~/stores/post";
+import { ActionOneMode } from "@diphyx/harlemify";
 
-const {
-    products,
-    listProduct,
-    createProduct,
-    updateProduct,
-    deleteProduct,
-    productMonitor,
-} = useStoreAlias(productStore);
+const { model, view, action } = postStore;
 
-await listProduct();
+await action.list();
 
-async function addProduct() {
-    await createProduct({
-        id: 0,
-        name: "New Product",
-        price: 99.99,
+async function addPost() {
+    await action.create({
+        body: { userId: 1, title: "New Post", body: "Content" },
     });
 }
 
-async function updatePrice(id: number, newPrice: number) {
-    await updateProduct({ id, price: newPrice });
+function selectPost(post: Post) {
+    model("current", ActionOneMode.SET, post);
 }
 
-async function removeProduct(id: number) {
-    await deleteProduct({ id });
+async function removePost() {
+    await action.delete();
 }
 </script>
 
 <template>
     <div>
-        <button @click="addProduct" :disabled="productMonitor.create.pending()">
-            Add Product
+        <button @click="addPost" :disabled="action.create.loading.value">
+            Add Post
         </button>
 
-        <div v-if="productMonitor.list.pending()">Loading...</div>
+        <div v-if="action.list.loading.value">Loading...</div>
 
         <table v-else>
-            <tr v-for="product in products" :key="product.id">
-                <td>{{ product.name }}</td>
-                <td>${{ product.price }}</td>
+            <tr v-for="post in view.posts.value" :key="post.id">
+                <td>{{ post.title }}</td>
                 <td>
-                    <button @click="updatePrice(product.id, product.price + 10)">
-                        +$10
-                    </button>
-                    <button @click="removeProduct(product.id)">
-                        Delete
-                    </button>
+                    <button @click="selectPost(post)">Select</button>
+                    <button @click="removePost">Delete</button>
                 </td>
             </tr>
         </table>
+
+        <p>Total: {{ view.count.value }}</p>
     </div>
 </template>
 ```
@@ -133,40 +163,67 @@ async function removeProduct(id: number) {
 Add new items to the beginning of the list:
 
 ```typescript
-const postActions = {
-    create: {
-        endpoint: Endpoint.post("/posts"),
-        memory: Memory.units().add({ prepend: true }),  // Prepend
-    },
-};
+action({ api }) {
+    return {
+        create: api
+            .post({
+                url: "/posts",
+            })
+            .commit("list", ActionManyMode.ADD, undefined, { prepend: true }),
+    };
+},
+```
+
+## Unique Items
+
+Prevent duplicate additions:
+
+```typescript
+action({ api }) {
+    return {
+        add: api
+            .post({
+                url: "/users",
+            })
+            .commit("list", ActionManyMode.ADD, undefined, { unique: true }),
+    };
+},
 ```
 
 ## Pagination
 
-Handle paginated lists by appending:
+Handle paginated lists:
 
 ```typescript
-const productActions = {
-    list: {
-        endpoint: Endpoint.get("/products"),
-        memory: Memory.units(),           // Replace for first page
-    },
-    loadMore: {
-        endpoint: Endpoint.get("/products"),
-        memory: Memory.units().add(),     // Append for subsequent pages
-    },
-};
+action({ api }) {
+    return {
+        list: api
+            .get({
+                url: "/posts",
+            })
+            .commit("list", ActionManyMode.SET),
+        loadMore: api
+            .get({
+                url: "/posts",
+            })
+            .handle(async ({ api, commit }) => {
+                const posts = await api<Post[]>();
+                commit("list", ActionManyMode.ADD, posts);
+                return posts;
+            }),
+    };
+},
 ```
 
 ```typescript
 // First page
-await listProduct({ query: { page: 1 } });
+await action.list({ query: { page: 1 } });
 
 // Load more
-await loadMoreProduct({ query: { page: 2 } });
+await action.loadMore({ query: { page: 2 } });
 ```
 
 ## Next Steps
 
 - [Singleton Store](singleton.md) - Single entity pattern
-- [Nested Schema](nested.md) - Complex objects
+- [Nested Store](nested.md) - Complex objects

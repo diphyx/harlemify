@@ -1,36 +1,43 @@
-import { z } from "zod";
+import { createStore, shape, ActionOneMode, type ShapeInfer } from "../../src/runtime";
 
-export enum ConfigAction {
-    GET = "get",
-    UPDATE = "update",
-}
-
-const configSchema = z.object({
-    id: z.number().meta({
-        indicator: true,
-    }),
-    theme: z.enum(["light", "dark"]).meta({
-        actions: [ConfigAction.UPDATE],
-    }),
-    language: z.string().meta({
-        actions: [ConfigAction.UPDATE],
-    }),
-    notifications: z.boolean().meta({
-        actions: [ConfigAction.UPDATE],
-    }),
+const configShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        theme: factory.enum(["light", "dark"]),
+        language: factory.string(),
+        notifications: factory.boolean(),
+    };
 });
 
-const configActions = {
-    [ConfigAction.GET]: {
-        endpoint: Endpoint.get("/config"),
-        memory: Memory.unit(),
-    },
-    [ConfigAction.UPDATE]: {
-        endpoint: Endpoint.patch("/config"),
-        memory: Memory.unit().edit(),
-    },
-};
+export type Config = ShapeInfer<typeof configShape>;
 
-export const configStore = createStore("config", configSchema, configActions);
-
-export type Config = z.infer<typeof configSchema>;
+export const configStore = createStore({
+    name: "config",
+    model({ one }) {
+        return {
+            config: one(configShape),
+        };
+    },
+    view({ from }) {
+        return {
+            config: from("config"),
+            theme: from("config", (model) => {
+                return model?.theme ?? "dark";
+            }),
+            language: from("config", (model) => {
+                return model?.language ?? "en";
+            }),
+            notifications: from("config", (model) => {
+                return model?.notifications ?? true;
+            }),
+        };
+    },
+    action({ api }) {
+        return {
+            get: api.get({ url: "/config" }).commit("config", ActionOneMode.SET),
+            update: api.patch({ url: "/config" }).commit("config", ActionOneMode.PATCH),
+        };
+    },
+});

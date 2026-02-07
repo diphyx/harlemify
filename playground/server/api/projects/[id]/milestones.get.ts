@@ -6,6 +6,6 @@ export default defineEventHandler((event) => {
     if (!project) {
         throw createError({ statusCode: 404, message: "Project not found" });
     }
-    // Returns just the milestones array - stored in unit.milestones via Memory.unit("milestones")
+    // Returns just the milestones array - committed via handle + commit("current", ActionOneMode.PATCH)
     return project.milestones;
 });

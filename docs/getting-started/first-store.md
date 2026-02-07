@@ -2,114 +2,145 @@
 
 This guide walks you through creating a complete user store with CRUD operations.
 
-## Step 1: Define Actions
+## Step 1: Define a Shape
 
-Create an enum with all actions your store will support:
+Create a Zod-powered shape with the `shape` helper:
 
 ```typescript
 // stores/user.ts
-export enum UserAction {
-    GET = "get",
-    LIST = "list",
-    CREATE = "create",
-    UPDATE = "update",
-    DELETE = "delete",
-}
-```
+import { createStore, shape, ActionOneMode, ActionManyMode, type ShapeInfer } from "@diphyx/harlemify";
 
-## Step 2: Create Schema
-
-Define a Zod schema with metadata:
-
-```typescript
-import { z } from "zod";
-
-const userSchema = z.object({
-    id: z.number().meta({ indicator: true }),
-    name: z.string().meta({
-        actions: [UserAction.CREATE, UserAction.UPDATE],
-    }),
-    email: z.string().meta({
-        actions: [UserAction.CREATE],
-    }),
-    createdAt: z.string(),
+const userShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        name: factory.string(),
+        email: factory.email(),
+    };
 });
 
-export type User = z.infer<typeof userSchema>;
+export type User = ShapeInfer<typeof userShape>;
 ```
 
-**Schema Meta:**
-- `indicator: true` - Marks the primary key field
-- `actions: [...]` - Fields included in request body for these actions
+**Shape Meta:**
+- `identifier: true` - Marks the primary key field used for matching items in array mutations (`patch`, `remove`)
 
-## Step 3: Define Actions Config
+## Step 2: Define Models
 
-Map each action to an endpoint and memory target:
+Models define the state containers. Use `one` for single items and `many` for collections:
 
 ```typescript
-const userActions = {
-    [UserAction.GET]: {
-        endpoint: Endpoint.get<User>((p) => `/users/${p.id}`),
-        memory: Memory.unit(),
-    },
-    [UserAction.LIST]: {
-        endpoint: Endpoint.get("/users"),
-        memory: Memory.units(),
-    },
-    [UserAction.CREATE]: {
-        endpoint: Endpoint.post("/users"),
-        memory: Memory.units().add(),
-    },
-    [UserAction.UPDATE]: {
-        endpoint: Endpoint.patch<User>((p) => `/users/${p.id}`),
-        memory: Memory.units().edit(),
-    },
-    [UserAction.DELETE]: {
-        endpoint: Endpoint.delete<User>((p) => `/users/${p.id}`),
-        memory: Memory.units().drop(),
-    },
-};
+model({ one, many }) {
+    return {
+        current: one(userShape),   // User | null
+        list: many(userShape),     // User[]
+    };
+},
 ```
 
-## Step 4: Create Store
+## Step 3: Define Views
+
+Views are computed properties derived from model state:
 
 ```typescript
-export const userStore = createStore("user", userSchema, userActions);
+view({ from, merge }) {
+    return {
+        user: from("current"),
+        users: from("list"),
+        count: from("list", (model) => {
+            return model.length;
+        }),
+        summary: merge(["current", "list"], (current, list) => {
+            return {
+                selected: current?.name ?? null,
+                total: list.length,
+            };
+        }),
+    };
+},
 ```
 
-## Step 5: Use in Component
+## Step 4: Define Actions
+
+Actions combine API calls, data processing, and state mutations using a chainable builder:
+
+```typescript
+action({ api, commit }) {
+    return {
+        get: api
+            .get({
+                url(view) {
+                    return `/users/${view.user.value?.id}`;
+                },
+            })
+            .commit("current", ActionOneMode.SET),
+        list: api
+            .get({
+                url: "/users",
+            })
+            .commit("list", ActionManyMode.SET),
+        create: api
+            .post({
+                url: "/users",
+            })
+            .commit("list", ActionManyMode.ADD),
+        update: api
+            .patch({
+                url(view) {
+                    return `/users/${view.user.value?.id}`;
+                },
+            })
+            .commit("list", ActionManyMode.PATCH),
+        delete: api
+            .delete({
+                url(view) {
+                    return `/users/${view.user.value?.id}`;
+                },
+            })
+            .commit("list", ActionManyMode.REMOVE),
+        clear: commit("list", ActionManyMode.RESET),
+    };
+},
+```
+
+## Step 5: Create the Store
+
+```typescript
+export const userStore = createStore({
+    name: "users",
+    model({ one, many }) { ... },
+    view({ from, merge }) { ... },
+    action({ api, commit }) { ... },
+});
+```
+
+## Step 6: Use in Component
 
 ```vue
 <script setup lang="ts">
 import { userStore } from "~/stores/user";
 
-const {
-    user,           // Single user (unit)
-    users,          // User list (units)
-    getUser,        // Fetch single user
-    listUser,       // Fetch user list
-    createUser,     // Create new user
-    updateUser,     // Update existing user
-    deleteUser,     // Delete user
-    userMemory,     // Direct state mutations
-    userMonitor,    // Request status tracking
-} = useStoreAlias(userStore);
+const { model, view, action } = userStore;
 
 // Load users on mount
-await listUser();
+await action.list();
 
 // Create a new user
 async function handleCreate() {
-    await createUser({
-        id: 0,
-        name: "John Doe",
-        email: "john@example.com",
+    await action.create({
+        body: { name: "John Doe", email: "john@example.com" },
     });
 }
 
-// Delete a user
-async function handleDelete(id: number) {
-    await deleteUser({ id });
+// Select a user
+function selectUser(user: User) {
+    model("current", ActionOneMode.SET, user);
+}
+
+// Delete selected user
+async function handleDelete() {
+    await action.delete();
 }
 </script>
 
@@ -117,14 +148,17 @@ async function handleDelete(id: number) {
     <div>
         <button @click="handleCreate">Add User</button>
 
-        <div v-if="userMonitor.list.pending()">Loading...</div>
+        <div v-if="action.list.loading.value">Loading...</div>
 
         <ul v-else>
-            <li v-for="u in users" :key="u.id">
+            <li v-for="u in view.users.value" :key="u.id">
                 {{ u.name }} - {{ u.email }}
-                <button @click="handleDelete(u.id)">Delete</button>
+                <button @click="selectUser(u)">Select</button>
+                <button @click="handleDelete">Delete</button>
             </li>
         </ul>
+
+        <p>Total: {{ view.count.value }}</p>
     </div>
 </template>
 ```
@@ -133,53 +167,80 @@ async function handleDelete(id: number) {
 
 ```typescript
 // stores/user.ts
-import { z } from "zod";
+import { createStore, shape, ActionOneMode, ActionManyMode, type ShapeInfer } from "@diphyx/harlemify";
 
-export enum UserAction {
-    GET = "get",
-    LIST = "list",
-    CREATE = "create",
-    UPDATE = "update",
-    DELETE = "delete",
-}
-
-const userSchema = z.object({
-    id: z.number().meta({ indicator: true }),
-    name: z.string().meta({
-        actions: [UserAction.CREATE, UserAction.UPDATE],
-    }),
-    email: z.string().meta({
-        actions: [UserAction.CREATE],
-    }),
-    createdAt: z.string(),
+const userShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        name: factory.string(),
+        email: factory.email(),
+    };
 });
 
-const userActions = {
-    [UserAction.GET]: {
-        endpoint: Endpoint.get<User>((p) => `/users/${p.id}`),
-        memory: Memory.unit(),
-    },
-    [UserAction.LIST]: {
-        endpoint: Endpoint.get("/users"),
-        memory: Memory.units(),
-    },
-    [UserAction.CREATE]: {
-        endpoint: Endpoint.post("/users"),
-        memory: Memory.units().add(),
-    },
-    [UserAction.UPDATE]: {
-        endpoint: Endpoint.patch<User>((p) => `/users/${p.id}`),
-        memory: Memory.units().edit(),
-    },
-    [UserAction.DELETE]: {
-        endpoint: Endpoint.delete<User>((p) => `/users/${p.id}`),
-        memory: Memory.units().drop(),
-    },
-};
+export type User = ShapeInfer<typeof userShape>;
 
-export const userStore = createStore("user", userSchema, userActions);
-
-export type User = z.infer<typeof userSchema>;
+export const userStore = createStore({
+    name: "users",
+    model({ one, many }) {
+        return {
+            current: one(userShape),
+            list: many(userShape),
+        };
+    },
+    view({ from, merge }) {
+        return {
+            user: from("current"),
+            users: from("list"),
+            count: from("list", (model) => {
+                return model.length;
+            }),
+            summary: merge(["current", "list"], (current, list) => {
+                return {
+                    selected: current?.name ?? null,
+                    total: list.length,
+                };
+            }),
+        };
+    },
+    action({ api, commit }) {
+        return {
+            get: api
+                .get({
+                    url(view) {
+                        return `/users/${view.user.value?.id}`;
+                    },
+                })
+                .commit("current", ActionOneMode.SET),
+            list: api
+                .get({
+                    url: "/users",
+                })
+                .commit("list", ActionManyMode.SET),
+            create: api
+                .post({
+                    url: "/users",
+                })
+                .commit("list", ActionManyMode.ADD),
+            update: api
+                .patch({
+                    url(view) {
+                        return `/users/${view.user.value?.id}`;
+                    },
+                })
+                .commit("list", ActionManyMode.PATCH),
+            delete: api
+                .delete({
+                    url(view) {
+                        return `/users/${view.user.value?.id}`;
+                    },
+                })
+                .commit("list", ActionManyMode.REMOVE),
+            clear: commit("list", ActionManyMode.RESET),
+        };
+    },
+});
 ```
 
 ## Next Steps

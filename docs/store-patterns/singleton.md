@@ -9,55 +9,66 @@ Use singleton stores for single entities like configuration, settings, or the cu
 - Current authenticated user
 - Any data with only one instance
 
-## Schema
+## Shape
 
 ```typescript
-import { z } from "zod";
+import { shape, type ShapeInfer } from "@diphyx/harlemify";
 
-enum ConfigAction {
-    GET = "get",
-    UPDATE = "update",
-}
-
-const configSchema = z.object({
-    id: z.number().meta({ indicator: true }),
-    theme: z.enum(["light", "dark"]).meta({
-        actions: [ConfigAction.UPDATE],
-    }),
-    language: z.string().meta({
-        actions: [ConfigAction.UPDATE],
-    }),
-    notifications: z.boolean().meta({
-        actions: [ConfigAction.UPDATE],
-    }),
+const configShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        theme: factory.enum(["light", "dark"]),
+        language: factory.string(),
+        notifications: factory.boolean(),
+    };
 });
 
-export type Config = z.infer<typeof configSchema>;
+type Config = ShapeInfer<typeof configShape>;
 ```
 
-## Actions
+## Store
 
 ```typescript
-const configActions = {
-    [ConfigAction.GET]: {
-        endpoint: Endpoint.get("/config"),
-        memory: Memory.unit(),
-    },
-    [ConfigAction.UPDATE]: {
-        endpoint: Endpoint.patch("/config"),
-        memory: Memory.unit().edit(),
-    },
-};
+import { createStore, ActionOneMode } from "@diphyx/harlemify";
 
-export const configStore = createStore("config", configSchema, configActions);
+export const configStore = createStore({
+    name: "config",
+    model({ one }) {
+        return {
+            config: one(configShape),
+        };
+    },
+    view({ from }) {
+        return {
+            config: from("config"),
+            theme: from("config", (model) => {
+                return model?.theme ?? "dark";
+            }),
+            language: from("config", (model) => {
+                return model?.language ?? "en";
+            }),
+            notifications: from("config", (model) => {
+                return model?.notifications ?? true;
+            }),
+        };
+    },
+    action({ api }) {
+        return {
+            get: api.get({ url: "/config" }).commit("config", ActionOneMode.SET),
+            update: api.patch({ url: "/config" }).commit("config", ActionOneMode.PATCH),
+        };
+    },
+});
 ```
 
-## Memory Operations
+## Mutation Operations
 
-| Action | Memory | Effect |
-|--------|--------|--------|
-| Get | `Memory.unit()` | Set unit state |
-| Update | `Memory.unit().edit()` | Merge into unit state |
+| Action | Commit Mode | Effect |
+|--------|-------------|--------|
+| Get | `ActionOneMode.SET` | Set the entire value |
+| Update | `ActionOneMode.PATCH` | Merge into existing value |
 
 ## Component Usage
 
@@ -65,39 +76,36 @@ export const configStore = createStore("config", configSchema, configActions);
 <script setup lang="ts">
 import { configStore } from "~/stores/config";
 
-const { config, getConfig, updateConfig, configMonitor } = useStoreAlias(configStore);
+const { view, action } = configStore;
 
-await getConfig();
+await action.get();
 
 async function toggleTheme() {
-    const newTheme = config.value?.theme === "dark" ? "light" : "dark";
-    await updateConfig({ id: config.value!.id, theme: newTheme });
+    const newTheme = view.theme.value === "dark" ? "light" : "dark";
+    await action.update({ body: { theme: newTheme } });
 }
 
 async function changeLanguage(lang: string) {
-    await updateConfig({ id: config.value!.id, language: lang });
+    await action.update({ body: { language: lang } });
 }
 
 async function toggleNotifications() {
-    await updateConfig({
-        id: config.value!.id,
-        notifications: !config.value?.notifications,
-    });
+    await action.update({ body: { notifications: !view.notifications.value } });
 }
 </script>
 
 <template>
-    <div v-if="configMonitor.get.pending()">Loading...</div>
+    <div v-if="action.get.loading.value">Loading...</div>
 
-    <div v-else-if="config">
+    <div v-else-if="view.config.value">
         <div>
-            <label>Theme: {{ config.theme }}</label>
+            <label>Theme: {{ view.theme.value }}</label>
             <button @click="toggleTheme">Toggle</button>
         </div>
 
         <div>
             <label>Language:</label>
-            <select :value="config.language" @change="changeLanguage($event.target.value)">
+            <select :value="view.language.value" @change="changeLanguage(($event.target as HTMLSelectElement).value)">
                 <option value="en">English</option>
                 <option value="es">Spanish</option>
                 <option value="fr">French</option>
@@ -108,14 +116,14 @@ async function toggleNotifications() {
             <label>
                 <input
                     type="checkbox"
-                    :checked="config.notifications"
+                    :checked="view.notifications.value"
                     @change="toggleNotifications"
                 />
                 Enable Notifications
             </label>
         </div>
 
-        <span v-if="configMonitor.update.pending()">Saving...</span>
+        <span v-if="action.update.loading.value">Saving...</span>
     </div>
 </template>
 ```
@@ -123,45 +131,58 @@ async function toggleNotifications() {
 ## Current User Pattern
 
 ```typescript
-enum MeAction {
-    GET = "get",
-    UPDATE = "update",
-}
-
-const meSchema = z.object({
-    id: z.number().meta({ indicator: true }),
-    name: z.string().meta({ actions: [MeAction.UPDATE] }),
-    email: z.string(),
-    avatar: z.string().meta({ actions: [MeAction.UPDATE] }),
+const meShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        name: factory.string(),
+        email: factory.email(),
+        avatar: factory.string(),
+    };
 });
 
-const meActions = {
-    [MeAction.GET]: {
-        endpoint: Endpoint.get("/me"),
-        memory: Memory.unit(),
+export const meStore = createStore({
+    name: "me",
+    model({ one }) {
+        return {
+            user: one(meShape),
+        };
     },
-    [MeAction.UPDATE]: {
-        endpoint: Endpoint.patch("/me"),
-        memory: Memory.unit().edit(),
+    view({ from }) {
+        return {
+            me: from("user"),
+            name: from("user", (model) => {
+                return model?.name ?? "Guest";
+            }),
+            isLoggedIn: from("user", (model) => {
+                return model !== null;
+            }),
+        };
     },
-};
-
-export const meStore = createStore("me", meSchema, meActions);
+    action({ api, commit }) {
+        return {
+            get: api.get({ url: "/me" }).commit("user", ActionOneMode.SET),
+            update: api.patch({ url: "/me" }).commit("user", ActionOneMode.PATCH),
+            logout: commit("user", ActionOneMode.RESET),
+        };
+    },
+});
 ```
 
 ## Clear Singleton
 
-Use memory to clear the unit state (e.g., on logout):
+Use the model committer or a commit-only action to clear state:
 
 ```typescript
-const { meMemory } = useStoreAlias(meStore);
+// Via commit-only action
+await meStore.action.logout();
 
-function logout() {
-    meMemory.set(null);
-}
+// Via model committer
+meStore.model("user", ActionOneMode.RESET);
 ```
 
 ## Next Steps
 
 - [Collection Store](collection.md) - List management
-- [Nested Schema](nested.md) - Complex objects
+- [Nested Store](nested.md) - Complex objects

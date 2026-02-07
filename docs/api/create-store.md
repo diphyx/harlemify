@@ -1,154 +1,199 @@
 # createStore
 
-Creates a new store with API integration and state management.
+Creates a new store with model, view, and action layers.
 
 ## Signature
 
 ```typescript
-createStore(entity, schema, actions, options?)
+function createStore<M, VD, AD>(config: StoreConfig<M, VD, AD>): Store<M, VD, AD>
 ```
 
 ## Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `entity` | `string` | Entity name (e.g., "user", "product") |
-| `schema` | `z.ZodObject` | Zod schema with metadata |
-| `actions` | `ActionsConfig` | Action definitions |
-| `options` | `StoreOptions` | Optional configuration |
+### StoreConfig
+
+```typescript
+interface StoreConfig<M, VD, AD> {
+    name: string;
+    model: (factory: ModelFactory) => M;
+    view: (factory: ViewFactory<M>) => VD;
+    action: (factory: ActionFactory<M, StoreView<M, VD>>) => AD;
+}
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | `string` | Unique store name (used for Harlem registration and logging) |
+| `model` | `(factory) => M` | Function that receives a ModelFactory and returns model definitions |
+| `view` | `(factory) => VD` | Function that receives a ViewFactory and returns view definitions |
+| `action` | `(factory) => AD` | Function that receives an ActionFactory and returns action chains |
 
 ## Returns: Store
 
 ```typescript
-interface Store {
-    store: HarlemStore;      // Underlying Harlem store
-    alias: {
-        unit: string;        // Singular name (e.g., "user")
-        units: string;       // Plural name (e.g., "users")
-    };
-    indicator: string;       // Primary key field name
-    unit: ComputedRef;       // Single cached unit
-    units: ComputedRef;      // Cached unit collection
-    action: StoreActions;    // Action methods
-    memory: StoreMemory;     // Memory mutation methods
-    monitor: StoreMonitor;   // Action status objects
+interface Store<M, VD, AD> {
+    model: StoreModel<M>;
+    view: StoreView<M, VD>;
+    action: StoreAction<M, StoreView<M, VD>, AD>;
 }
 ```
 
-## Options
+### model
+
+The model committer function for direct state mutations:
 
 ```typescript
-interface StoreOptions {
-    adapter?: ApiAdapter;           // Custom HTTP adapter
-    indicator?: string;             // Override primary key field
-    hooks?: StoreHooks;             // Lifecycle hooks
-    extensions?: Extension[];       // Harlem extensions
+type StoreModel<M> = ActionCommitter<M>
+```
+
+```typescript
+// One-model mutations
+store.model(key, ActionOneMode.SET, value);
+store.model(key, ActionOneMode.PATCH, partialValue);
+store.model(key, ActionOneMode.PATCH, partialValue, { deep: true });
+store.model(key, ActionOneMode.RESET);
+
+// Many-model mutations
+store.model(key, ActionManyMode.SET, array);
+store.model(key, ActionManyMode.ADD, item);
+store.model(key, ActionManyMode.ADD, item, { prepend: true, unique: true });
+store.model(key, ActionManyMode.PATCH, partialItem);
+store.model(key, ActionManyMode.PATCH, partialItem, { by: "email", deep: true });
+store.model(key, ActionManyMode.REMOVE, item);
+store.model(key, ActionManyMode.REMOVE, item, { by: "email" });
+store.model(key, ActionManyMode.RESET);
+```
+
+### view
+
+Object containing `ComputedRef` values for each view definition:
+
+```typescript
+store.view.user.value      // User | null
+store.view.users.value     // User[]
+store.view.count.value     // number
+```
+
+### action
+
+Object containing callable action functions with metadata:
+
+```typescript
+await store.action.fetch();
+await store.action.fetch(payload);
+
+store.action.fetch.loading    // ComputedRef<boolean>
+store.action.fetch.status     // Readonly<Ref<ActionStatus>>
+store.action.fetch.error      // Readonly<Ref<ActionError | null>>
+store.action.fetch.data       // DeepReadonly<T> | null
+store.action.fetch.reset()    // Reset status, error, and data
+```
+
+## Factories
+
+### ModelFactory
+
+```typescript
+interface ModelFactory {
+    one<S>(shape: ShapeType<S>, options?: ModelOneOptions<S>): ModelOneDefinition<S>;
+    many<S>(shape: ShapeType<S>, options?: ModelManyOptions<S>): ModelManyDefinition<S>;
 }
 ```
 
-### adapter
-
-Override the HTTP adapter for all actions:
+### ViewFactory
 
 ```typescript
-const userStore = createStore("user", schema, actions, {
-    adapter: defineApiAdapter({
-        baseURL: "/api/v2",
-        timeout: 30000,
-    }),
-});
+interface ViewFactory<M> {
+    from<K extends keyof M>(source: K): ViewFromDefinition;
+    from<K extends keyof M, R>(source: K, resolver: (value) => R): ViewFromDefinition;
+    merge<K extends readonly (keyof M)[], R>(sources: K, resolver: (...values) => R): ViewMergeDefinition;
+}
 ```
 
-### indicator
-
-Override the primary key field (default: field with `indicator: true` in schema):
+### ActionFactory
 
 ```typescript
-const documentStore = createStore("document", schema, actions, {
-    indicator: "uuid",
-});
+interface ActionFactory<M, V> {
+    api: ActionApiFactory<M, V>;
+    handle<R>(callback: (context) => Promise<R>): ActionHandleChain<M, V, R>;
+    commit: ActionCommitMethod<M, V, void>;
+}
 ```
 
-### hooks
-
-Execute code before/after every action:
+### ActionApiFactory
 
 ```typescript
-const userStore = createStore("user", schema, actions, {
-    hooks: {
-        before: async () => {
-            console.log("Request starting");
-        },
-        after: (error) => {
-            if (error) console.error(error);
-        },
-    },
-});
-```
-
-### extensions
-
-Add Harlem extensions:
-
-```typescript
-import { createStorageExtension } from "@harlem/extension-storage";
-
-const userStore = createStore("user", schema, actions, {
-    extensions: [
-        createStorageExtension({ type: "local" }),
-    ],
-});
+interface ActionApiFactory<M, V> {
+    (definition: ActionApiDefinition<V>): ActionApiChain<M, V, unknown>;
+    get(definition): ActionApiChain;
+    head(definition): ActionApiChain;
+    post(definition): ActionApiChain;
+    put(definition): ActionApiChain;
+    patch(definition): ActionApiChain;
+    delete(definition): ActionApiChain;
+}
 ```
 
 ## Example
 
 ```typescript
-import { z } from "zod";
+import { createStore, shape, ActionOneMode, ActionManyMode, type ShapeInfer } from "@diphyx/harlemify";
 
-enum UserAction {
-    GET = "get",
-    LIST = "list",
-    CREATE = "create",
-}
-
-const userSchema = z.object({
-    id: z.number().meta({ indicator: true }),
-    name: z.string().meta({ actions: [UserAction.CREATE] }),
-    email: z.string().meta({ actions: [UserAction.CREATE] }),
+const userShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        name: factory.string(),
+        email: factory.email(),
+    };
 });
 
-const userActions = {
-    [UserAction.GET]: {
-        endpoint: Endpoint.get<User>((p) => `/users/${p.id}`),
-        memory: Memory.unit(),
+type User = ShapeInfer<typeof userShape>;
+
+export const userStore = createStore({
+    name: "users",
+    model({ one, many }) {
+        return {
+            current: one(userShape),
+            list: many(userShape),
+        };
     },
-    [UserAction.LIST]: {
-        endpoint: Endpoint.get("/users"),
-        memory: Memory.units(),
+    view({ from }) {
+        return {
+            user: from("current"),
+            users: from("list"),
+            count: from("list", (model) => {
+                return model.length;
+            }),
+        };
     },
-    [UserAction.CREATE]: {
-        endpoint: Endpoint.post("/users"),
-        memory: Memory.units().add(),
+    action({ api, commit }) {
+        return {
+            list: api
+                .get({
+                    url: "/users",
+                })
+                .commit("list", ActionManyMode.SET),
+            get: api
+                .get({
+                    url(view) {
+                        return `/users/${view.user.value?.id}`;
+                    },
+                })
+                .commit("current", ActionOneMode.SET),
+            create: api
+                .post({
+                    url: "/users",
+                })
+                .commit("list", ActionManyMode.ADD),
+            clear: commit("list", ActionManyMode.RESET),
+        };
     },
-};
-
-export const userStore = createStore("user", userSchema, userActions);
-
-export type User = z.infer<typeof userSchema>;
-```
-
-## Actions Config
-
-```typescript
-type ActionsConfig = Record<string, ActionDefinition>;
-
-interface ActionDefinition {
-    endpoint: EndpointDefinition;   // Required
-    memory?: MemoryDefinition;       // Optional
-}
+});
 ```
 
 ## See Also
 
-- [useStoreAlias](use-store-alias.md) - Access store in components
-- [Builders](builders.md) - Endpoint and Memory builders
+- [shape](shape.md) - Define data shapes
+- [Types](types.md) - Complete type reference

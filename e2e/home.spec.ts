@@ -97,3 +97,30 @@ test.describe("Home Page - Accessibility", () => {
         }
     });
 });
+
+test.describe("Home Page - Card Descriptions", () => {
+    test.beforeEach(async ({ page }) => {
+        await page.goto("/");
+    });
+
+    test("Config card describes model.one() pattern", async ({ page }) => {
+        const configCard = page.locator("a", { hasText: "Config" });
+        await expect(configCard).toContainText("model.one()");
+    });
+
+    test("Users card describes collection features", async ({ page }) => {
+        const usersCard = page.locator("a", { hasText: "Users" });
+        await expect(usersCard).toContainText("merge");
+        await expect(usersCard).toContainText("commit");
+    });
+
+    test("Posts card describes handle() pattern", async ({ page }) => {
+        const postsCard = page.locator("a", { hasText: "Posts" });
+        await expect(postsCard).toContainText("handle()");
+    });
+
+    test("Projects card describes advanced features", async ({ page }) => {
+        const projectsCard = page.locator("a", { hasText: "Projects" });
+        await expect(projectsCard).toContainText("concurrent");
+    });
+});

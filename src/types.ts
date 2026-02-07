@@ -1,14 +1,16 @@
 import "zod";
 import "@nuxt/schema";
 
-import type { SchemaMeta, SharedConfig } from "./runtime";
+import type { RuntimeConfig } from "./runtime";
 
 declare module "zod" {
-    interface GlobalMeta extends SchemaMeta {}
+    interface GlobalMeta {
+        identifier?: boolean;
+    }
 }
 
 declare module "@nuxt/schema" {
     interface PublicRuntimeConfig {
-        harlemify: SharedConfig;
+        harlemify: RuntimeConfig;
     }
 }

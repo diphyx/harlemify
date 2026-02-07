@@ -4,18 +4,14 @@ Advanced features for customizing harlemify behavior.
 
 ## Topics
 
-### [Custom Adapters](adapters.md)
-Override HTTP request handling at any level:
-- Module-level (global)
-- Store-level
-- Endpoint-level
-- Call-time
-
-### [Validation](validation.md)
-Validate data with Zod before sending requests.
+### [Concurrency](concurrency.md)
+Control what happens when an action is called while already pending: block, skip, cancel, or allow.
 
 ### [Cancellation](cancellation.md)
-Cancel in-flight requests using AbortController.
+Cancel in-flight requests using AbortSignal.
 
-### [Lifecycle Hooks](hooks.md)
-Execute code before and after every API operation.
+### [Debug Logging](logging.md)
+Enable per-store debug logging with Consola for development troubleshooting.
+
+### [Isolated Status](isolated-status.md)
+Bind action status and error tracking to isolated refs for independent UI state.

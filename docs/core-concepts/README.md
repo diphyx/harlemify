@@ -1,97 +1,145 @@
 # Core Concepts
 
-Harlemify is built around four core concepts that work together to provide schema-driven state management.
+Harlemify is built around four core concepts that work together to provide factory-driven state management.
 
 ## Architecture Overview
 
 ```
-Schema (Zod)
+Shape (Zod)
     ↓
-createStore(entity, schema, actions)
+createStore({ name, model, view, action })
     ↓
 ┌─────────────────────────────────────┐
 │  Store                              │
-│  ├── Endpoint → API Request         │
-│  ├── Memory   → State Management    │
-│  └── Monitor  → Status Tracking     │
+│  ├── Model  → State (one / many)    │
+│  ├── View   → Computed (from/merge) │
+│  └── Action → API + Handle + Commit │
 └─────────────────────────────────────┘
     ↓
-useStoreAlias(store)
+store.model / store.view / store.action
     ↓
 Component (Vue)
 ```
 
 ## The Four Pillars
 
-### [Schema](schema.md)
+### [Shape](shape.md)
 
-Your Zod schema is the single source of truth. It defines:
-- Data structure and types
-- Primary key (indicator)
-- Which fields go in request bodies
+Define your data structure using Zod via the `shape` helper:
 
 ```typescript
-const userSchema = z.object({
-    id: z.number().meta({ indicator: true }),
-    name: z.string().meta({ actions: ["create", "update"] }),
+const userShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        name: factory.string(),
+        email: factory.email(),
+    };
 });
 ```
 
-### [Endpoint Builder](endpoint.md)
+### [Model](model.md)
 
-Defines HTTP endpoints with fluent API:
+Models define state containers using factory functions:
 
 ```typescript
-Endpoint.get("/users")                      // Static URL
-Endpoint.get<User>((p) => `/users/${p.id}`) // Dynamic URL
-Endpoint.post("/users").withAdapter(custom) // With adapter
+model({ one, many }) {
+    return {
+        current: one(userShape),   // Single item (User | null)
+        list: many(userShape),     // Collection (User[])
+    };
+},
 ```
 
-### [Memory Builder](memory.md)
+### [View](view.md)
 
-Controls where API responses are stored:
+Views create reactive computed properties from model state:
 
 ```typescript
-Memory.unit()                  // Single item
-Memory.units()                 // Collection
-Memory.unit("milestones")      // Nested field
-Memory.units().add({ prepend: true })  // Prepend to list
+view({ from, merge }) {
+    return {
+        user: from("current"),
+        users: from("list"),
+        count: from("list", (model) => {
+            return model.length;
+        }),
+        summary: merge(["current", "list"], (current, list) => {
+            return {
+                name: current?.name,
+                total: list.length,
+            };
+        }),
+    };
+},
 ```
 
-### [Monitor](monitor.md)
+### [Action](action.md)
 
-Tracks request status for each action:
+Actions define async operations with chainable builders:
 
 ```typescript
-userMonitor.list.pending()  // Loading state
-userMonitor.create.failed() // Error state
-userMonitor.get.current()   // "idle" | "pending" | "success" | "failed"
+action({ api, commit }) {
+    return {
+        fetch: api
+            .get({
+                url: "/users",
+            })
+            .commit("list", ActionManyMode.SET),
+        clear: commit("list", ActionManyMode.RESET),
+    };
+},
 ```
 
 ## How They Connect
 
 ```typescript
-// 1. Schema defines the shape
-const schema = z.object({ id: z.number(), name: z.string() });
+// 1. Shape defines the data structure
+const userShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        name: factory.string(),
+    };
+});
 
-// 2. Actions combine endpoint + memory
-const actions = {
-    list: {
-        endpoint: Endpoint.get("/users"),    // Where to fetch
-        memory: Memory.units(),               // Where to store
+// 2. Store brings model, view, and action together
+const userStore = createStore({
+    name: "users",
+    model({ one, many }) {
+        return {
+            current: one(userShape),
+            list: many(userShape),
+        };
     },
-};
+    view({ from }) {
+        return {
+            users: from("list"),
+        };
+    },
+    action({ api }) {
+        return {
+            list: api
+                .get({
+                    url: "/users",
+                })
+                .commit("list", ActionManyMode.SET),
+        };
+    },
+});
 
-// 3. Store brings it together
-const userStore = createStore("user", schema, actions);
+// 3. Use in components
+const { model, view, action } = userStore;
 
-// 4. Composable provides reactive access
-const { users, listUser, userMonitor } = useStoreAlias(userStore);
+await action.list();                          // Fetch and commit to state
+view.users.value;                             // Reactive computed list
+model("list", ActionManyMode.RESET);          // Direct mutation
 ```
 
 ## Next Steps
 
-- [Schema](schema.md) - Define your data structure
-- [Endpoint Builder](endpoint.md) - Configure API calls
-- [Memory Builder](memory.md) - Control state storage
-- [Monitor](monitor.md) - Track request status
+- [Shape](shape.md) - Define your data structure
+- [Model](model.md) - Configure state containers
+- [View](view.md) - Create computed properties
+- [Action](action.md) - Define async operations

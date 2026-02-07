@@ -21,7 +21,7 @@ export interface Post {
     body: string;
 }
 
-// Projects - demonstrating nested schema
+// Projects - demonstrating nested shape
 export interface ProjectMilestone {
     id: number;
     name: string;

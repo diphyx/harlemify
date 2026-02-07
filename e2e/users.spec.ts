@@ -4,23 +4,25 @@ import { test, expect } from "./fixtures";
  * Users Page E2E Tests
  *
  * Tests harlemify concepts demonstrated:
- * - Collection store pattern (Memory.units())
- * - Unit state for single selection (Memory.unit())
- * - Custom adapters (Endpoint.withAdapter(detailAdapter))
- * - Store-level adapter (createStore(..., { adapter }))
- * - Memory API direct mutation (userMemory.set(null))
- * - Collection mutations: add, edit, drop
- * - useStoreAlias composable
+ * - Collection store pattern: model.many(shape) with ActionManyMode
+ * - Singleton state for selection: model.one(shape) with ActionOneMode
+ * - Direct model mutation: model("current", ActionOneMode.SET, user)
+ * - Collection mutations: ActionManyMode.ADD / PATCH / REMOVE / RESET
+ * - Merged views: view.merge(["current", "list"], resolver)
+ * - Standalone commit: commit("list", ActionManyMode.RESET)
+ * - Commit options: { unique: true }, { by: "email" }
+ * - Action properties: action.list.data, action.list.reset()
+ * - Store destructured API: { model, view, action }
  */
 
-test.describe("Users - Collection Store Pattern (Memory.units())", () => {
+test.describe("Users - Collection Store (model.many())", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
     });
 
-    test("loads collection data into units state on mount", async ({ page }) => {
-        // Verify users are loaded as array (units), not single object
+    test("loads collection data into many() state on mount", async ({ page }) => {
+        // Verify users are loaded as array (many), not single object
         const cards = page.locator(".grid .card");
         const count = await cards.count();
 
@@ -31,12 +33,12 @@ test.describe("Users - Collection Store Pattern (Memory.units())", () => {
         expect(countText).toContain(`${count} users`);
     });
 
-    test("each item in units has required schema fields", async ({ page }) => {
+    test("each item has required schema fields", async ({ page }) => {
         // Select first user to see detailed data
         await page.locator(".card").first().locator("button", { hasText: "View" }).click();
         await page.waitForSelector(".detail");
 
-        const rawData = await page.locator(".detail pre").textContent();
+        const rawData = await page.locator("[data-testid='selected-user'] pre").textContent();
         const user = JSON.parse(rawData || "{}");
 
         // User should have all schema-defined fields
@@ -48,8 +50,8 @@ test.describe("Users - Collection Store Pattern (Memory.units())", () => {
         expect(typeof user.email).toBe("string");
     });
 
-    test("units state is displayed in grid layout", async ({ page }) => {
-        // All cards should display user info from units array
+    test("collection state is displayed in grid layout", async ({ page }) => {
+        // All cards should display user info from many() array
         const firstCard = page.locator(".card").first();
 
         await expect(firstCard.locator("h3")).toBeVisible(); // name
@@ -57,65 +59,67 @@ test.describe("Users - Collection Store Pattern (Memory.units())", () => {
     });
 });
 
-test.describe("Users - Unit State for Selection (Memory.unit())", () => {
+test.describe("Users - Singleton State for Selection (model.one())", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
     });
 
-    test("unit state is null initially (no selection)", async ({ page }) => {
+    test("one() state is null initially (no selection)", async ({ page }) => {
         // Detail section should not be visible when no user selected
-        await expect(page.locator(".detail")).not.toBeVisible();
+        await expect(page.locator("[data-testid='selected-user']")).not.toBeVisible();
     });
 
-    test("selecting user populates unit state", async ({ page }) => {
+    test("selecting user populates one() state via action.get", async ({ page }) => {
         // Click View on first user
         await page.locator(".card").first().locator("button", { hasText: "View" }).click();
-        await page.waitForSelector(".detail");
+        await page.waitForSelector("[data-testid='selected-user']");
 
         // Detail should show selected user
-        const rawData = await page.locator(".detail pre").textContent();
+        const rawData = await page.locator("[data-testid='selected-user'] pre").textContent();
         const user = JSON.parse(rawData || "{}");
 
         expect(user.id).toBeDefined();
         expect(user.name).toBeDefined();
     });
 
-    test("selecting different user updates unit state", async ({ page }) => {
+    test("selecting different user updates one() state", async ({ page }) => {
         // Select first user
         await page.locator(".card").first().locator("button", { hasText: "View" }).click();
-        await page.waitForSelector(".detail", { timeout: 10000 });
+        await page.waitForSelector("[data-testid='selected-user']", { timeout: 10000 });
 
-        const firstUserData = await page.locator(".detail pre").textContent();
+        const firstUserData = await page.locator("[data-testid='selected-user'] pre").textContent();
         const firstUser = JSON.parse(firstUserData || "{}");
         const firstUserId = firstUser.id;
 
-        // Get second user's email (more unique than name which might have been edited)
+        // Get second user's email
         const secondUserEmail = await page.locator(".card").nth(1).locator(".subtitle").textContent();
 
         // Select second user
         await page.locator(".card").nth(1).locator("button", { hasText: "View" }).click();
 
         // Wait for the detail to show the second user's email
-        await expect(page.locator(".detail pre")).toContainText(secondUserEmail || "", { timeout: 10000 });
+        await expect(page.locator("[data-testid='selected-user'] pre")).toContainText(secondUserEmail || "", {
+            timeout: 10000,
+        });
 
-        const secondUserData = await page.locator(".detail pre").textContent();
+        const secondUserData = await page.locator("[data-testid='selected-user'] pre").textContent();
         const secondUser = JSON.parse(secondUserData || "{}");
 
         // Should be different users
         expect(secondUser.id).not.toBe(firstUserId);
     });
 
-    test("unit and units are independent states", async ({ page }) => {
-        // Get initial units count
+    test("one() and many() are independent states", async ({ page }) => {
+        // Get initial count
         const initialCountText = await page.locator(".toolbar h2").textContent();
         const initialCount = parseInt(initialCountText?.match(/\d+/)?.[0] || "0");
 
-        // Select a user (populates unit)
+        // Select a user (populates one)
         await page.locator(".card").first().locator("button", { hasText: "View" }).click();
-        await page.waitForSelector(".detail");
+        await page.waitForSelector("[data-testid='selected-user']");
 
-        // Units count should be unchanged
+        // Collection count should be unchanged
         const countAfterSelect = await page.locator(".toolbar h2").textContent();
         const countAfter = parseInt(countAfterSelect?.match(/\d+/)?.[0] || "0");
 
@@ -123,33 +127,33 @@ test.describe("Users - Unit State for Selection (Memory.unit())", () => {
     });
 });
 
-test.describe("Users - Memory API Direct Mutation (userMemory.set)", () => {
+test.describe("Users - Direct Model Mutation (model('current', ActionOneMode.RESET))", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
     });
 
-    test("userMemory.set(null) clears unit state", async ({ page }) => {
+    test("model reset clears one() state", async ({ page }) => {
         // Select a user first
         await page.locator(".card").first().locator("button", { hasText: "View" }).click();
-        await page.waitForSelector(".detail");
+        await page.waitForSelector("[data-testid='selected-user']");
 
-        // Click Clear button (calls userMemory.set(null))
-        await page.locator(".detail button", { hasText: "Clear" }).click();
+        // Click Clear button (calls model("current", ActionOneMode.RESET))
+        await page.locator("[data-testid='selected-user'] button", { hasText: "Clear" }).click();
 
-        // Detail should be hidden (unit is null)
-        await expect(page.locator(".detail")).not.toBeVisible();
+        // Detail should be hidden (one() is null)
+        await expect(page.locator("[data-testid='selected-user']")).not.toBeVisible();
     });
 
-    test("clearing unit does not affect units array", async ({ page }) => {
+    test("clearing one() does not affect many() array", async ({ page }) => {
         // Get initial count
         const initialCountText = await page.locator(".toolbar h2").textContent();
         const initialCount = parseInt(initialCountText?.match(/\d+/)?.[0] || "0");
 
         // Select and clear
         await page.locator(".card").first().locator("button", { hasText: "View" }).click();
-        await page.waitForSelector(".detail");
-        await page.locator(".detail button", { hasText: "Clear" }).click();
+        await page.waitForSelector("[data-testid='selected-user']");
+        await page.locator("[data-testid='selected-user'] button", { hasText: "Clear" }).click();
 
         // Count should be unchanged
         const finalCountText = await page.locator(".toolbar h2").textContent();
@@ -159,13 +163,13 @@ test.describe("Users - Memory API Direct Mutation (userMemory.set)", () => {
     });
 });
 
-test.describe("Users - Collection Mutations (Memory.units().add/edit/drop)", () => {
+test.describe("Users - Collection Mutations (ActionManyMode.ADD/PATCH/REMOVE)", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
     });
 
-    test("Memory.units().add() - create adds new item to collection", async ({ page }) => {
+    test("ActionManyMode.ADD - create adds new item to collection", async ({ page }) => {
         // Get initial count
         const initialCountText = await page.locator(".toolbar h2").textContent();
         const initialCount = parseInt(initialCountText?.match(/\d+/)?.[0] || "0");
@@ -191,7 +195,7 @@ test.describe("Users - Collection Mutations (Memory.units().add/edit/drop)", () 
         expect(finalCount).toBe(initialCount + 1);
     });
 
-    test("Memory.units().add() - new item appears in grid", async ({ page }) => {
+    test("ActionManyMode.ADD - new item appears in grid", async ({ page }) => {
         // Create new user with unique name
         await page.locator("button", { hasText: "Add User" }).click();
         await page.waitForSelector(".modal");
@@ -208,7 +212,7 @@ test.describe("Users - Collection Mutations (Memory.units().add/edit/drop)", () 
         await expect(page.locator(".card h3", { hasText: uniqueName })).toBeVisible();
     });
 
-    test("Memory.units().edit() - update modifies existing item", async ({ page }) => {
+    test("ActionManyMode.PATCH - update modifies existing item", async ({ page }) => {
         // Get first user's current name
         const originalName = await page.locator(".card").first().locator("h3").textContent();
 
@@ -229,7 +233,7 @@ test.describe("Users - Collection Mutations (Memory.units().add/edit/drop)", () 
         expect(newName).not.toBe(originalName);
     });
 
-    test("Memory.units().edit() - preserves other items unchanged", async ({ page }) => {
+    test("ActionManyMode.PATCH - preserves other items unchanged", async ({ page }) => {
         // Get second user's name before edit
         const secondUserName = await page.locator(".card").nth(1).locator("h3").textContent();
 
@@ -241,7 +245,7 @@ test.describe("Users - Collection Mutations (Memory.units().add/edit/drop)", () 
         await page.locator(".modal input").first().fill(newFirstName);
         await page.locator(".modal button[type='submit']").click();
 
-        // Wait for first card to update (more reliable than waiting for modal to close)
+        // Wait for first card to update
         await expect(page.locator(".card").first().locator("h3")).toContainText(newFirstName, { timeout: 10000 });
 
         // Second user should be unchanged
@@ -249,7 +253,7 @@ test.describe("Users - Collection Mutations (Memory.units().add/edit/drop)", () 
         expect(secondUserNameAfter).toBe(secondUserName);
     });
 
-    test("Memory.units().drop() - delete removes item from collection", async ({ page }) => {
+    test("ActionManyMode.REMOVE - delete removes item from collection", async ({ page }) => {
         // Get initial count
         const initialCountText = await page.locator(".toolbar h2").textContent();
         const initialCount = parseInt(initialCountText?.match(/\d+/)?.[0] || "0");
@@ -268,7 +272,7 @@ test.describe("Users - Collection Mutations (Memory.units().add/edit/drop)", () 
         expect(finalCount).toBe(initialCount - 1);
     });
 
-    test("Memory.units().drop() - deleted item no longer in grid", async ({ page }) => {
+    test("ActionManyMode.REMOVE - deleted item no longer in grid", async ({ page }) => {
         // Get initial count and first user's name
         const initialCountText = await page.locator(".toolbar h2").textContent();
         const initialCount = parseInt(initialCountText?.match(/\d+/)?.[0] || "0");
@@ -287,95 +291,58 @@ test.describe("Users - Collection Mutations (Memory.units().add/edit/drop)", () 
         const newFirstUserName = await page.locator(".card").first().locator("h3").textContent();
         expect(newFirstUserName).not.toBe(deletedUserName);
     });
-});
 
-test.describe("Users - Custom Adapters (Endpoint.withAdapter)", () => {
-    test.beforeEach(async ({ page }) => {
-        await page.goto("/users");
-        await page.waitForSelector(".grid .card", { timeout: 10000 });
-    });
-
-    test("get action uses detailAdapter (endpoint-level adapter)", async ({ page }) => {
-        // The detailAdapter logs to console - verify the action works
-        // This tests that endpoint-level adapter is applied via .withAdapter()
-        await page.locator(".card").first().locator("button", { hasText: "View" }).click();
-        await page.waitForSelector(".detail");
-
-        // Data should be fetched successfully via detailAdapter
-        const rawData = await page.locator(".detail pre").textContent();
-        const user = JSON.parse(rawData || "{}");
-
-        expect(user.id).toBeDefined();
-        expect(user.name).toBeDefined();
-    });
-
-    test("list action uses store-level loggingAdapter", async ({ page }) => {
-        // The loggingAdapter is set at store level
-        // List action should use it (since no endpoint-level adapter)
-        // Verify list worked correctly
-        const cards = page.locator(".grid .card");
-        const count = await cards.count();
-
-        expect(count).toBeGreaterThan(0);
-    });
-
-    test("create action inherits store-level adapter", async ({ page }) => {
-        // Create should use store-level loggingAdapter
-        await page.locator("button", { hasText: "Add User" }).click();
-        await page.waitForSelector(".modal");
-
-        await page.locator(".modal input").first().fill("Adapter Test User");
-        await page.locator(".modal input[type='email']").fill("adapter@test.com");
-        await page.locator(".modal button[type='submit']").click();
-
-        await page.waitForSelector(".modal", { state: "hidden" });
+    test("ActionManyMode.RESET - clear all empties the collection", async ({ page }) => {
+        // Click Clear All button (calls action.clear which commits RESET)
+        await page.locator("button", { hasText: "Clear All" }).click();
         await page.waitForTimeout(500);
 
-        // User should be created (adapter worked)
-        await expect(page.locator(".card h3", { hasText: "Adapter Test User" })).toBeVisible();
+        // Count should be 0
+        const countText = await page.locator(".toolbar h2").textContent();
+        expect(countText).toContain("0 users");
     });
 });
 
-test.describe("Users - useStoreAlias Composable", () => {
+test.describe("Users - Store Destructured API ({ model, view, action })", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
     });
 
-    test("user (unit) state is available", async ({ page }) => {
-        // Select a user to populate unit
+    test("view.user (one) state is available", async ({ page }) => {
+        // Select a user to populate one()
         await page.locator(".card").first().locator("button", { hasText: "View" }).click();
-        await page.waitForSelector(".detail");
+        await page.waitForSelector("[data-testid='selected-user']");
 
         // user state should be displayed
-        await expect(page.locator(".detail pre")).toBeVisible();
+        await expect(page.locator("[data-testid='selected-user'] pre")).toBeVisible();
     });
 
-    test("users (units) state is available", async ({ page }) => {
-        // Grid displays users from units array
+    test("view.users (many) state is available", async ({ page }) => {
+        // Grid displays users from many() array
         const cards = page.locator(".grid .card");
         await expect(cards.first()).toBeVisible();
     });
 
-    test("getUser action is available", async ({ page }) => {
-        // View button calls getUser
+    test("action.get is available", async ({ page }) => {
+        // View button calls action.get
         await page.locator(".card").first().locator("button", { hasText: "View" }).click();
-        await page.waitForSelector(".detail");
+        await page.waitForSelector("[data-testid='selected-user']");
 
-        // Action should populate unit
-        await expect(page.locator(".detail pre")).toContainText('"id":');
+        // Action should populate one()
+        await expect(page.locator("[data-testid='selected-user'] pre")).toContainText('"id":');
     });
 
-    test("listUser action is available", async ({ page }) => {
-        // Page calls listUser on mount - verify it worked
+    test("action.list is available", async ({ page }) => {
+        // Page calls action.list on mount - verify it worked
         const countText = await page.locator(".toolbar h2").textContent();
         const count = parseInt(countText?.match(/\d+/)?.[0] || "0");
 
         expect(count).toBeGreaterThan(0);
     });
 
-    test("createUser action is available", async ({ page }) => {
-        // Add User form calls createUser
+    test("action.create is available", async ({ page }) => {
+        // Add User form calls action.create
         await page.locator("button", { hasText: "Add User" }).click();
         await page.waitForSelector(".modal");
 
@@ -389,11 +356,11 @@ test.describe("Users - useStoreAlias Composable", () => {
         await expect(page.locator(".card h3", { hasText: "Create Action Test" })).toBeVisible();
     });
 
-    test("updateUser action is available", async ({ page }) => {
-        // Get first user's current email for more reliable identification
+    test("action.update is available", async ({ page }) => {
+        // Get first user's current email for reliable identification
         const originalEmail = await page.locator(".card").first().locator(".subtitle").textContent();
 
-        // Edit calls updateUser
+        // Edit calls action.update
         await page.locator(".card").first().locator("button", { hasText: "Edit" }).click();
         await page.waitForSelector(".modal", { timeout: 15000 });
 
@@ -407,7 +374,7 @@ test.describe("Users - useStoreAlias Composable", () => {
         await expect(cardWithEmail.locator("h3")).toHaveText(testName, { timeout: 15000 });
     });
 
-    test("deleteUser action is available", async ({ page }) => {
+    test("action.delete is available", async ({ page }) => {
         const initialCountText = await page.locator(".toolbar h2").textContent();
         const initialCount = parseInt(initialCountText?.match(/\d+/)?.[0] || "0");
 
@@ -421,51 +388,54 @@ test.describe("Users - useStoreAlias Composable", () => {
         expect(finalCount).toBe(initialCount - 1);
     });
 
-    test("userMemory namespace is available", async ({ page }) => {
-        // Clear button calls userMemory.set(null)
+    test("model() direct mutation is available", async ({ page }) => {
+        // Clear button calls model("current", ActionOneMode.RESET)
         await page.locator(".card").first().locator("button", { hasText: "View" }).click();
 
         // Wait for detail to appear with user data
-        await expect(page.locator(".detail pre")).toContainText('"id":', { timeout: 10000 });
+        await expect(page.locator("[data-testid='selected-user'] pre")).toContainText('"id":', { timeout: 10000 });
 
-        // userMemory.set(null) should work
-        await page.locator(".detail button", { hasText: "Clear" }).click();
-        await expect(page.locator(".detail")).not.toBeVisible({ timeout: 10000 });
+        // model reset should work
+        await page.locator("[data-testid='selected-user'] button", { hasText: "Clear" }).click();
+        await expect(page.locator("[data-testid='selected-user']")).not.toBeVisible({ timeout: 10000 });
     });
 
-    test("userMonitor namespace is available", async ({ page }) => {
-        // Monitor is used for loading state - page shows grid after loading
-        // This verifies userMonitor.list.pending works
-        await expect(page.locator(".grid")).toBeVisible();
+    test("view.summary merged view is available", async ({ page }) => {
+        // Merged view section should be visible
+        await expect(page.locator("[data-testid='merged-summary']")).toBeVisible();
+
+        const summaryData = await page.locator("[data-testid='merged-summary'] pre").textContent();
+        const summary = JSON.parse(summaryData || "{}");
+
+        expect(summary).toHaveProperty("selected");
+        expect(summary).toHaveProperty("total");
+        expect(summary).toHaveProperty("emails");
     });
 
-    test("monitor status section is visible", async ({ page }) => {
-        await expect(page.locator("[data-testid='monitor-status']")).toBeVisible();
+    test("action status section is visible", async ({ page }) => {
+        await expect(page.locator("[data-testid='action-status']")).toBeVisible();
     });
 
     test("list action shows success status after load", async ({ page }) => {
-        // Check that list monitor shows success state
-        const listMonitor = page.locator(".monitor-item").filter({ hasText: "list" });
-        await expect(listMonitor.locator("[data-status='success']")).toBeVisible();
-        await expect(listMonitor.locator("[data-flag='success']")).toBeVisible();
+        // Check that list action shows success state
+        const listStatus = page.locator("[data-testid='status-list']");
+        await expect(listStatus.locator("[data-status='success']")).toBeVisible();
     });
 
     test("get action shows idle status initially", async ({ page }) => {
-        // Check that get monitor shows idle state (no get performed yet)
-        const getMonitor = page.locator(".monitor-item").filter({ hasText: "get" });
-        await expect(getMonitor.locator("[data-status='idle']")).toBeVisible();
-        await expect(getMonitor.locator("[data-flag='idle']")).toBeVisible();
+        // Check that get action shows idle state (no get performed yet)
+        const getStatus = page.locator("[data-testid='status-get']");
+        await expect(getStatus.locator("[data-status='idle']")).toBeVisible();
     });
 
     test("get action transitions to success after viewing user", async ({ page }) => {
         // View first user
         await page.locator(".card").first().locator("button", { hasText: "View" }).click();
-        await page.waitForSelector(".detail");
+        await page.waitForSelector("[data-testid='selected-user']");
 
-        // Check that get monitor shows success state
-        const getMonitor = page.locator(".monitor-item").filter({ hasText: "get" });
-        await expect(getMonitor.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
-        await expect(getMonitor.locator("[data-flag='success']")).toBeVisible();
+        // Check that get action shows success state
+        const getStatus = page.locator("[data-testid='status-get']");
+        await expect(getStatus.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
     });
 
     test("create action transitions to success after creating user", async ({ page }) => {
@@ -479,10 +449,9 @@ test.describe("Users - useStoreAlias Composable", () => {
 
         await page.waitForSelector(".modal", { state: "hidden" });
 
-        // Check that create monitor shows success state
-        const createMonitor = page.locator(".monitor-item").filter({ hasText: "create" });
-        await expect(createMonitor.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
-        await expect(createMonitor.locator("[data-flag='success']")).toBeVisible();
+        // Check that create action shows success state
+        const createStatus = page.locator("[data-testid='status-create']");
+        await expect(createStatus.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
     });
 
     test("update action transitions to success after editing user", async ({ page }) => {
@@ -495,10 +464,9 @@ test.describe("Users - useStoreAlias Composable", () => {
 
         await page.waitForSelector(".modal", { state: "hidden" });
 
-        // Check that update monitor shows success state
-        const updateMonitor = page.locator(".monitor-item").filter({ hasText: "update" });
-        await expect(updateMonitor.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
-        await expect(updateMonitor.locator("[data-flag='success']")).toBeVisible();
+        // Check that update action shows success state
+        const updateStatus = page.locator("[data-testid='status-update']");
+        await expect(updateStatus.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
     });
 
     test("delete action transitions to success after deleting user", async ({ page }) => {
@@ -508,37 +476,24 @@ test.describe("Users - useStoreAlias Composable", () => {
         await page.locator(".card").first().locator("button", { hasText: "Delete" }).click();
         await page.waitForTimeout(500);
 
-        // Check that delete monitor shows success state
-        const deleteMonitor = page.locator(".monitor-item").filter({ hasText: "delete" });
-        await expect(deleteMonitor.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
-        await expect(deleteMonitor.locator("[data-flag='success']")).toBeVisible();
+        // Check that delete action shows success state
+        const deleteStatus = page.locator("[data-testid='status-delete']");
+        await expect(deleteStatus.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
     });
 
-    test("each action has independent monitor state", async ({ page }) => {
+    test("each action has independent status state", async ({ page }) => {
         // After page load: list=success, get=idle, create=idle, update=idle, delete=idle
-        const listMonitor = page.locator(".monitor-item").filter({ hasText: "list" });
-        const getMonitor = page.locator(".monitor-item").filter({ hasText: "get" });
-        const createMonitor = page.locator(".monitor-item").filter({ hasText: "create" });
-        const updateMonitor = page.locator(".monitor-item").filter({ hasText: "update" });
-        const deleteMonitor = page.locator(".monitor-item").filter({ hasText: "delete" });
+        const listStatus = page.locator("[data-testid='status-list']");
+        const getStatus = page.locator("[data-testid='status-get']");
+        const createStatus = page.locator("[data-testid='status-create']");
+        const updateStatus = page.locator("[data-testid='status-update']");
+        const deleteStatus = page.locator("[data-testid='status-delete']");
 
-        await expect(listMonitor.locator("[data-status='success']")).toBeVisible();
-        await expect(getMonitor.locator("[data-status='idle']")).toBeVisible();
-        await expect(createMonitor.locator("[data-status='idle']")).toBeVisible();
-        await expect(updateMonitor.locator("[data-status='idle']")).toBeVisible();
-        await expect(deleteMonitor.locator("[data-status='idle']")).toBeVisible();
-    });
-
-    test("monitor current value matches the active flag", async ({ page }) => {
-        // List should show success in both current value and flag
-        const listMonitor = page.locator(".monitor-item").filter({ hasText: "list" });
-        const currentValue = await listMonitor.locator(".monitor-state").textContent();
-
-        expect(currentValue).toBe("success");
-        await expect(listMonitor.locator("[data-flag='success']")).toBeVisible();
-        await expect(listMonitor.locator("[data-flag='idle']")).not.toBeVisible();
-        await expect(listMonitor.locator("[data-flag='pending']")).not.toBeVisible();
-        await expect(listMonitor.locator("[data-flag='failed']")).not.toBeVisible();
+        await expect(listStatus.locator("[data-status='success']")).toBeVisible();
+        await expect(getStatus.locator("[data-status='idle']")).toBeVisible();
+        await expect(createStatus.locator("[data-status='idle']")).toBeVisible();
+        await expect(updateStatus.locator("[data-status='idle']")).toBeVisible();
+        await expect(deleteStatus.locator("[data-status='idle']")).toBeVisible();
     });
 });
 
@@ -640,62 +595,87 @@ test.describe("Users - Delete Confirmation", () => {
 });
 
 test.describe("Users - Feature Info Verification", () => {
-    test("documents Endpoint.withAdapter for custom adapters", async ({ page }) => {
+    test("documents model.many(shape) collection pattern", async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("Endpoint.withAdapter");
+        await expect(page.locator(".feature-info")).toContainText("model.many(shape)");
     });
 
-    test("documents createStore adapter option", async ({ page }) => {
+    test("documents ActionManyMode.SET", async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("createStore");
-        await expect(page.locator(".feature-info")).toContainText("adapter");
+        await expect(page.locator(".feature-info")).toContainText("ActionManyMode.SET");
     });
 
-    test("documents getSchemaFields", async ({ page }) => {
+    test("documents ActionManyMode.ADD", async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("getSchemaFields(schema)");
+        await expect(page.locator(".feature-info")).toContainText("ActionManyMode.ADD");
     });
 
-    test("documents getFieldsForAction", async ({ page }) => {
+    test("documents ActionManyMode.PATCH", async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("getFieldsForAction(schema, action)");
+        await expect(page.locator(".feature-info")).toContainText("ActionManyMode.PATCH");
     });
 
-    test("documents schema meta indicator", async ({ page }) => {
+    test("documents ActionManyMode.REMOVE", async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("meta({ indicator: true })");
+        await expect(page.locator(".feature-info")).toContainText("ActionManyMode.REMOVE");
     });
 
-    test("documents userMemory.set(null)", async ({ page }) => {
+    test("documents ActionManyMode.RESET", async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("userMemory.set(null)");
+        await expect(page.locator(".feature-info")).toContainText("ActionManyMode.RESET");
     });
 
-    test("documents userMonitor.[action].current()", async ({ page }) => {
+    test("documents direct model mutation", async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("userMonitor.[action].current()");
+        await expect(page.locator(".feature-info")).toContainText('model("current", ActionOneMode.SET, user)');
     });
 
-    test("documents userMonitor.[action].idle()/pending()/success()/failed()", async ({ page }) => {
+    test("documents view.merge for multi-source views", async ({ page }) => {
         await page.goto("/users");
         await page.waitForSelector(".grid .card", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText(
-            "userMonitor.[action].idle()/pending()/success()/failed()",
-        );
+        await expect(page.locator(".feature-info")).toContainText('view.merge(["current", "list"], resolver)');
+    });
+
+    test("documents commit with unique option", async ({ page }) => {
+        await page.goto("/users");
+        await page.waitForSelector(".grid .card", { timeout: 10000 });
+
+        await expect(page.locator(".feature-info")).toContainText("{ unique: true }");
+    });
+
+    test("documents commit with by option", async ({ page }) => {
+        await page.goto("/users");
+        await page.waitForSelector(".grid .card", { timeout: 10000 });
+
+        await expect(page.locator(".feature-info")).toContainText('{ by: "email" }');
+    });
+
+    test("documents action.list.data", async ({ page }) => {
+        await page.goto("/users");
+        await page.waitForSelector(".grid .card", { timeout: 10000 });
+
+        await expect(page.locator(".feature-info")).toContainText("action.list.data");
+    });
+
+    test("documents action.list.reset()", async ({ page }) => {
+        await page.goto("/users");
+        await page.waitForSelector(".grid .card", { timeout: 10000 });
+
+        await expect(page.locator(".feature-info")).toContainText("action.list.reset()");
     });
 });

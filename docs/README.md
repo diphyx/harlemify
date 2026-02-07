@@ -1,122 +1,164 @@
 # Harlemify
 
-> Schema-driven state management for Nuxt powered by [Harlem](https://harlemjs.com/)
+> Factory-driven state management for Nuxt powered by [Harlem](https://harlemjs.com/)
 
-![Version](https://img.shields.io/badge/version-3.0.0-42b883)
+![Version](https://img.shields.io/badge/version-4.0.0-42b883)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-Harlemify bridges the gap between your API and Vue components. Define your data schema once with Zod, and Harlemify automatically handles type-safe API calls, reactive state management, request status tracking, and memory operations. Your schema becomes the single source of truth for TypeScript types, runtime validation, and API payload filtering.
+Harlemify provides a declarative, factory-based approach to state management. Define your data shapes with Zod, then use model, view, and action factories to create fully typed, reactive stores with built-in API integration, computed views, and status tracking.
 
 ## Why Harlemify?
 
-- Define schema once, get types, validation, and API payloads automatically
-- Track loading, success, and error states for every action
-- Update cache declaratively with memory mutations
-- Override HTTP handling at module, store, endpoint, or call-time
-- Full TypeScript inference from schema to component
+- Define shapes once with Zod, get types and validation automatically
+- Three-layer architecture: **Model** (state), **View** (computed), **Action** (async operations)
+- Chainable action builders: `api`, `handle`, `commit`
+- Per-action status, error, and loading tracking
+- Concurrency control (block, skip, cancel, allow)
+- Full TypeScript inference from shape to component
 - SSR support with automatic state hydration
 
 ## Features
 
-### Schema-Driven Architecture
-Your Zod schema is the foundation. Define field types, mark the primary key with `indicator`, and specify which fields go in request bodies with `actions`. Harlemify uses this metadata to build type-safe stores automatically.
+### Shape-Driven Architecture
+
+Define your data shape with Zod using the `shape` helper. Mark identifiers with `.meta()` for automatic matching in array mutations.
 
 ```typescript
-const userSchema = z.object({
-    id: z.number().meta({ indicator: true }),
-    name: z.string().meta({ actions: ["create", "update"] }),
-    email: z.string().meta({ actions: ["create"] }),
-    createdAt: z.string(),
+const userShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        name: factory.string(),
+        email: factory.email(),
+    };
 });
 ```
 
-### Free-form Actions
-Define any number of actions with custom names. No fixed CRUD patterns - create actions that match your API exactly.
+### Three-Layer Store
+
+Every store is built from three factory functions: **model**, **view**, and **action**.
 
 ```typescript
-const actions = {
-    list: { endpoint: Endpoint.get("/users"), memory: Memory.units() },
-    create: { endpoint: Endpoint.post("/users"), memory: Memory.units().add() },
-    activate: { endpoint: Endpoint.put((p) => `/users/${p.id}/activate`), memory: Memory.units().edit() },
-    export: { endpoint: Endpoint.get((p) => `/users/${p.id}/export`) }, // No memory - returns data only
-};
+const store = createStore({
+    name: "users",
+    model({ one, many }) {
+        return {
+            current: one(userShape),
+            list: many(userShape),
+        };
+    },
+    view({ from }) {
+        return {
+            user: from("current"),
+            users: from("list"),
+            count: from("list", (model) => {
+                return model.length;
+            }),
+        };
+    },
+    action({ api, commit }) {
+        return {
+            fetch: api.get({ url: "/users" }).commit("list", ActionManyMode.SET),
+            clear: commit("list", ActionManyMode.RESET),
+        };
+    },
+});
 ```
 
-### Chainable Builders
-Fluent `Endpoint` and `Memory` builders make configuration readable and type-safe.
+### Chainable Action Builders
+
+Actions follow a fluent chain pattern: `api` -> `handle` -> `commit`. Use any combination.
 
 ```typescript
-// Endpoint builder
-Endpoint.get("/users")                           // Static URL
-Endpoint.get<User>((p) => `/users/${p.id}`)      // Dynamic URL with typed params
-Endpoint.post("/users").withAdapter(uploadAdapter) // Custom adapter
+// API + auto commit
+api.get({
+    url: "/users",
+}).commit("list", ActionManyMode.SET);
 
-// Memory builder
-Memory.unit()                    // Single item state
-Memory.units()                   // Collection state
-Memory.unit("profile")           // Nested field
-Memory.units().add({ prepend: true })  // Prepend to list
-Memory.units().edit()            // Update by indicator
+// API + custom handle + commit
+api.get({
+    url: "/users/1",
+}).handle(async ({ api, commit }) => {
+    const user = await api<User>();
+    
+    commit("current", ActionOneMode.SET, user);
+    
+    return user;
+});
+
+// Handle only (no API)
+handle(async ({ view, commit }) => {
+    const sorted = [...view.users.value].sort((a, b) => {
+        return a.name.localeCompare(b.name);
+    });
+    
+    commit("list", ActionManyMode.SET, sorted);
+});
+
+// Commit only (direct mutation)
+commit("current", ActionOneMode.RESET);
 ```
 
-### Nested Memory Paths
-Load sub-resources into nested fields without replacing the entire object.
+### Computed Views
+
+Views are reactive `ComputedRef` values derived from model state. Use `from` for single-source and `merge` for multi-source views.
 
 ```typescript
-const actions = {
-    get: { endpoint: Endpoint.get((p) => `/projects/${p.id}`), memory: Memory.unit() },
-    milestones: { endpoint: Endpoint.get((p) => `/projects/${p.id}/milestones`), memory: Memory.unit("milestones") },
-    options: { endpoint: Endpoint.get((p) => `/projects/${p.id}/options`), memory: Memory.unit("meta", "options") },
-};
+view({ from, merge }) {
+    return {
+        user: from("current"),
+        userName: from("current", (model) => {
+            return model?.name ?? "unknown";
+        }),
+        summary: merge(["current", "list"], (current, list) => {
+            return {
+                name: current?.name ?? "none",
+                total: list.length,
+            };
+        }),
+    };
+},
 ```
 
-### Request Monitoring
-Track request status for every action. No manual loading state management.
+### Per-Action Status Tracking
+
+Every action has built-in `status`, `loading`, `error`, and `data` properties.
 
 ```typescript
-const { userMonitor } = useStoreAlias(userStore);
+await store.action.fetch();
 
-userMonitor.list.pending()   // boolean - true while loading
-userMonitor.list.success()   // boolean - true after success
-userMonitor.list.failed()    // boolean - true after error
-userMonitor.list.idle()      // boolean - true before first request
-userMonitor.create.current() // "idle" | "pending" | "success" | "failed"
+store.action.fetch.loading.value; // boolean
+store.action.fetch.status.value; // "idle" | "pending" | "success" | "error"
+store.action.fetch.error.value; // ActionError | null
 ```
 
-### Custom Adapters at Any Level
-Override HTTP handling at module, store, endpoint, or call-time level. Perfect for authentication, file uploads, streaming, or progress tracking.
+### Concurrency Control
+
+Control what happens when an action is called while already pending.
 
 ```typescript
-// Module level (nuxt.config.ts)
-harlemify: { api: { adapter: { baseURL: "/api", timeout: 10000 } } }
-
-// Store level
-createStore("user", schema, actions, { adapter: authAdapter })
-
-// Endpoint level
-Endpoint.get("/files").withAdapter(downloadAdapter)
-
-// Call-time level
-await uploadFile({ file }, { adapter: progressAdapter })
+await store.action.fetch({ concurrent: ActionConcurrent.CANCEL });
+// BLOCK - throw error (default)
+// SKIP  - return existing promise
+// CANCEL - abort previous, start new
+// ALLOW - run both independently
 ```
 
-### Direct Memory Access
-Mutate state directly without API calls when needed.
+### Direct Model Mutations
+
+Mutate state directly without API calls using the model committer.
 
 ```typescript
-const { userMemory } = useStoreAlias(userStore);
-
-userMemory.set(userData);           // Replace state
-userMemory.edit({ id: 1, name: "Updated" }); // Merge by indicator
-userMemory.drop({ id: 1 });         // Remove by indicator
-userMemory.set(null);               // Clear state
+store.model("current", ActionOneMode.SET, userData);
+store.model("list", ActionManyMode.ADD, newUser);
+store.model("list", ActionManyMode.REMOVE, userToDelete);
+store.model("current", ActionOneMode.RESET);
 ```
 
 ### SSR Support
-Built-in server-side rendering support via Harlem SSR plugin. State hydrates automatically from server to client.
 
-### TypeScript First
-Full type inference from schema to component. Actions, state, memory methods, and monitors are all fully typed.
+Built-in server-side rendering support via Harlem SSR plugin. State hydrates automatically from server to client.
 
 ## Quick Start
 
@@ -129,8 +171,8 @@ npm install @diphyx/harlemify
 export default defineNuxtConfig({
     modules: ["@diphyx/harlemify"],
     harlemify: {
-        api: {
-            adapter: { baseURL: "https://api.example.com" },
+        action: {
+            endpoint: "https://api.example.com",
         },
     },
 });
@@ -138,22 +180,62 @@ export default defineNuxtConfig({
 
 ```typescript
 // stores/user.ts
-const userStore = createStore("user", userSchema, {
-    list: { endpoint: Endpoint.get("/users"), memory: Memory.units() },
-    create: { endpoint: Endpoint.post("/users"), memory: Memory.units().add() },
+import { createStore, shape, ActionOneMode, ActionManyMode, type ShapeInfer } from "#imports";
+
+const userShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        name: factory.string(),
+        email: factory.email(),
+    };
+});
+
+export const userStore = createStore({
+    name: "users",
+    model({ one, many }) {
+        return {
+            current: one(userShape),
+            list: many(userShape),
+        };
+    },
+    view({ from }) {
+        return {
+            user: from("current"),
+            users: from("list"),
+        };
+    },
+    action({ api }) {
+        return {
+            list: api
+                .get({
+                    url: "/users",
+                })
+                .commit("list", ActionManyMode.SET),
+            get: api
+                .get({
+                    url(view) {
+                        return `/users/${view.user.value?.id}`;
+                    },
+                })
+                .commit("current", ActionOneMode.SET),
+        };
+    },
 });
 ```
 
 ```vue
 <script setup>
-const { users, listUser, createUser, userMonitor } = useStoreAlias(userStore);
-await listUser();
+const { view, action } = userStore;
+
+await action.list();
 </script>
 
 <template>
-    <div v-if="userMonitor.list.pending()">Loading...</div>
+    <div v-if="action.list.loading.value">Loading...</div>
     <ul v-else>
-        <li v-for="user in users" :key="user.id">{{ user.name }}</li>
+        <li v-for="user in view.users.value" :key="user.id">{{ user.name }}</li>
     </ul>
 </template>
 ```
@@ -162,4 +244,4 @@ await listUser();
 
 - [Installation](getting-started/README.md) - Setup harlemify in your project
 - [Your First Store](getting-started/first-store.md) - Create a complete store step-by-step
-- [Core Concepts](core-concepts/README.md) - Understand schema, endpoint, memory, and monitor
+- [Core Concepts](core-concepts/README.md) - Understand shape, model, view, and action

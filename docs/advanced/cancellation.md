@@ -1,6 +1,6 @@
 # Request Cancellation
 
-Cancel in-flight requests using AbortController.
+Cancel in-flight requests using AbortSignal.
 
 ## Basic Usage
 
@@ -8,7 +8,7 @@ Cancel in-flight requests using AbortController.
 const controller = new AbortController();
 
 // Start request
-const promise = listUser({ signal: controller.signal });
+const promise = store.action.list({ signal: controller.signal });
 
 // Cancel later
 controller.abort();
@@ -30,14 +30,13 @@ try {
 ```vue
 <script setup lang="ts">
 import { onUnmounted } from "vue";
+import { userStore } from "~/stores/user";
 
-const { listUser } = useStoreAlias(userStore);
+const { action } = userStore;
 const controller = new AbortController();
 
-// Start loading
-listUser({ signal: controller.signal });
+action.list({ signal: controller.signal });
 
-// Cancel if component unmounts before completion
 onUnmounted(() => {
     controller.abort();
 });
@@ -52,19 +51,17 @@ Cancel a previous request when starting a new one:
 let currentController: AbortController | null = null;
 
 async function search(query: string) {
-    // Cancel previous request
     if (currentController) {
         currentController.abort();
     }
 
-    // Create new controller
     currentController = new AbortController();
 
     try {
-        await searchUser(
-            { query },
-            { signal: currentController.signal }
-        );
+        await store.action.search({
+            query: { q: query },
+            signal: currentController.signal,
+        });
     } catch (error) {
         if (error.name !== "AbortError") {
             throw error;
@@ -78,31 +75,29 @@ async function search(query: string) {
 ```vue
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { userStore } from "~/stores/user";
 
-const { searchUser, users } = useStoreAlias(userStore);
+const { view, action } = userStore;
 
 const query = ref("");
 let controller: AbortController | null = null;
-let timeout: NodeJS.Timeout;
+let timeout: ReturnType<typeof setTimeout>;
 
 watch(query, (value) => {
-    // Clear previous timeout
     clearTimeout(timeout);
 
-    // Cancel previous request
     if (controller) {
         controller.abort();
     }
 
-    // Debounce
     timeout = setTimeout(async () => {
         controller = new AbortController();
 
         try {
-            await searchUser(
-                { query: value },
-                { signal: controller.signal }
-            );
+            await action.search({
+                query: { q: value },
+                signal: controller.signal,
+            });
         } catch (error) {
             if (error.name !== "AbortError") {
                 console.error(error);
@@ -115,58 +110,46 @@ watch(query, (value) => {
 <template>
     <input v-model="query" placeholder="Search users..." />
     <ul>
-        <li v-for="user in users" :key="user.id">{{ user.name }}</li>
+        <li v-for="user in view.users.value" :key="user.id">{{ user.name }}</li>
     </ul>
 </template>
 ```
 
-### Timeout
+### Using Concurrency Cancel Instead
 
-Implement custom timeout with AbortController:
+For simpler cancellation, use `ActionConcurrent.CANCEL` which handles abort automatically:
 
 ```typescript
-async function fetchWithTimeout<T>(
-    action: (options: { signal: AbortSignal }) => Promise<T>,
-    timeout: number
-): Promise<T> {
-    const controller = new AbortController();
+action: (a) => ({
+    search: a.api.get({
+        url: "/users",
+        concurrent: ActionConcurrent.CANCEL,
+    }).commit("list", ActionManyMode.SET),
+})
+```
 
-    const timeoutId = setTimeout(() => {
-        controller.abort();
-    }, timeout);
+```typescript
+// Previous calls are automatically cancelled
+await store.action.search({ query: { q: "john" } });
+```
+
+See [Concurrency](concurrency.md) for more details.
+
+### Custom Timeout
+
+Implement a custom timeout with AbortController:
+
+```typescript
+async function fetchWithTimeout(timeout: number) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
-        return await action({ signal: controller.signal });
+        return await store.action.list({ signal: controller.signal });
     } finally {
         clearTimeout(timeoutId);
     }
 }
 
-// Usage
-await fetchWithTimeout(
-    (options) => listUser(options),
-    5000 // 5 second timeout
-);
-```
-
-## Error Handling
-
-```typescript
-import { ApiRequestError } from "@diphyx/harlemify";
-
-try {
-    await listUser({ signal: controller.signal });
-} catch (error) {
-    if (error.name === "AbortError") {
-        // Request was cancelled - usually not an error to display
-        return;
-    }
-
-    if (error instanceof ApiRequestError) {
-        // Network error
-        console.error("Network error:", error.message);
-    }
-
-    throw error;
-}
+await fetchWithTimeout(5000);
 ```

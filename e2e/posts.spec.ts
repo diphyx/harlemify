@@ -4,22 +4,22 @@ import { test, expect } from "./fixtures";
  * Posts Page E2E Tests
  *
  * Tests harlemify concepts demonstrated:
- * - Collection store pattern (Memory.units())
- * - Add mutation default position (Memory.units().add() - last)
- * - Edit mutation by indicator (Memory.units().edit())
- * - Drop mutation by indicator (Memory.units().drop())
- * - Monitor states (postMonitor.list.pending)
- * - Schema meta with actions
- * - useStoreAlias composable
+ * - Collection store pattern: model.many(shape) with ActionManyMode
+ * - handle() without API: handle(async ({ view, commit }) => ...)
+ * - view.merge(["current", "list"], resolver) - Multi-source merged view
+ * - Call-time commit.mode override: action({ commit: { mode: ActionManyMode.ADD } })
+ * - action.sort.data - Last successful result from action
+ * - action.sort.reset() - Reset action state
+ * - action({ body }) - Call-time payload with body data
  */
 
-test.describe("Posts - Collection Store Pattern (Memory.units())", () => {
+test.describe("Posts - Collection Store (model.many())", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
     });
 
-    test("loads collection data into units state on mount", async ({ page }) => {
+    test("loads collection data into many() state on mount", async ({ page }) => {
         // Verify posts are loaded as array
         const posts = page.locator(".list-item");
         const count = await posts.count();
@@ -31,7 +31,7 @@ test.describe("Posts - Collection Store Pattern (Memory.units())", () => {
         expect(countText).toContain("posts");
     });
 
-    test("units array is displayed in list layout", async ({ page }) => {
+    test("collection array is displayed in list layout", async ({ page }) => {
         const firstPost = page.locator(".list-item").first();
 
         await expect(firstPost.locator("h3")).toBeVisible(); // title
@@ -54,7 +54,7 @@ test.describe("Posts - Collection Store Pattern (Memory.units())", () => {
     });
 });
 
-test.describe("Posts - Add Mutation Default Position (Memory.units().add())", () => {
+test.describe("Posts - Add Mutation (ActionManyMode.ADD - default append)", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
@@ -132,7 +132,7 @@ test.describe("Posts - Add Mutation Default Position (Memory.units().add())", ()
     });
 });
 
-test.describe("Posts - Edit Mutation by Indicator (Memory.units().edit())", () => {
+test.describe("Posts - Edit Mutation (ActionManyMode.PATCH by identifier)", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
@@ -203,7 +203,7 @@ test.describe("Posts - Edit Mutation by Indicator (Memory.units().edit())", () =
         }
     });
 
-    test("edit uses indicator (id) to find correct item", async ({ page }) => {
+    test("edit uses identifier (id) to find correct item", async ({ page }) => {
         // Edit second post
         const secondTitleBefore = await page.locator(".list-item").nth(1).locator("h3").textContent();
 
@@ -248,7 +248,7 @@ test.describe("Posts - Edit Mutation by Indicator (Memory.units().edit())", () =
     });
 });
 
-test.describe("Posts - Drop Mutation by Indicator (Memory.units().drop())", () => {
+test.describe("Posts - Delete Mutation (ActionManyMode.REMOVE by identifier)", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
@@ -292,7 +292,7 @@ test.describe("Posts - Drop Mutation by Indicator (Memory.units().drop())", () =
         expect(finalCount).toBeLessThan(initialCount);
     });
 
-    test("delete uses indicator (id) to remove correct item", async ({ page }) => {
+    test("delete uses identifier (id) to remove correct item", async ({ page }) => {
         // Get first two titles
         const firstTitle = await page.locator(".list-item").first().locator("h3").textContent();
         const secondTitle = await page.locator(".list-item").nth(1).locator("h3").textContent();
@@ -341,7 +341,7 @@ test.describe("Posts - Drop Mutation by Indicator (Memory.units().drop())", () =
     });
 });
 
-test.describe("Posts - Monitor States (postMonitor)", () => {
+test.describe("Posts - Action Status (action.*.status)", () => {
     test("loading state or content is visible on page load", async ({ page }) => {
         // Navigate to posts page
         await page.goto("/posts");
@@ -352,37 +352,33 @@ test.describe("Posts - Monitor States (postMonitor)", () => {
 
     test("loading state disappears after successful fetch", async ({ page }) => {
         await page.goto("/posts");
-        await page.waitForSelector(".list", { timeout: 10000 });
+        await page.waitForSelector("[data-testid='post-list']", { timeout: 10000 });
 
         await expect(page.locator(".loading")).not.toBeVisible();
-        await expect(page.locator(".list")).toBeVisible();
+        await expect(page.locator("[data-testid='post-list']")).toBeVisible();
     });
 
-    test("monitor status section is visible", async ({ page }) => {
+    test("action status section is visible", async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
 
-        await expect(page.locator("[data-testid='monitor-status']")).toBeVisible();
+        await expect(page.locator("[data-testid='action-status']")).toBeVisible();
     });
 
     test("list action shows success status after load", async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
 
-        // Check that list monitor shows success state
-        const listMonitor = page.locator(".monitor-item").filter({ hasText: "list" });
-        await expect(listMonitor.locator("[data-status='success']")).toBeVisible();
-        await expect(listMonitor.locator("[data-flag='success']")).toBeVisible();
+        const listStatus = page.locator("[data-testid='status-list']");
+        await expect(listStatus.locator("[data-status='success']")).toBeVisible();
     });
 
     test("create action shows idle status initially", async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
 
-        // Check that create monitor shows idle state (no create performed yet)
-        const createMonitor = page.locator(".monitor-item").filter({ hasText: "create" });
-        await expect(createMonitor.locator("[data-status='idle']")).toBeVisible();
-        await expect(createMonitor.locator("[data-flag='idle']")).toBeVisible();
+        const createStatus = page.locator("[data-testid='status-create']");
+        await expect(createStatus.locator("[data-status='idle']")).toBeVisible();
     });
 
     test("create action transitions to success after creating post", async ({ page }) => {
@@ -394,15 +390,13 @@ test.describe("Posts - Monitor States (postMonitor)", () => {
         await page.waitForSelector(".modal");
 
         await page.locator(".modal input").fill("Monitor Test Post");
-        await page.locator(".modal textarea").fill("Testing monitor state");
+        await page.locator(".modal textarea").fill("Testing action status");
         await page.locator(".modal button[type='submit']").click();
 
         await page.waitForSelector(".modal", { state: "hidden" });
 
-        // Check that create monitor shows success state
-        const createMonitor = page.locator(".monitor-item").filter({ hasText: "create" });
-        await expect(createMonitor.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
-        await expect(createMonitor.locator("[data-flag='success']")).toBeVisible();
+        const createStatus = page.locator("[data-testid='status-create']");
+        await expect(createStatus.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
     });
 
     test("update action transitions to success after editing post", async ({ page }) => {
@@ -413,15 +407,13 @@ test.describe("Posts - Monitor States (postMonitor)", () => {
         await page.locator(".list-item").first().locator("button", { hasText: "Edit" }).click();
         await page.waitForSelector(".modal");
 
-        await page.locator(".modal input").fill("Updated for Monitor Test");
+        await page.locator(".modal input").fill("Updated for Status Test");
         await page.locator(".modal button[type='submit']").click();
 
         await page.waitForSelector(".modal", { state: "hidden" });
 
-        // Check that update monitor shows success state
-        const updateMonitor = page.locator(".monitor-item").filter({ hasText: "update" });
-        await expect(updateMonitor.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
-        await expect(updateMonitor.locator("[data-flag='success']")).toBeVisible();
+        const updateStatus = page.locator("[data-testid='status-update']");
+        await expect(updateStatus.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
     });
 
     test("delete action transitions to success after deleting post", async ({ page }) => {
@@ -434,64 +426,47 @@ test.describe("Posts - Monitor States (postMonitor)", () => {
         await page.locator(".list-item").first().locator("button", { hasText: "Delete" }).click();
         await page.waitForTimeout(500);
 
-        // Check that delete monitor shows success state
-        const deleteMonitor = page.locator(".monitor-item").filter({ hasText: "delete" });
-        await expect(deleteMonitor.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
-        await expect(deleteMonitor.locator("[data-flag='success']")).toBeVisible();
+        const deleteStatus = page.locator("[data-testid='status-delete']");
+        await expect(deleteStatus.locator("[data-status='success']")).toBeVisible({ timeout: 5000 });
     });
 
-    test("each action has independent monitor state", async ({ page }) => {
+    test("each action has independent status state", async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
 
         // After page load: list=success, create=idle, update=idle, delete=idle
-        const listMonitor = page.locator(".monitor-item").filter({ hasText: "list" });
-        const createMonitor = page.locator(".monitor-item").filter({ hasText: "create" });
-        const updateMonitor = page.locator(".monitor-item").filter({ hasText: "update" });
-        const deleteMonitor = page.locator(".monitor-item").filter({ hasText: "delete" });
+        const listStatus = page.locator("[data-testid='status-list']");
+        const createStatus = page.locator("[data-testid='status-create']");
+        const updateStatus = page.locator("[data-testid='status-update']");
+        const deleteStatus = page.locator("[data-testid='status-delete']");
 
-        await expect(listMonitor.locator("[data-status='success']")).toBeVisible();
-        await expect(createMonitor.locator("[data-status='idle']")).toBeVisible();
-        await expect(updateMonitor.locator("[data-status='idle']")).toBeVisible();
-        await expect(deleteMonitor.locator("[data-status='idle']")).toBeVisible();
-    });
-
-    test("monitor current value matches the active flag", async ({ page }) => {
-        await page.goto("/posts");
-        await page.waitForSelector(".list", { timeout: 10000 });
-
-        // List should show success in both current value and flag
-        const listMonitor = page.locator(".monitor-item").filter({ hasText: "list" });
-        const currentValue = await listMonitor.locator(".monitor-state").textContent();
-
-        expect(currentValue).toBe("success");
-        await expect(listMonitor.locator("[data-flag='success']")).toBeVisible();
-        await expect(listMonitor.locator("[data-flag='idle']")).not.toBeVisible();
-        await expect(listMonitor.locator("[data-flag='pending']")).not.toBeVisible();
-        await expect(listMonitor.locator("[data-flag='failed']")).not.toBeVisible();
+        await expect(listStatus.locator("[data-status='success']")).toBeVisible();
+        await expect(createStatus.locator("[data-status='idle']")).toBeVisible();
+        await expect(updateStatus.locator("[data-status='idle']")).toBeVisible();
+        await expect(deleteStatus.locator("[data-status='idle']")).toBeVisible();
     });
 });
 
-test.describe("Posts - useStoreAlias Composable", () => {
+test.describe("Posts - Store Destructured API ({ model, view, action })", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
     });
 
-    test("posts (units) state is available", async ({ page }) => {
+    test("view.posts (many) state is available", async ({ page }) => {
         const posts = page.locator(".list-item");
         await expect(posts.first()).toBeVisible();
     });
 
-    test("listPost action is available", async ({ page }) => {
-        // Page calls listPost on mount
+    test("action.list is available", async ({ page }) => {
+        // Page calls action.list on mount
         const countText = await page.locator(".toolbar h2").textContent();
         const count = parseInt(countText?.match(/\d+/)?.[0] || "0");
 
         expect(count).toBeGreaterThan(0);
     });
 
-    test("createPost action is available", async ({ page }) => {
+    test("action.create is available", async ({ page }) => {
         await page.locator("button", { hasText: "Add Post" }).click();
         await page.waitForSelector(".modal");
 
@@ -508,7 +483,7 @@ test.describe("Posts - useStoreAlias Composable", () => {
         expect(found).toBe(true);
     });
 
-    test("updatePost action is available", async ({ page }) => {
+    test("action.update is available", async ({ page }) => {
         const originalTitle = await page.locator(".list-item").first().locator("h3").textContent();
 
         await page.locator(".list-item").first().locator("button", { hasText: "Edit" }).click();
@@ -518,7 +493,7 @@ test.describe("Posts - useStoreAlias Composable", () => {
         await page.locator(".modal input").fill(testTitle);
         await page.locator(".modal button[type='submit']").click();
 
-        // Wait for title to change (more reliable than waiting for modal)
+        // Wait for title to change
         await expect(page.locator(".list-item").first().locator("h3")).not.toHaveText(originalTitle || "", {
             timeout: 10000,
         });
@@ -526,7 +501,7 @@ test.describe("Posts - useStoreAlias Composable", () => {
         await expect(page.locator(".list-item").first().locator("h3")).toContainText(testTitle);
     });
 
-    test("deletePost action is available", async ({ page }) => {
+    test("action.delete is available", async ({ page }) => {
         const initialCountText = await page.locator(".toolbar h2").textContent();
         const initialCount = parseInt(initialCountText?.match(/\d+/)?.[0] || "0");
 
@@ -541,9 +516,16 @@ test.describe("Posts - useStoreAlias Composable", () => {
         expect(finalCount).toBe(initialCount - 1);
     });
 
-    test("postMonitor namespace is available", async ({ page }) => {
-        // Monitor is used for loading state - list is shown after loading
-        await expect(page.locator(".list")).toBeVisible();
+    test("view.overview merged view is available", async ({ page }) => {
+        // Merged view section should be visible
+        await expect(page.locator("[data-testid='merged-overview']")).toBeVisible();
+
+        const overviewData = await page.locator("[data-testid='merged-overview'] pre").textContent();
+        const overview = JSON.parse(overviewData || "{}");
+
+        expect(overview).toHaveProperty("selectedTitle");
+        expect(overview).toHaveProperty("total");
+        expect(overview).toHaveProperty("byUser");
     });
 });
 
@@ -640,47 +622,53 @@ test.describe("Posts - Delete Confirmation", () => {
 });
 
 test.describe("Posts - Feature Info Verification", () => {
-    test("documents Memory.units() collection pattern", async ({ page }) => {
+    test("documents model.many(shape) collection pattern", async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("Memory.units()");
+        await expect(page.locator(".feature-info")).toContainText("model.many(shape)");
     });
 
-    test("documents Memory.units().add() append mutation", async ({ page }) => {
+    test("documents handle() without API", async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("Memory.units().add()");
+        await expect(page.locator(".feature-info")).toContainText("handle(async");
     });
 
-    test("documents Memory.units().edit() update mutation", async ({ page }) => {
+    test("documents view.merge for multi-source views", async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("Memory.units().edit()");
+        await expect(page.locator(".feature-info")).toContainText('view.merge(["current", "list"], resolver)');
     });
 
-    test("documents Memory.units().drop() remove mutation", async ({ page }) => {
+    test("documents call-time commit.mode override", async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("Memory.units().drop()");
+        await expect(page.locator(".feature-info")).toContainText("commit:");
+        await expect(page.locator(".feature-info")).toContainText("ActionManyMode.ADD");
     });
 
-    test("documents postMonitor.[action].current()", async ({ page }) => {
+    test("documents action.sort.data", async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText("postMonitor.[action].current()");
+        await expect(page.locator(".feature-info")).toContainText("action.sort.data");
     });
 
-    test("documents postMonitor.[action].idle()/pending()/success()/failed()", async ({ page }) => {
+    test("documents action.sort.reset()", async ({ page }) => {
         await page.goto("/posts");
         await page.waitForSelector(".list", { timeout: 10000 });
 
-        await expect(page.locator(".feature-info")).toContainText(
-            "postMonitor.[action].idle()/pending()/success()/failed()",
-        );
+        await expect(page.locator(".feature-info")).toContainText("action.sort.reset()");
+    });
+
+    test("documents action({ body }) call-time payload", async ({ page }) => {
+        await page.goto("/posts");
+        await page.waitForSelector(".list", { timeout: 10000 });
+
+        await expect(page.locator(".feature-info")).toContainText("action({ body })");
     });
 });

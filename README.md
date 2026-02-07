@@ -1,14 +1,14 @@
 # Harlemify
 
-> Schema-driven state management for Nuxt powered by [Harlem](https://harlemjs.com/)
+> Factory-driven state management for Nuxt powered by [Harlem](https://harlemjs.com/)
 
 ## Features
 
-- **Schema-Driven** - Zod schema defines types, validation, and API payloads
-- **Free-form Actions** - Define any action with custom naming
-- **Chainable Builders** - Fluent `Endpoint` and `Memory` APIs
-- **Function-based Monitor** - Track status with `pending()`, `success()`, `failed()`, `idle()`
-- **Custom Adapters** - Override HTTP at module, store, endpoint, or call-time
+- **Shape-Driven** - Zod shapes define types and identifiers
+- **Three-Layer Architecture** - Model (state), View (computed), Action (async operations)
+- **Chainable Action Builders** - Fluent `api`, `handle`, `commit` chains
+- **Per-Action Status Tracking** - Built-in `loading`, `status`, `error`, `data` on every action
+- **Concurrency Control** - Block, skip, cancel, or allow concurrent calls
 - **SSR Support** - Server-side rendering with automatic hydration
 
 ## Install
@@ -24,10 +24,8 @@ npm install @diphyx/harlemify
 export default defineNuxtConfig({
     modules: ["@diphyx/harlemify"],
     harlemify: {
-        api: {
-            adapter: {
-                baseURL: "https://api.example.com",
-            },
+        action: {
+            endpoint: "https://api.example.com",
         },
     },
 });
@@ -37,42 +35,63 @@ export default defineNuxtConfig({
 
 ```typescript
 // stores/user.ts
-import { z } from "zod";
+import { createStore, shape, ActionOneMode, ActionManyMode, type ShapeInfer } from "@diphyx/harlemify";
 
-enum UserAction {
-    LIST = "list",
-    CREATE = "create",
-}
-
-const userSchema = z.object({
-    id: z.number().meta({ indicator: true }),
-    name: z.string().meta({ actions: [UserAction.CREATE] }),
-    email: z.string().meta({ actions: [UserAction.CREATE] }),
+const userShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        name: factory.string(),
+        email: factory.email(),
+    };
 });
 
-export const userStore = createStore("user", userSchema, {
-    [UserAction.LIST]: {
-        endpoint: Endpoint.get("/users"),
-        memory: Memory.units(),
+export type User = ShapeInfer<typeof userShape>;
+
+export const userStore = createStore({
+    name: "users",
+    model({ one, many }) {
+        return {
+            current: one(userShape),
+            list: many(userShape),
+        };
     },
-    [UserAction.CREATE]: {
-        endpoint: Endpoint.post("/users"),
-        memory: Memory.units().add(),
+    view({ from }) {
+        return {
+            user: from("current"),
+            users: from("list"),
+        };
+    },
+    action({ api, commit }) {
+        return {
+            list: api
+                .get({
+                    url: "/users",
+                })
+                .commit("list", ActionManyMode.SET),
+            create: api
+                .post({
+                    url: "/users",
+                })
+                .commit("list", ActionManyMode.ADD),
+            clear: commit("list", ActionManyMode.RESET),
+        };
     },
 });
 ```
 
 ```vue
 <script setup>
-const { users, listUser, userMonitor } = useStoreAlias(userStore);
+const { view, action } = userStore;
 
-await listUser();
+await action.list();
 </script>
 
 <template>
-    <div v-if="userMonitor.list.pending()">Loading...</div>
+    <div v-if="action.list.loading.value">Loading...</div>
     <ul v-else>
-        <li v-for="user in users" :key="user.id">{{ user.name }}</li>
+        <li v-for="user in view.users.value" :key="user.id">{{ user.name }}</li>
     </ul>
 </template>
 ```
