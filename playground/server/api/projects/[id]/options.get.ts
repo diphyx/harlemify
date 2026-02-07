@@ -6,6 +6,6 @@ export default defineEventHandler((event) => {
     if (!project) {
         throw createError({ statusCode: 404, message: "Project not found" });
     }
-    // Returns just the options object - stored in unit.meta.options via Memory.unit("meta", "options")
+    // Returns just the options object - committed via handle + commit with deep patch
     return project.meta.options;
 });

@@ -1,13 +1,14 @@
 <script setup lang="ts">
+import { ActionOneMode, ActionManyMode } from "../../src/runtime";
 import { postStore, type Post } from "../stores/post";
 
-const { posts, listPost, createPost, updatePost, deletePost, postMonitor } = useStoreAlias(postStore);
+const { view, action, model } = postStore;
 
 const showModal = ref(false);
 const editing = ref<Post | null>(null);
 const form = ref({ title: "", body: "", userId: 1 });
 
-onMounted(() => listPost());
+onMounted(() => action.list());
 
 function openCreate() {
     editing.value = null;
@@ -23,136 +24,163 @@ function openEdit(post: Post) {
 
 async function save() {
     if (editing.value) {
-        await updatePost({
-            id: editing.value.id,
-            title: form.value.title,
-            body: form.value.body,
+        model("current", ActionOneMode.SET, editing.value);
+        await action.update({
+            body: { title: form.value.title, body: form.value.body },
         });
     } else {
-        await createPost({ id: Date.now(), ...form.value });
+        await action.create({
+            body: { id: Date.now(), ...form.value },
+        });
     }
     showModal.value = false;
 }
 
 async function remove(post: Post) {
     if (confirm(`Delete "${post.title}"?`)) {
-        await deletePost({ id: post.id });
+        model("current", ActionOneMode.SET, post);
+        await action.delete();
     }
+}
+
+async function sortPosts() {
+    await action.sort();
+}
+
+async function appendFromServer() {
+    await action.list({
+        commit: { mode: ActionManyMode.ADD },
+    });
+}
+
+function resetSortAction() {
+    action.sort.reset();
 }
 </script>
 
 <template>
     <div class="container">
-        <NuxtLink to="/" class="back">← Back</NuxtLink>
+        <NuxtLink to="/" class="back" data-testid="back-link">← Back</NuxtLink>
 
         <div class="page-title">
             <h1>Posts</h1>
-            <p>Collection store using <code>useStoreAlias</code> composable</p>
+            <p>Collection store with <code>view.merge()</code> and <code>handle()</code> without API</p>
         </div>
 
         <div class="toolbar">
-            <h2>{{ posts.length }} posts</h2>
-            <button class="btn btn-primary" @click="openCreate">Add Post</button>
+            <h2 data-testid="post-count">{{ view.count.value }} posts</h2>
+            <button class="btn btn-primary" data-testid="add-post" @click="openCreate">Add Post</button>
         </div>
 
-        <div v-if="postMonitor.list.pending()" class="loading">Loading...</div>
+        <div class="toolbar" style="margin-top: 12px">
+            <button class="btn btn-sm" data-testid="sort-posts" @click="sortPosts">Sort A-Z</button>
+            <button class="btn btn-sm" data-testid="append-posts" @click="appendFromServer">Append from Server</button>
+            <button class="btn btn-sm" data-testid="reset-sort" @click="resetSortAction">Reset Sort</button>
+        </div>
 
-        <div v-else class="list">
-            <div v-for="post in posts.slice(0, 15)" :key="post.id" class="list-item">
+        <div v-if="action.list.loading.value" class="loading" data-testid="loading">Loading...</div>
+
+        <div v-else class="list" data-testid="post-list">
+            <div
+                v-for="post in view.posts.value.slice(0, 15)"
+                :key="post.id"
+                class="list-item"
+                :data-testid="`post-${post.id}`"
+            >
                 <div>
-                    <h3>{{ post.title }}</h3>
-                    <p>{{ post.body.substring(0, 80) }}...</p>
+                    <h3 data-testid="post-title">{{ post.title }}</h3>
+                    <p data-testid="post-body">{{ post.body.substring(0, 80) }}...</p>
                 </div>
                 <div class="list-actions">
-                    <button class="btn btn-sm" @click="openEdit(post)">Edit</button>
-                    <button class="btn btn-sm btn-danger" @click="remove(post)">Delete</button>
+                    <button class="btn btn-sm" data-testid="edit-post" @click="openEdit(post)">Edit</button>
+                    <button class="btn btn-sm btn-danger" data-testid="delete-post" @click="remove(post)">
+                        Delete
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Feature Explanation -->
-        <div class="feature-info">
+        <div class="detail" data-testid="merged-overview">
+            <h3>Merged View (view.overview)</h3>
+            <pre>{{ JSON.stringify(view.overview.value, null, 2) }}</pre>
+        </div>
+
+        <div v-if="action.sort.data" class="detail" data-testid="sort-data">
+            <h3>action.sort.data (last sort result)</h3>
+            <p>{{ (action.sort.data as any)?.length }} items sorted</p>
+        </div>
+
+        <!-- Action Status -->
+        <div class="monitor-status" data-testid="action-status">
+            <h3>Action Status</h3>
+            <div class="monitor-grid">
+                <div class="monitor-item" data-testid="status-list">
+                    <span class="monitor-label">list</span>
+                    <span class="monitor-state" :data-status="action.list.status.value">{{
+                        action.list.status.value
+                    }}</span>
+                </div>
+                <div class="monitor-item" data-testid="status-create">
+                    <span class="monitor-label">create</span>
+                    <span class="monitor-state" :data-status="action.create.status.value">{{
+                        action.create.status.value
+                    }}</span>
+                </div>
+                <div class="monitor-item" data-testid="status-update">
+                    <span class="monitor-label">update</span>
+                    <span class="monitor-state" :data-status="action.update.status.value">{{
+                        action.update.status.value
+                    }}</span>
+                </div>
+                <div class="monitor-item" data-testid="status-delete">
+                    <span class="monitor-label">delete</span>
+                    <span class="monitor-state" :data-status="action.delete.status.value">{{
+                        action.delete.status.value
+                    }}</span>
+                </div>
+                <div class="monitor-item" data-testid="status-sort">
+                    <span class="monitor-label">sort</span>
+                    <span class="monitor-state" :data-status="action.sort.status.value">{{
+                        action.sort.status.value
+                    }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature Info -->
+        <div class="feature-info" data-testid="feature-info">
             <h3>Features Demonstrated</h3>
             <ul>
-                <li><code>Memory.units()</code> - Collection pattern for managing lists</li>
-                <li><code>Memory.units().add()</code> - Append new items to collection</li>
-                <li><code>Memory.units().edit()</code> - Update existing items by indicator</li>
-                <li><code>Memory.units().drop()</code> - Remove items from collection</li>
-                <li><code>postMonitor.[action].current()</code> - Current status enum value</li>
-                <li><code>postMonitor.[action].idle()/pending()/success()/failed()</code> - Boolean status flags</li>
+                <li><code>model.many(shape)</code> - Collection pattern for managing lists</li>
+                <li><code>handle(async (&#123; view, commit &#125;) => ...)</code> - Standalone handle without API</li>
+                <li><code>view.merge(["current", "list"], resolver)</code> - Multi-source merged view</li>
+                <li>
+                    <code>action(&#123; commit: &#123; mode: ActionManyMode.ADD &#125; &#125;)</code> - Call-time
+                    commit.mode override
+                </li>
+                <li><code>action.sort.data</code> - Last successful result from action</li>
+                <li><code>action.sort.reset()</code> - Reset action state</li>
+                <li><code>action(&#123; body &#125;)</code> - Call-time payload with body data</li>
             </ul>
         </div>
 
-        <!-- Monitor Status -->
-        <div class="monitor-status" data-testid="monitor-status">
-            <h3>Monitor Status</h3>
-            <div class="monitor-grid">
-                <div class="monitor-item">
-                    <span class="monitor-label">list</span>
-                    <span class="monitor-state" :data-status="postMonitor.list.current()">{{
-                        postMonitor.list.current()
-                    }}</span>
-                    <span class="monitor-flags">
-                        <span v-if="postMonitor.list.idle()" class="flag" data-flag="idle">idle</span>
-                        <span v-if="postMonitor.list.pending()" class="flag" data-flag="pending">pending</span>
-                        <span v-if="postMonitor.list.success()" class="flag" data-flag="success">success</span>
-                        <span v-if="postMonitor.list.failed()" class="flag" data-flag="failed">failed</span>
-                    </span>
-                </div>
-                <div class="monitor-item">
-                    <span class="monitor-label">create</span>
-                    <span class="monitor-state" :data-status="postMonitor.create.current()">{{
-                        postMonitor.create.current()
-                    }}</span>
-                    <span class="monitor-flags">
-                        <span v-if="postMonitor.create.idle()" class="flag" data-flag="idle">idle</span>
-                        <span v-if="postMonitor.create.pending()" class="flag" data-flag="pending">pending</span>
-                        <span v-if="postMonitor.create.success()" class="flag" data-flag="success">success</span>
-                        <span v-if="postMonitor.create.failed()" class="flag" data-flag="failed">failed</span>
-                    </span>
-                </div>
-                <div class="monitor-item">
-                    <span class="monitor-label">update</span>
-                    <span class="monitor-state" :data-status="postMonitor.update.current()">{{
-                        postMonitor.update.current()
-                    }}</span>
-                    <span class="monitor-flags">
-                        <span v-if="postMonitor.update.idle()" class="flag" data-flag="idle">idle</span>
-                        <span v-if="postMonitor.update.pending()" class="flag" data-flag="pending">pending</span>
-                        <span v-if="postMonitor.update.success()" class="flag" data-flag="success">success</span>
-                        <span v-if="postMonitor.update.failed()" class="flag" data-flag="failed">failed</span>
-                    </span>
-                </div>
-                <div class="monitor-item">
-                    <span class="monitor-label">delete</span>
-                    <span class="monitor-state" :data-status="postMonitor.delete.current()">{{
-                        postMonitor.delete.current()
-                    }}</span>
-                    <span class="monitor-flags">
-                        <span v-if="postMonitor.delete.idle()" class="flag" data-flag="idle">idle</span>
-                        <span v-if="postMonitor.delete.pending()" class="flag" data-flag="pending">pending</span>
-                        <span v-if="postMonitor.delete.success()" class="flag" data-flag="success">success</span>
-                        <span v-if="postMonitor.delete.failed()" class="flag" data-flag="failed">failed</span>
-                    </span>
-                </div>
-            </div>
-        </div>
-
         <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
-            <div class="modal">
+            <div class="modal" data-testid="post-modal">
                 <h2>{{ editing ? "Edit Post" : "Add Post" }}</h2>
                 <form @submit.prevent="save">
                     <div class="form-group">
                         <label>Title</label>
-                        <input v-model="form.title" required >
+                        <input v-model="form.title" required data-testid="input-title" >
                     </div>
                     <div class="form-group">
                         <label>Body</label>
-                        <textarea v-model="form.body" rows="4" required />
+                        <textarea v-model="form.body" rows="4" required data-testid="input-body" />
                     </div>
                     <div class="modal-actions">
-                        <button type="button" class="btn" @click="showModal = false">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" class="btn" data-testid="cancel-modal" @click="showModal = false">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" data-testid="save-post">Save</button>
                     </div>
                 </form>
             </div>

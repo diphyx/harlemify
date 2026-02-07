@@ -7,7 +7,7 @@ export default defineEventHandler((event) => {
         throw createError({ statusCode: 404, message: "Project not found" });
     }
     // Return partial project - milestones and meta are loaded separately
-    // This demonstrates Memory.unit("field") for nested paths
+    // This demonstrates handle + commit for nested field updates
     return {
         id: project.id,
         name: project.name,

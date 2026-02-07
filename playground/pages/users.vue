@@ -1,14 +1,14 @@
 <script setup lang="ts">
+import { ActionOneMode } from "../../src/runtime";
 import { userStore, type User } from "../stores/user";
 
-const { user, users, getUser, listUser, createUser, updateUser, deleteUser, userMonitor, userMemory } =
-    useStoreAlias(userStore);
+const { view, action, model } = userStore;
 
 const showModal = ref(false);
 const editing = ref<User | null>(null);
 const form = ref({ name: "", email: "" });
 
-onMounted(() => listUser());
+onMounted(() => action.list());
 
 function openCreate() {
     editing.value = null;
@@ -18,174 +18,220 @@ function openCreate() {
 
 function openEdit(user: User) {
     editing.value = user;
-    form.value = {
-        name: user.name,
-        email: user.email,
-    };
+    form.value = { name: user.name, email: user.email };
     showModal.value = true;
 }
 
 async function save() {
     if (editing.value) {
-        await updateUser({
-            id: editing.value.id,
-            name: form.value.name,
-            email: form.value.email,
+        model("current", ActionOneMode.SET, editing.value);
+        await action.update({
+            body: { name: form.value.name, email: form.value.email },
         });
     } else {
-        await createUser({ id: Date.now(), ...form.value });
+        await action.create({
+            body: { id: Date.now(), ...form.value },
+        });
     }
     showModal.value = false;
 }
 
 async function remove(u: User) {
     if (confirm(`Delete "${u.name}"?`)) {
-        await deleteUser({ id: u.id });
+        model("current", ActionOneMode.SET, u);
+        await action.delete();
     }
 }
 
 async function select(u: User) {
-    await getUser({ id: u.id });
+    model("current", ActionOneMode.SET, u);
+    await nextTick();
+    await action.get();
 }
 
-function clearUser() {
-    userMemory.set(null);
+function clearSelection() {
+    model("current", ActionOneMode.RESET);
+}
+
+async function clearAll() {
+    await action.clear();
+}
+
+async function addUniqueUser() {
+    const first = view.users.value[0];
+    if (!first) return;
+    await action.addUnique({
+        body: { id: first.id, name: first.name + " (dup)", email: first.email },
+    });
+}
+
+async function patchByEmailDemo() {
+    if (!view.user.value) return;
+    model("current", ActionOneMode.SET, view.user.value);
+    await action.patchByEmail({
+        body: { email: view.user.value.email, name: view.user.value.name + " (by email)" },
+    });
+}
+
+function resetListAction() {
+    action.list.reset();
 }
 </script>
 
 <template>
     <div class="container">
-        <NuxtLink to="/" class="back">← Back</NuxtLink>
+        <NuxtLink to="/" class="back" data-testid="back-link">← Back</NuxtLink>
 
         <div class="page-title">
             <h1>Users</h1>
-            <p>Collection store using <code>useStoreAlias</code> composable</p>
+            <p>Collection store using <code>model.many()</code> with <code>ActionManyMode</code></p>
         </div>
 
         <div class="toolbar">
-            <h2>{{ users.length }} users</h2>
-            <button class="btn btn-primary" @click="openCreate">Add User</button>
+            <h2 data-testid="user-count">{{ view.count.value }} users</h2>
+            <button class="btn btn-primary" data-testid="add-user" @click="openCreate">Add User</button>
         </div>
 
-        <div v-if="userMonitor.list.pending()" class="loading">Loading...</div>
+        <div class="toolbar" style="margin-top: 12px">
+            <button class="btn btn-sm" data-testid="clear-all-users" @click="clearAll">Clear All</button>
+            <button class="btn btn-sm" data-testid="add-unique-user" @click="addUniqueUser">Add Unique</button>
+            <button
+                class="btn btn-sm"
+                data-testid="patch-by-email"
+                :disabled="!view.user.value"
+                @click="patchByEmailDemo"
+            >
+                Patch by Email
+            </button>
+            <button class="btn btn-sm" data-testid="reset-list-action" @click="resetListAction">Reset Action</button>
+        </div>
 
-        <div v-else class="grid">
-            <div v-for="u in users" :key="u.id" class="card">
+        <div v-if="action.list.loading.value" class="loading" data-testid="loading">Loading...</div>
+
+        <div v-else class="grid" data-testid="user-grid">
+            <div v-for="u in view.users.value" :key="u.id" class="card" :data-testid="`user-${u.id}`">
                 <div class="card-body">
-                    <h3>{{ u.name }}</h3>
-                    <p class="subtitle">{{ u.email }}</p>
+                    <h3 data-testid="user-name">{{ u.name }}</h3>
+                    <p class="subtitle" data-testid="user-email">{{ u.email }}</p>
                 </div>
                 <div class="card-footer">
-                    <button class="btn btn-sm" @click="select(u)">View</button>
-                    <button class="btn btn-sm" @click="openEdit(u)">Edit</button>
-                    <button class="btn btn-sm btn-danger" @click="remove(u)">Delete</button>
+                    <button class="btn btn-sm" data-testid="view-user" @click="select(u)">View</button>
+                    <button class="btn btn-sm" data-testid="edit-user" @click="openEdit(u)">Edit</button>
+                    <button class="btn btn-sm btn-danger" data-testid="delete-user" @click="remove(u)">Delete</button>
                 </div>
             </div>
         </div>
 
-        <div v-if="user" class="detail">
-            <h3>Selected User (user)</h3>
-            <pre>{{ JSON.stringify(user, null, 2) }}</pre>
-            <button class="btn btn-sm" style="margin-top: 12px" @click="clearUser">Clear</button>
+        <div v-if="view.user.value" class="detail" data-testid="selected-user">
+            <h3>Selected User (view.user)</h3>
+            <pre>{{ JSON.stringify(view.user.value, null, 2) }}</pre>
+            <button class="btn btn-sm" style="margin-top: 12px" data-testid="clear-user" @click="clearSelection">
+                Clear
+            </button>
         </div>
 
-        <!-- Feature Explanation -->
-        <div class="feature-info">
+        <div class="detail" data-testid="merged-summary">
+            <h3>Merged View (view.summary)</h3>
+            <pre>{{ JSON.stringify(view.summary.value, null, 2) }}</pre>
+        </div>
+
+        <div v-if="action.list.data" class="detail" data-testid="action-data">
+            <h3>action.list.data (last successful result)</h3>
+            <pre>{{ JSON.stringify(action.list.data, null, 2)?.substring(0, 200) }}...</pre>
+        </div>
+
+        <!-- Action Status -->
+        <div class="monitor-status" data-testid="action-status">
+            <h3>Action Status</h3>
+            <div class="monitor-grid">
+                <div class="monitor-item" data-testid="status-get">
+                    <span class="monitor-label">get</span>
+                    <span class="monitor-state" :data-status="action.get.status.value">{{
+                        action.get.status.value
+                    }}</span>
+                </div>
+                <div class="monitor-item" data-testid="status-list">
+                    <span class="monitor-label">list</span>
+                    <span class="monitor-state" :data-status="action.list.status.value">{{
+                        action.list.status.value
+                    }}</span>
+                </div>
+                <div class="monitor-item" data-testid="status-create">
+                    <span class="monitor-label">create</span>
+                    <span class="monitor-state" :data-status="action.create.status.value">{{
+                        action.create.status.value
+                    }}</span>
+                </div>
+                <div class="monitor-item" data-testid="status-update">
+                    <span class="monitor-label">update</span>
+                    <span class="monitor-state" :data-status="action.update.status.value">{{
+                        action.update.status.value
+                    }}</span>
+                </div>
+                <div class="monitor-item" data-testid="status-delete">
+                    <span class="monitor-label">delete</span>
+                    <span class="monitor-state" :data-status="action.delete.status.value">{{
+                        action.delete.status.value
+                    }}</span>
+                </div>
+                <div class="monitor-item" data-testid="status-clear">
+                    <span class="monitor-label">clear</span>
+                    <span class="monitor-state" :data-status="action.clear.status.value">{{
+                        action.clear.status.value
+                    }}</span>
+                </div>
+                <div class="monitor-item" data-testid="status-addUnique">
+                    <span class="monitor-label">addUnique</span>
+                    <span class="monitor-state" :data-status="action.addUnique.status.value">{{
+                        action.addUnique.status.value
+                    }}</span>
+                </div>
+                <div class="monitor-item" data-testid="status-patchByEmail">
+                    <span class="monitor-label">patchByEmail</span>
+                    <span class="monitor-state" :data-status="action.patchByEmail.status.value">{{
+                        action.patchByEmail.status.value
+                    }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature Info -->
+        <div class="feature-info" data-testid="feature-info">
             <h3>Features Demonstrated</h3>
             <ul>
-                <li><code>Endpoint.withAdapter</code> - Custom adapter per endpoint</li>
-                <li><code>createStore</code> with <code>adapter</code> option - Store-level adapter</li>
-                <li><code>getSchemaFields(schema)</code> - Get all schema field info (cached)</li>
-                <li><code>getFieldsForAction(schema, action)</code> - Get fields for specific action</li>
-                <li><code>meta({ indicator: true })</code> - Mark field as unique identifier</li>
-                <li><code>userMemory.set(null)</code> - Clear unit state</li>
-                <li><code>userMonitor.[action].current()</code> - Current status enum value</li>
-                <li><code>userMonitor.[action].idle()/pending()/success()/failed()</code> - Boolean status flags</li>
+                <li><code>model.many(shape)</code> - Collection state management</li>
+                <li><code>ActionManyMode.SET</code> - Replace entire array</li>
+                <li><code>ActionManyMode.ADD</code> - Append new items</li>
+                <li><code>ActionManyMode.PATCH</code> - Update items by identifier</li>
+                <li><code>ActionManyMode.REMOVE</code> - Remove items by identifier</li>
+                <li><code>ActionManyMode.RESET</code> - Reset array to empty</li>
+                <li><code>model("current", ActionOneMode.SET, user)</code> - Direct model mutation</li>
+                <li><code>view.merge(["current", "list"], resolver)</code> - Multi-source merged view</li>
+                <li><code>commit("list", ActionManyMode.RESET)</code> - Standalone commit without api/handle</li>
+                <li><code>commit(..., { unique: true })</code> - Deduplicate on add</li>
+                <li><code>commit(..., { by: "email" })</code> - Custom identifier field for patch</li>
+                <li><code>action.list.data</code> - Last successful result</li>
+                <li><code>action.list.reset()</code> - Reset action state to idle</li>
             </ul>
         </div>
 
-        <!-- Monitor Status -->
-        <div class="monitor-status" data-testid="monitor-status">
-            <h3>Monitor Status</h3>
-            <div class="monitor-grid">
-                <div class="monitor-item">
-                    <span class="monitor-label">get</span>
-                    <span class="monitor-state" :data-status="userMonitor.get.current()">{{
-                        userMonitor.get.current()
-                    }}</span>
-                    <span class="monitor-flags">
-                        <span v-if="userMonitor.get.idle()" class="flag" data-flag="idle">idle</span>
-                        <span v-if="userMonitor.get.pending()" class="flag" data-flag="pending">pending</span>
-                        <span v-if="userMonitor.get.success()" class="flag" data-flag="success">success</span>
-                        <span v-if="userMonitor.get.failed()" class="flag" data-flag="failed">failed</span>
-                    </span>
-                </div>
-                <div class="monitor-item">
-                    <span class="monitor-label">list</span>
-                    <span class="monitor-state" :data-status="userMonitor.list.current()">{{
-                        userMonitor.list.current()
-                    }}</span>
-                    <span class="monitor-flags">
-                        <span v-if="userMonitor.list.idle()" class="flag" data-flag="idle">idle</span>
-                        <span v-if="userMonitor.list.pending()" class="flag" data-flag="pending">pending</span>
-                        <span v-if="userMonitor.list.success()" class="flag" data-flag="success">success</span>
-                        <span v-if="userMonitor.list.failed()" class="flag" data-flag="failed">failed</span>
-                    </span>
-                </div>
-                <div class="monitor-item">
-                    <span class="monitor-label">create</span>
-                    <span class="monitor-state" :data-status="userMonitor.create.current()">{{
-                        userMonitor.create.current()
-                    }}</span>
-                    <span class="monitor-flags">
-                        <span v-if="userMonitor.create.idle()" class="flag" data-flag="idle">idle</span>
-                        <span v-if="userMonitor.create.pending()" class="flag" data-flag="pending">pending</span>
-                        <span v-if="userMonitor.create.success()" class="flag" data-flag="success">success</span>
-                        <span v-if="userMonitor.create.failed()" class="flag" data-flag="failed">failed</span>
-                    </span>
-                </div>
-                <div class="monitor-item">
-                    <span class="monitor-label">update</span>
-                    <span class="monitor-state" :data-status="userMonitor.update.current()">{{
-                        userMonitor.update.current()
-                    }}</span>
-                    <span class="monitor-flags">
-                        <span v-if="userMonitor.update.idle()" class="flag" data-flag="idle">idle</span>
-                        <span v-if="userMonitor.update.pending()" class="flag" data-flag="pending">pending</span>
-                        <span v-if="userMonitor.update.success()" class="flag" data-flag="success">success</span>
-                        <span v-if="userMonitor.update.failed()" class="flag" data-flag="failed">failed</span>
-                    </span>
-                </div>
-                <div class="monitor-item">
-                    <span class="monitor-label">delete</span>
-                    <span class="monitor-state" :data-status="userMonitor.delete.current()">{{
-                        userMonitor.delete.current()
-                    }}</span>
-                    <span class="monitor-flags">
-                        <span v-if="userMonitor.delete.idle()" class="flag" data-flag="idle">idle</span>
-                        <span v-if="userMonitor.delete.pending()" class="flag" data-flag="pending">pending</span>
-                        <span v-if="userMonitor.delete.success()" class="flag" data-flag="success">success</span>
-                        <span v-if="userMonitor.delete.failed()" class="flag" data-flag="failed">failed</span>
-                    </span>
-                </div>
-            </div>
-        </div>
-
         <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
-            <div class="modal">
+            <div class="modal" data-testid="user-modal">
                 <h2>{{ editing ? "Edit User" : "Add User" }}</h2>
                 <form @submit.prevent="save">
                     <div class="form-group">
                         <label>Name</label>
-                        <input v-model="form.name" required >
+                        <input v-model="form.name" required data-testid="input-name" >
                     </div>
                     <div class="form-group">
                         <label>Email</label>
-                        <input v-model="form.email" type="email" required >
+                        <input v-model="form.email" type="email" required data-testid="input-email" >
                     </div>
                     <div class="modal-actions">
-                        <button type="button" class="btn" @click="showModal = false">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" class="btn" data-testid="cancel-modal" @click="showModal = false">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" data-testid="save-user">Save</button>
                     </div>
                 </form>
             </div>

@@ -3,11 +3,9 @@ export default defineNuxtConfig({
     modules: ["../src/module"],
     css: ["~/assets/style.css"],
     harlemify: {
-        api: {
-            adapter: {
-                baseURL: "/api",
-                timeout: 10000,
-            },
+        action: {
+            endpoint: "/api",
+            timeout: 10000,
         },
     },
     app: {

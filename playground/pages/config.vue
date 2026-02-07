@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { configStore } from "../stores/config";
 
-const { config, getConfig, updateConfig, configMonitor } = useStoreAlias(configStore);
+const { view, action } = configStore;
 
 const languageInput = ref("");
 
-onMounted(() => getConfig());
+onMounted(() => action.get());
 
 watch(
-    config,
+    view.config,
     (val) => {
         if (val) {
             languageInput.value = val.language;
@@ -19,122 +19,113 @@ watch(
 );
 
 async function toggleTheme() {
-    if (!config.value) return;
-    const newTheme = config.value.theme === "dark" ? "light" : "dark";
+    if (!view.config.value) return;
+    const newTheme = view.config.value.theme === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", newTheme);
-    await updateConfig({
-        id: config.value.id,
-        theme: newTheme,
-    });
+    await action.update({ body: { theme: newTheme } });
 }
 
 async function updateLanguage() {
-    if (!config.value || !languageInput.value.trim()) return;
-    await updateConfig({
-        id: config.value.id,
-        language: languageInput.value.trim(),
-    });
+    if (!view.config.value || !languageInput.value.trim()) return;
+    await action.update({ body: { language: languageInput.value.trim() } });
 }
 
 async function toggleNotifications() {
-    if (!config.value) return;
-    await updateConfig({
-        id: config.value.id,
-        notifications: !config.value.notifications,
-    });
+    if (!view.config.value) return;
+    await action.update({ body: { notifications: !view.config.value.notifications } });
 }
 </script>
 
 <template>
     <div class="container">
-        <NuxtLink to="/" class="back">← Back</NuxtLink>
+        <NuxtLink to="/" class="back" data-testid="back-link">← Back</NuxtLink>
 
         <div class="page-title">
             <h1>Config</h1>
-            <p>Singleton store using <code>useStoreAlias</code> composable</p>
+            <p>Singleton store using <code>model.one()</code> with <code>ActionOneMode</code></p>
         </div>
 
-        <div v-if="configMonitor.get.pending()" class="loading">Loading...</div>
+        <div v-if="action.get.loading.value" class="loading" data-testid="loading">Loading...</div>
 
-        <div v-else-if="config" class="config-list">
-            <div class="config-item">
+        <div v-else-if="view.config.value" class="config-list" data-testid="config-content">
+            <div class="config-item" data-testid="config-theme">
                 <div>
                     <strong>Theme</strong>
-                    <span class="value">{{ config.theme }}</span>
+                    <span class="value" data-testid="theme-value">{{ view.config.value.theme }}</span>
                 </div>
-                <button class="btn btn-sm" @click="toggleTheme">Toggle</button>
+                <button class="btn btn-sm" data-testid="toggle-theme" @click="toggleTheme">Toggle</button>
             </div>
 
-            <div class="config-item">
+            <div class="config-item" data-testid="config-language">
                 <div>
                     <strong>Language</strong>
                 </div>
                 <form class="config-input" @submit.prevent="updateLanguage">
-                    <input v-model="languageInput" type="text" >
-                    <button type="submit" class="btn btn-sm">Update</button>
+                    <input v-model="languageInput" type="text" data-testid="language-input" >
+                    <button type="submit" class="btn btn-sm" data-testid="update-language">Update</button>
                 </form>
             </div>
 
-            <div class="config-item">
+            <div class="config-item" data-testid="config-notifications">
                 <div>
                     <strong>Notifications</strong>
-                    <span class="value">{{ config.notifications ? "on" : "off" }}</span>
+                    <span class="value" data-testid="notifications-value">{{
+                        view.config.value.notifications ? "on" : "off"
+                    }}</span>
                 </div>
-                <button class="btn btn-sm" @click="toggleNotifications">Toggle</button>
+                <button class="btn btn-sm" data-testid="toggle-notifications" @click="toggleNotifications">
+                    Toggle
+                </button>
             </div>
 
-            <div class="detail">
-                <h3>Raw Data (config)</h3>
-                <pre>{{ JSON.stringify(config, null, 2) }}</pre>
+            <div class="detail" data-testid="raw-data">
+                <h3>Raw Data (view.config)</h3>
+                <pre>{{ JSON.stringify(view.config.value, null, 2) }}</pre>
             </div>
 
-            <!-- Monitor Status -->
-            <div class="monitor-status" data-testid="monitor-status">
-                <h3>Monitor Status</h3>
+            <!-- Action Status -->
+            <div class="monitor-status" data-testid="action-status">
+                <h3>Action Status</h3>
                 <div class="monitor-grid">
-                    <div class="monitor-item">
+                    <div class="monitor-item" data-testid="status-get">
                         <span class="monitor-label">get</span>
-                        <span class="monitor-state" :data-status="configMonitor.get.current()">{{
-                            configMonitor.get.current()
+                        <span class="monitor-state" :data-status="action.get.status.value">{{
+                            action.get.status.value
                         }}</span>
                         <span class="monitor-flags">
-                            <span v-if="configMonitor.get.idle()" class="flag" data-flag="idle">idle</span>
-                            <span v-if="configMonitor.get.pending()" class="flag" data-flag="pending">pending</span>
-                            <span v-if="configMonitor.get.success()" class="flag" data-flag="success">success</span>
-                            <span v-if="configMonitor.get.failed()" class="flag" data-flag="failed">failed</span>
+                            <span v-if="action.get.loading.value" class="flag" data-flag="pending">pending</span>
+                            <span v-if="action.get.error.value" class="flag" data-flag="failed">error</span>
                         </span>
                     </div>
-                    <div class="monitor-item">
+                    <div class="monitor-item" data-testid="status-update">
                         <span class="monitor-label">update</span>
-                        <span class="monitor-state" :data-status="configMonitor.update.current()">{{
-                            configMonitor.update.current()
+                        <span class="monitor-state" :data-status="action.update.status.value">{{
+                            action.update.status.value
                         }}</span>
                         <span class="monitor-flags">
-                            <span v-if="configMonitor.update.idle()" class="flag" data-flag="idle">idle</span>
-                            <span v-if="configMonitor.update.pending()" class="flag" data-flag="pending">pending</span>
-                            <span v-if="configMonitor.update.success()" class="flag" data-flag="success">success</span>
-                            <span v-if="configMonitor.update.failed()" class="flag" data-flag="failed">failed</span>
+                            <span v-if="action.update.loading.value" class="flag" data-flag="pending">pending</span>
+                            <span v-if="action.update.error.value" class="flag" data-flag="failed">error</span>
                         </span>
                     </div>
                 </div>
             </div>
 
             <!-- Feature Info -->
-            <div class="feature-info">
+            <div class="feature-info" data-testid="feature-info">
                 <h3>Features Demonstrated</h3>
                 <ul>
-                    <li><code>Memory.unit()</code> - Singleton state management</li>
-                    <li><code>Memory.unit().edit()</code> - Partial update (merge)</li>
-                    <li><code>configMonitor.[action].current()</code> - Current status enum value</li>
-                    <li>
-                        <code>configMonitor.[action].idle()/pending()/success()/failed()</code> - Boolean status flags
-                    </li>
-                    <li>Schema <code>.meta({ actions: [...] })</code> - Field-level action config</li>
+                    <li><code>model.one(shape)</code> - Singleton state management</li>
+                    <li><code>ActionOneMode.SET</code> - Replace entire value</li>
+                    <li><code>ActionOneMode.PATCH</code> - Partial update (merge)</li>
+                    <li><code>action.get.status</code> - Reactive action status</li>
+                    <li><code>action.get.loading</code> - Computed loading boolean</li>
+                    <li><code>action.get.error</code> - Reactive error state</li>
+                    <li><code>view.theme</code> / <code>view.language</code> - Derived computed views</li>
                 </ul>
             </div>
         </div>
 
-        <div v-else class="loading">No config available</div>
+        <div v-else class="loading" data-testid="no-data">No config available</div>
     </div>
 </template>
 
