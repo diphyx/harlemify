@@ -22,7 +22,7 @@ import type { Model } from "../src/runtime/core/types/model";
 import { useIsolatedActionStatus, useIsolatedActionError } from "../src/runtime/composables/action";
 import type { ShapeInfer } from "../src/runtime/core/types/shape";
 
-const mockFetch = globalThis.$fetch as unknown as ReturnType<typeof vi.fn>;
+const mockFetch = (globalThis as any).$fetch as unknown as ReturnType<typeof vi.fn>;
 
 const UserShape = shape((factory) => {
     return {
