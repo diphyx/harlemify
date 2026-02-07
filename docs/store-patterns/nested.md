@@ -239,9 +239,14 @@ const options = api({
 }).handle(async ({ api, commit, view }) => {
     const options = await api<Options>();
 
-    commit("current", ActionOneMode.PATCH, {
-        meta: { ...view.meta.value, options },
-    }, { deep: true });
+    commit(
+        "current",
+        ActionOneMode.PATCH,
+        {
+            meta: { ...view.meta.value, options },
+        },
+        { deep: true },
+    );
 });
 ```
 
@@ -258,8 +263,8 @@ const toggle = api({
 }).handle(async ({ api, commit }) => {
     const result = await api<Project>();
 
-    commit("current", ActionOneMode.PATCH, result);   // Update singleton
-    commit("list", ActionManyMode.PATCH, result);      // Update in list
+    commit("current", ActionOneMode.PATCH, result); // Update singleton
+    commit("list", ActionManyMode.PATCH, result); // Update in list
 
     return result;
 });
@@ -328,9 +333,7 @@ async function handleExport() {
             <!-- Lazy-loaded milestones -->
             <section>
                 <h2>Milestones ({{ view.completedMilestones.value }} done)</h2>
-                <button @click="loadMilestones" v-if="!view.milestones.value.length">
-                    Load Milestones
-                </button>
+                <button @click="loadMilestones" v-if="!view.milestones.value.length">Load Milestones</button>
                 <ul v-else>
                     <li v-for="m in view.milestones.value" :key="m.id">
                         {{ m.name }} - {{ m.done ? "Done" : "Pending" }}

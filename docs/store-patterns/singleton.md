@@ -65,9 +65,9 @@ export const configStore = createStore({
 
 ## Mutation Operations
 
-| Action | Commit Mode | Effect |
-|--------|-------------|--------|
-| Get | `ActionOneMode.SET` | Set the entire value |
+| Action | Commit Mode           | Effect                    |
+| ------ | --------------------- | ------------------------- |
+| Get    | `ActionOneMode.SET`   | Set the entire value      |
 | Update | `ActionOneMode.PATCH` | Merge into existing value |
 
 ## Component Usage
@@ -114,11 +114,7 @@ async function toggleNotifications() {
 
         <div>
             <label>
-                <input
-                    type="checkbox"
-                    :checked="view.notifications.value"
-                    @change="toggleNotifications"
-                />
+                <input type="checkbox" :checked="view.notifications.value" @change="toggleNotifications" />
                 Enable Notifications
             </label>
         </div>

@@ -18,14 +18,14 @@ export default defineNuxtConfig({
 
 The `logger` value maps to Consola log levels:
 
-| Level | Value | Description |
-|-------|-------|-------------|
-| Silent | `-999` | No logging (default) |
-| Error | `0` | Errors only |
-| Warn | `1` | Warnings and errors |
-| Info | `3` | Info, warnings, and errors |
-| Debug | `4` | All messages including debug |
-| Verbose | `999` | Everything |
+| Level   | Value  | Description                  |
+| ------- | ------ | ---------------------------- |
+| Silent  | `-999` | No logging (default)         |
+| Error   | `0`    | Errors only                  |
+| Warn    | `1`    | Warnings and errors          |
+| Info    | `3`    | Info, warnings, and errors   |
+| Debug   | `4`    | All messages including debug |
+| Verbose | `999`  | Everything                   |
 
 ## What Gets Logged
 

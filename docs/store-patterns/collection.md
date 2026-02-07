@@ -102,11 +102,11 @@ export const postStore = createStore({
 
 ## Mutation Operations
 
-| Action | Commit Mode | Effect |
-|--------|-------------|--------|
-| List | `ActionManyMode.SET` | Replace entire array |
-| Create | `ActionManyMode.ADD` | Append new item |
-| Update | `ActionManyMode.PATCH` | Update item by identifier |
+| Action | Commit Mode             | Effect                    |
+| ------ | ----------------------- | ------------------------- |
+| List   | `ActionManyMode.SET`    | Replace entire array      |
+| Create | `ActionManyMode.ADD`    | Append new item           |
+| Update | `ActionManyMode.PATCH`  | Update item by identifier |
 | Delete | `ActionManyMode.REMOVE` | Remove item by identifier |
 
 ## Component Usage
@@ -137,9 +137,7 @@ async function removePost() {
 
 <template>
     <div>
-        <button @click="addPost" :disabled="action.create.loading.value">
-            Add Post
-        </button>
+        <button @click="addPost" :disabled="action.create.loading.value">Add Post</button>
 
         <div v-if="action.list.loading.value">Loading...</div>
 

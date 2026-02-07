@@ -210,7 +210,7 @@ interface ActionCommitChain<M, V, R> {
 ### AUTO
 
 ```typescript
-const AUTO: unique symbol
+const AUTO: unique symbol;
 ```
 
 A symbol used as the `value` argument in `.commit()` to explicitly signal that the action result (API response or handle return value) should be used as the commit value. This is especially useful when you need to pass commit options without providing an explicit value:
@@ -380,7 +380,7 @@ try {
 ### useIsolatedActionStatus
 
 ```typescript
-function useIsolatedActionStatus(): Ref<ActionStatus>
+function useIsolatedActionStatus(): Ref<ActionStatus>;
 ```
 
 Returns a `Ref<ActionStatus>` initialized to `ActionStatus.IDLE`. Use with `bind` option to track action status independently.
@@ -388,7 +388,7 @@ Returns a `Ref<ActionStatus>` initialized to `ActionStatus.IDLE`. Use with `bind
 ### useIsolatedActionError
 
 ```typescript
-function useIsolatedActionError(): Ref<ActionError | null>
+function useIsolatedActionError(): Ref<ActionError | null>;
 ```
 
 Returns a `Ref<ActionError | null>` initialized to `null`. Use with `bind` option to track action errors independently.
@@ -402,16 +402,16 @@ Returns a `Ref<ActionError | null>` initialized to `null`. Use with `bind` optio
 export default defineNuxtConfig({
     harlemify: {
         model: {
-            identifier: string,          // Default identifier field
+            identifier: string, // Default identifier field
         },
         action: {
-            endpoint: string,            // Base endpoint URL
-            headers: Record<string, string>,  // Default headers
-            query: Record<string, unknown>,   // Default query params
-            timeout: number,             // Default timeout in ms
+            endpoint: string, // Base endpoint URL
+            headers: Record<string, string>, // Default headers
+            query: Record<string, unknown>, // Default query params
+            timeout: number, // Default timeout in ms
             concurrent: ActionConcurrent, // Default concurrency strategy
         },
-        logger: number,                  // Consola log level (-999 to 999)
+        logger: number, // Consola log level (-999 to 999)
     },
 });
 ```

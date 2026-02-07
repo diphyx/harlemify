@@ -87,11 +87,11 @@ Views are accessed via `store.view` and are `ComputedRef` values:
 const { view } = userStore;
 
 // Read values
-view.user.value           // User | null
-view.users.value          // User[]
-view.userName.value       // string
-view.count.value          // number
-view.summary.value        // { selected: string | null; total: number; ... }
+view.user.value; // User | null
+view.users.value; // User[]
+view.userName.value; // string
+view.count.value; // number
+view.summary.value; // { selected: string | null; total: number; ... }
 ```
 
 ## Using Views in Templates

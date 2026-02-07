@@ -32,20 +32,20 @@ model({ one }) {
 
 ```typescript
 one(userShape, {
-    identifier: "uuid",           // Override identifier field
+    identifier: "uuid", // Override identifier field
     default: { id: 0, name: "" }, // Custom default value (instead of null)
-})
+});
 ```
 
 ### One Mutations
 
 One-models support three mutation modes:
 
-| Mode | Description |
-|------|-------------|
-| `ActionOneMode.SET` | Replace the entire value |
+| Mode                  | Description                                 |
+| --------------------- | ------------------------------------------- |
+| `ActionOneMode.SET`   | Replace the entire value                    |
 | `ActionOneMode.RESET` | Reset to default (`null` or custom default) |
-| `ActionOneMode.PATCH` | Shallow merge into existing value |
+| `ActionOneMode.PATCH` | Shallow merge into existing value           |
 
 ```typescript
 // Via model committer
@@ -74,22 +74,22 @@ model({ many }) {
 
 ```typescript
 many(userShape, {
-    identifier: "uuid",            // Override identifier field
-    default: [defaultUser],        // Custom default value (instead of [])
-})
+    identifier: "uuid", // Override identifier field
+    default: [defaultUser], // Custom default value (instead of [])
+});
 ```
 
 ### Many Mutations
 
 Many-models support five mutation modes:
 
-| Mode | Description |
-|------|-------------|
-| `ActionManyMode.SET` | Replace the entire array |
-| `ActionManyMode.RESET` | Reset to default (`[]` or custom default) |
-| `ActionManyMode.PATCH` | Update matching items by identifier |
-| `ActionManyMode.REMOVE` | Remove matching items by identifier |
-| `ActionManyMode.ADD` | Append items to the array |
+| Mode                    | Description                               |
+| ----------------------- | ----------------------------------------- |
+| `ActionManyMode.SET`    | Replace the entire array                  |
+| `ActionManyMode.RESET`  | Reset to default (`[]` or custom default) |
+| `ActionManyMode.PATCH`  | Update matching items by identifier       |
+| `ActionManyMode.REMOVE` | Remove matching items by identifier       |
+| `ActionManyMode.ADD`    | Append items to the array                 |
 
 ```typescript
 // Via model committer

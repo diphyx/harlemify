@@ -81,9 +81,9 @@ api.get({
     url: "/users/1",
 }).handle(async ({ api, commit }) => {
     const user = await api<User>();
-    
+
     commit("current", ActionOneMode.SET, user);
-    
+
     return user;
 });
 
@@ -92,7 +92,7 @@ handle(async ({ view, commit }) => {
     const sorted = [...view.users.value].sort((a, b) => {
         return a.name.localeCompare(b.name);
     });
-    
+
     commit("list", ActionManyMode.SET, sorted);
 });
 

@@ -4,25 +4,28 @@ Harlemify supports three main store patterns for different use cases.
 
 ## Pattern Comparison
 
-| Pattern | Model | Use Case | Example |
-|---------|-------|----------|---------|
-| [Collection](collection.md) | `many()` | Lists of items | Users, Products, Posts |
-| [Singleton](singleton.md) | `one()` | Single entity | Config, Settings, Current User |
-| [Nested](nested.md) | `one()` with handle chains | Complex objects with sub-resources | Project with milestones |
+| Pattern                     | Model                      | Use Case                           | Example                        |
+| --------------------------- | -------------------------- | ---------------------------------- | ------------------------------ |
+| [Collection](collection.md) | `many()`                   | Lists of items                     | Users, Products, Posts         |
+| [Singleton](singleton.md)   | `one()`                    | Single entity                      | Config, Settings, Current User |
+| [Nested](nested.md)         | `one()` with handle chains | Complex objects with sub-resources | Project with milestones        |
 
 ## Choosing a Pattern
 
 ### Use Collection When:
+
 - Managing lists of similar items
 - Need CRUD operations (Create, Read, Update, Delete)
 - Items are identified by an ID
 
 ### Use Singleton When:
+
 - Only one instance exists
 - No list operations needed
 - Examples: app config, authenticated user profile
 
 ### Use Nested When:
+
 - Complex objects with sub-resources
 - Need to load parts separately via different endpoints
 - Deep object structures with lazy-loaded fields
@@ -30,6 +33,7 @@ Harlemify supports three main store patterns for different use cases.
 ## Quick Examples
 
 **Collection:**
+
 ```typescript
 model({ many }) {
     return {
@@ -53,6 +57,7 @@ action({ api }) {
 ```
 
 **Singleton:**
+
 ```typescript
 model({ one }) {
     return {
@@ -68,6 +73,7 @@ action({ api }) {
 ```
 
 **Nested:**
+
 ```typescript
 model({ one }) {
     return {

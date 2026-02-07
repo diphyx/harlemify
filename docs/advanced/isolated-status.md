@@ -8,7 +8,7 @@ When the same action is called from multiple places, they share status:
 
 ```typescript
 // Both buttons show loading when either is clicked
-store.action.fetch.loading.value  // Shared across all callers
+store.action.fetch.loading.value; // Shared across all callers
 ```
 
 ## Solution
@@ -26,8 +26,8 @@ await store.action.fetch({
 });
 
 // These reflect only this specific call
-status.value   // ActionStatus.SUCCESS
-error.value    // null
+status.value; // ActionStatus.SUCCESS
+error.value; // null
 ```
 
 ## Use Cases
@@ -111,7 +111,7 @@ async function handleCreate(userData: unknown) {
 ### useIsolatedActionStatus
 
 ```typescript
-function useIsolatedActionStatus(): Ref<ActionStatus>
+function useIsolatedActionStatus(): Ref<ActionStatus>;
 ```
 
 Returns a `Ref<ActionStatus>` initialized to `ActionStatus.IDLE`.
@@ -119,7 +119,7 @@ Returns a `Ref<ActionStatus>` initialized to `ActionStatus.IDLE`.
 ### useIsolatedActionError
 
 ```typescript
-function useIsolatedActionError(): Ref<ActionError | null>
+function useIsolatedActionError(): Ref<ActionError | null>;
 ```
 
 Returns a `Ref<ActionError | null>` initialized to `null`.

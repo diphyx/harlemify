@@ -121,11 +121,13 @@ For simpler cancellation, use `ActionConcurrent.CANCEL` which handles abort auto
 
 ```typescript
 action: (a) => ({
-    search: a.api.get({
-        url: "/users",
-        concurrent: ActionConcurrent.CANCEL,
-    }).commit("list", ActionManyMode.SET),
-})
+    search: a.api
+        .get({
+            url: "/users",
+            concurrent: ActionConcurrent.CANCEL,
+        })
+        .commit("list", ActionManyMode.SET),
+});
 ```
 
 ```typescript

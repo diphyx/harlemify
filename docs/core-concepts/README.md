@@ -132,9 +132,9 @@ const userStore = createStore({
 // 3. Use in components
 const { model, view, action } = userStore;
 
-await action.list();                          // Fetch and commit to state
-view.users.value;                             // Reactive computed list
-model("list", ActionManyMode.RESET);          // Direct mutation
+await action.list(); // Fetch and commit to state
+view.users.value; // Reactive computed list
+model("list", ActionManyMode.RESET); // Direct mutation
 ```
 
 ## Next Steps

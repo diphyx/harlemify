@@ -4,15 +4,15 @@ Complete API documentation for harlemify.
 
 ## Core Functions
 
-| Function | Description |
-|----------|-------------|
+| Function                       | Description                                            |
+| ------------------------------ | ------------------------------------------------------ |
 | [createStore](create-store.md) | Create a new store with model, view, and action layers |
-| [shape](shape.md) | Define a Zod-powered data shape |
+| [shape](shape.md)              | Define a Zod-powered data shape                        |
 
 ## Types & Enums
 
-| Category | Description |
-|----------|-------------|
+| Category          | Description                                     |
+| ----------------- | ----------------------------------------------- |
 | [Types](types.md) | TypeScript interfaces, enums, and error classes |
 
 ## Import

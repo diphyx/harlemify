@@ -4,12 +4,12 @@ Control what happens when an action is called while it's already pending.
 
 ## Concurrency Strategies
 
-| Strategy | Behavior |
-|----------|----------|
-| `ActionConcurrent.BLOCK` | Throw `ActionConcurrentError` (default) |
-| `ActionConcurrent.SKIP` | Return the existing in-flight promise |
+| Strategy                  | Behavior                                    |
+| ------------------------- | ------------------------------------------- |
+| `ActionConcurrent.BLOCK`  | Throw `ActionConcurrentError` (default)     |
+| `ActionConcurrent.SKIP`   | Return the existing in-flight promise       |
 | `ActionConcurrent.CANCEL` | Abort the previous request, start a new one |
-| `ActionConcurrent.ALLOW` | Execute both independently |
+| `ActionConcurrent.ALLOW`  | Execute both independently                  |
 
 ## Setting Concurrency
 
@@ -115,8 +115,8 @@ action({ api }) {
 
 ```typescript
 // User types fast
-await store.action.search({ query: { q: "j" } });    // Cancelled
-await store.action.search({ query: { q: "jo" } });   // Cancelled
+await store.action.search({ query: { q: "j" } }); // Cancelled
+await store.action.search({ query: { q: "jo" } }); // Cancelled
 await store.action.search({ query: { q: "john" } }); // Completes
 ```
 
@@ -152,10 +152,7 @@ Use `action.loading` to disable buttons during pending state:
 
 ```vue
 <template>
-    <button
-        @click="store.action.create()"
-        :disabled="store.action.create.loading.value"
-    >
+    <button @click="store.action.create()" :disabled="store.action.create.loading.value">
         {{ store.action.create.loading.value ? "Creating..." : "Create" }}
     </button>
 </template>

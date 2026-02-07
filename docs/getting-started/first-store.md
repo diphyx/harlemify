@@ -24,6 +24,7 @@ export type User = ShapeInfer<typeof userShape>;
 ```
 
 **Shape Meta:**
+
 - `identifier: true` - Marks the primary key field used for matching items in array mutations (`patch`, `remove`)
 
 ## Step 2: Define Models

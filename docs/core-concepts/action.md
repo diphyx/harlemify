@@ -57,12 +57,12 @@ commit(...)                → direct mutation
 The `api` factory supports all HTTP methods:
 
 ```typescript
-api.get({ url: "/users" })           // GET
-api.head({ url: "/users" })          // HEAD
-api.post({ url: "/users" })          // POST
-api.put({ url: "/users/1" })         // PUT
-api.patch({ url: "/users/1" })       // PATCH
-api.delete({ url: "/users/1" })      // DELETE
+api.get({ url: "/users" }); // GET
+api.head({ url: "/users" }); // HEAD
+api.post({ url: "/users" }); // POST
+api.put({ url: "/users/1" }); // PUT
+api.patch({ url: "/users/1" }); // PATCH
+api.delete({ url: "/users/1" }); // DELETE
 ```
 
 You can also use the generic form with an explicit method:
@@ -71,7 +71,7 @@ You can also use the generic form with an explicit method:
 api({
     method: ActionApiMethod.GET,
     url: "/users",
-})
+});
 ```
 
 ## API Definition
@@ -105,18 +105,16 @@ The handle callback receives a context with access to `api`, `view`, and `commit
 
 ```typescript
 // With API
-api
-    .get({
-        url(view) {
-            return `/users/${view.user.value?.id}`;
-        },
-    })
-    .handle(async ({ api, view, commit }) => {
-        const user = await api<User>();         // Call the API
-        commit("current", ActionOneMode.SET, user);
-        commit("list", ActionManyMode.PATCH, user);
-        return user;
-    })
+api.get({
+    url(view) {
+        return `/users/${view.user.value?.id}`;
+    },
+}).handle(async ({ api, view, commit }) => {
+    const user = await api<User>(); // Call the API
+    commit("current", ActionOneMode.SET, user);
+    commit("list", ActionManyMode.PATCH, user);
+    return user;
+});
 
 // Without API
 handle(async ({ view, commit }) => {
@@ -125,13 +123,13 @@ handle(async ({ view, commit }) => {
     });
     commit("list", ActionManyMode.SET, sorted);
     return sorted;
-})
+});
 ```
 
 **Context properties:**
 | Property | Description |
 |----------|-------------|
-| `api<T>()` | Execute the API request (only available when chained from `api`) |
+| `api&#60;T&#62;()` | Execute the API request (only available when chained from `api`) |
 | `view` | Readonly access to all store views |
 | `commit(model, mode, value?, options?)` | Commit mutations to any model |
 
@@ -204,17 +202,17 @@ await store.action.fetch({
 
 ### Call-time Payload Options
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `headers` | `Record<string, string>` or `(view) => ...` | Additional headers (merged with definition) |
-| `query` | `Record<string, unknown>` or `(view) => ...` | Additional query params (merged with definition) |
-| `body` | `unknown` or `(view) => ...` | Override request body |
-| `timeout` | `number` | Override timeout |
-| `signal` | `AbortSignal` | For request cancellation |
-| `concurrent` | `ActionConcurrent` | Override concurrency strategy |
-| `transformer` | `(response) => R` | Transform the response |
-| `bind` | `{ status?, error? }` | Bind to isolated status/error refs |
-| `commit` | `{ mode? }` | Override the commit mode |
+| Option        | Type                                         | Description                                      |
+| ------------- | -------------------------------------------- | ------------------------------------------------ |
+| `headers`     | `Record<string, string>` or `(view) => ...`  | Additional headers (merged with definition)      |
+| `query`       | `Record<string, unknown>` or `(view) => ...` | Additional query params (merged with definition) |
+| `body`        | `unknown` or `(view) => ...`                 | Override request body                            |
+| `timeout`     | `number`                                     | Override timeout                                 |
+| `signal`      | `AbortSignal`                                | For request cancellation                         |
+| `concurrent`  | `ActionConcurrent`                           | Override concurrency strategy                    |
+| `transformer` | `(response) => R`                            | Transform the response                           |
+| `bind`        | `{ status?, error? }`                        | Bind to isolated status/error refs               |
+| `commit`      | `{ mode? }`                                  | Override the commit mode                         |
 
 ### Response Transformer
 
@@ -231,30 +229,28 @@ const userName = await store.action.fetch({
 Every action has built-in reactive properties:
 
 ```typescript
-store.action.fetch.loading    // ComputedRef<boolean>
-store.action.fetch.status     // Readonly<Ref<ActionStatus>>
-store.action.fetch.error      // Readonly<Ref<ActionError | null>>
-store.action.fetch.data       // DeepReadonly<T> | null
-store.action.fetch.reset()    // Reset status, error, and data
+store.action.fetch.loading; // ComputedRef<boolean>
+store.action.fetch.status; // Readonly<Ref<ActionStatus>>
+store.action.fetch.error; // Readonly<Ref<ActionError | null>>
+store.action.fetch.data; // DeepReadonly<T> | null
+store.action.fetch.reset(); // Reset status, error, and data
 ```
 
 ### Status Values
 
-| Status | Description |
-|--------|-------------|
-| `ActionStatus.IDLE` | No request made yet |
-| `ActionStatus.PENDING` | Request in progress |
+| Status                 | Description            |
+| ---------------------- | ---------------------- |
+| `ActionStatus.IDLE`    | No request made yet    |
+| `ActionStatus.PENDING` | Request in progress    |
 | `ActionStatus.SUCCESS` | Last request succeeded |
-| `ActionStatus.ERROR` | Last request failed |
+| `ActionStatus.ERROR`   | Last request failed    |
 
 ### Template Usage
 
 ```vue
 <template>
     <div v-if="action.list.loading.value">Loading...</div>
-    <div v-else-if="action.list.error.value">
-        Error: {{ action.list.error.value.message }}
-    </div>
+    <div v-else-if="action.list.error.value">Error: {{ action.list.error.value.message }}</div>
     <ul v-else>
         <li v-for="user in view.users.value" :key="user.id">
             {{ user.name }}
@@ -267,12 +263,12 @@ store.action.fetch.reset()    // Reset status, error, and data
 
 Actions throw typed errors depending on where the failure occurred:
 
-| Error | Description |
-|-------|-------------|
-| `ActionApiError` | HTTP request failed (has `status`, `statusText`, `data`) |
-| `ActionHandleError` | Handle callback threw an error |
-| `ActionCommitError` | Commit operation failed |
-| `ActionConcurrentError` | Action blocked by concurrency guard |
+| Error                   | Description                                              |
+| ----------------------- | -------------------------------------------------------- |
+| `ActionApiError`        | HTTP request failed (has `status`, `statusText`, `data`) |
+| `ActionHandleError`     | Handle callback threw an error                           |
+| `ActionCommitError`     | Commit operation failed                                  |
+| `ActionConcurrentError` | Action blocked by concurrency guard                      |
 
 ```typescript
 try {

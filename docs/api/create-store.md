@@ -5,7 +5,7 @@ Creates a new store with model, view, and action layers.
 ## Signature
 
 ```typescript
-function createStore<M, VD, AD>(config: StoreConfig<M, VD, AD>): Store<M, VD, AD>
+function createStore<M, VD, AD>(config: StoreConfig<M, VD, AD>): Store<M, VD, AD>;
 ```
 
 ## Parameters
@@ -21,12 +21,12 @@ interface StoreConfig<M, VD, AD> {
 }
 ```
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `name` | `string` | Unique store name (used for Harlem registration and logging) |
-| `model` | `(factory) => M` | Function that receives a ModelFactory and returns model definitions |
-| `view` | `(factory) => VD` | Function that receives a ViewFactory and returns view definitions |
-| `action` | `(factory) => AD` | Function that receives an ActionFactory and returns action chains |
+| Property | Type              | Description                                                         |
+| -------- | ----------------- | ------------------------------------------------------------------- |
+| `name`   | `string`          | Unique store name (used for Harlem registration and logging)        |
+| `model`  | `(factory) => M`  | Function that receives a ModelFactory and returns model definitions |
+| `view`   | `(factory) => VD` | Function that receives a ViewFactory and returns view definitions   |
+| `action` | `(factory) => AD` | Function that receives an ActionFactory and returns action chains   |
 
 ## Returns: Store
 
@@ -43,7 +43,7 @@ interface Store<M, VD, AD> {
 The model committer function for direct state mutations:
 
 ```typescript
-type StoreModel<M> = ActionCommitter<M>
+type StoreModel<M> = ActionCommitter<M>;
 ```
 
 ```typescript
@@ -69,9 +69,9 @@ store.model(key, ActionManyMode.RESET);
 Object containing `ComputedRef` values for each view definition:
 
 ```typescript
-store.view.user.value      // User | null
-store.view.users.value     // User[]
-store.view.count.value     // number
+store.view.user.value; // User | null
+store.view.users.value; // User[]
+store.view.count.value; // number
 ```
 
 ### action
@@ -82,11 +82,11 @@ Object containing callable action functions with metadata:
 await store.action.fetch();
 await store.action.fetch(payload);
 
-store.action.fetch.loading    // ComputedRef<boolean>
-store.action.fetch.status     // Readonly<Ref<ActionStatus>>
-store.action.fetch.error      // Readonly<Ref<ActionError | null>>
-store.action.fetch.data       // DeepReadonly<T> | null
-store.action.fetch.reset()    // Reset status, error, and data
+store.action.fetch.loading; // ComputedRef<boolean>
+store.action.fetch.status; // Readonly<Ref<ActionStatus>>
+store.action.fetch.error; // Readonly<Ref<ActionError | null>>
+store.action.fetch.data; // DeepReadonly<T> | null
+store.action.fetch.reset(); // Reset status, error, and data
 ```
 
 ## Factories
