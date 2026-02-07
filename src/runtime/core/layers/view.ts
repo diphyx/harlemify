@@ -1,5 +1,6 @@
 import type { Model, ModelInstance } from "../types/model";
 import type {
+    RuntimeViewConfig,
     ViewFromResolver,
     ViewMergeResolver,
     ViewFromDefinition,
@@ -7,7 +8,7 @@ import type {
     ViewFactory,
 } from "../types/view";
 
-export function createViewFactory<M extends Model>(_model?: M): ViewFactory<M> {
+export function createViewFactory<M extends Model>(_config?: RuntimeViewConfig, _model?: M): ViewFactory<M> {
     function from<K extends keyof M, R = ModelInstance<M, K>>(
         source: K,
         resolver?: ViewFromResolver<M, K, R>,

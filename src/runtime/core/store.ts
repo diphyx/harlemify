@@ -1,5 +1,7 @@
 import { createStore as createSourceStore } from "@harlem/core";
 
+import { runtimeConfig } from "../config";
+
 import { createModelFactory } from "./layers/model";
 import { createViewFactory } from "./layers/view";
 import { createActionFactory } from "./layers/action";
@@ -96,9 +98,9 @@ export function createStore<
     VD extends ViewDefinitions<M>,
     AD extends ActionDefinitions<M, StoreView<M, VD>>,
 >(config: StoreConfig<M, VD, AD>): Store<M, VD, AD> {
-    const modelFactory = createModelFactory();
-    const viewFactory = createViewFactory<M>();
-    const actionFactory = createActionFactory<M, StoreView<M, VD>>();
+    const modelFactory = createModelFactory(runtimeConfig.model);
+    const viewFactory = createViewFactory<M>(runtimeConfig.view);
+    const actionFactory = createActionFactory<M, StoreView<M, VD>>(runtimeConfig.action);
 
     const modelDefinitions = config.model(modelFactory);
     const viewDefinitions = config.view(viewFactory);

@@ -13,6 +13,7 @@ import {
     type ActionError,
     type ActionHandleError,
     type ActionHandleResolver,
+    ActionApiMethod,
     ActionOneMode,
     ActionManyMode,
     ActionStatus,
@@ -115,6 +116,17 @@ function resolveApiValue<V, T>(value: unknown, view: DeepReadonly<V>, fallback?:
     return toValue(value as T) || (fallback as T);
 }
 
+function resolveApiUrl<V>(definition: ActionApiDefinition<V>, view: DeepReadonly<V>): string {
+    const endpoint = (definition.endpoint ?? "").replace(/\/+$/, "");
+    const path = resolveApiValue<V, string>(definition.url, view);
+
+    if (endpoint) {
+        return `${endpoint}/${path.replace(/^\/+/, "")}`;
+    }
+
+    return path;
+}
+
 function resolveApiHeaders<V>(
     definition: ActionApiDefinition<V>,
     view: DeepReadonly<V>,
@@ -137,7 +149,15 @@ function resolveApiQuery<V>(
     return defu(custom, initial);
 }
 
-function resolveApiBody<V>(definition: ActionApiDefinition<V>, view: DeepReadonly<V>, payload?: ActionCallPayload<V>) {
+function resolveApiBody<V>(
+    definition: ActionApiDefinition<V>,
+    view: DeepReadonly<V>,
+    payload?: ActionCallPayload<V>,
+): any {
+    if (definition.method === ActionApiMethod.GET || definition.method === ActionApiMethod.HEAD) {
+        return undefined;
+    }
+
     const initial = resolveApiValue(definition.body, view, {}) as any;
     const custom = resolveApiValue(payload?.body, view, {}) as any;
 
@@ -149,13 +169,13 @@ async function executeApi<V>(
     view: DeepReadonly<V>,
     payload?: ActionCallPayload<V>,
 ): Promise<unknown> {
-    const url = resolveApiValue<V, string>(definition.url, view);
+    const url = resolveApiUrl(definition, view);
 
     return $fetch(url, {
         method: definition.method,
         headers: resolveApiHeaders(definition, view, payload),
         query: resolveApiQuery(definition, view, payload),
-        body: resolveApiBody(definition, view, payload) as any,
+        body: resolveApiBody(definition, view, payload),
         timeout: payload?.timeout ?? definition.timeout,
         signal: payload?.signal,
     });
@@ -180,7 +200,7 @@ export function createAction<M extends Model, V, R>(
 
     async function execute(payload?: ActionCallPayload<V, R>): Promise<R> {
         if (loading.value) {
-            const concurrent = payload?.concurrent ?? ActionConcurrent.BLOCK;
+            const concurrent = payload?.concurrent ?? definition.api?.concurrent ?? ActionConcurrent.BLOCK;
 
             switch (concurrent) {
                 case ActionConcurrent.BLOCK: {
@@ -220,11 +240,14 @@ export function createAction<M extends Model, V, R>(
 
                         response = await executeApi(definition.api, readonlyView, apiPayload);
                     } catch (error: any) {
-                        throw createApiError(error?.message ?? "API request failed", {
+                        const errorMessage = error?.message ?? "API request failed";
+                        const errorOptions = {
                             status: error?.status ?? error?.response?.status,
                             statusText: error?.statusText ?? error?.response?.statusText,
                             data: error?.data ?? error?.response?._data,
-                        });
+                        };
+
+                        throw createApiError(errorMessage, errorOptions);
                     }
 
                     if (definition.handle) {

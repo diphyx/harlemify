@@ -1,23 +1,63 @@
-import { z, ZodObject } from "zod";
+import { z } from "zod";
 
-export { ZodObject };
+import type { ShapeFactory } from "../types/shape";
 
-export type Field = typeof field;
-
-export const field = {
+export const primitiveField = {
     string: z.string,
     number: z.number,
     boolean: z.boolean,
-    array: z.array,
-    object: z.object,
-    enum: z.enum,
+    bigint: z.bigint,
     date: z.date,
-    union: z.union,
 };
 
-export function shape<T extends z.ZodRawShape>(definition: T | ((field: Field) => T)): z.ZodObject<T> {
+export const structureField = {
+    object: z.object,
+    array: z.array,
+    tuple: z.tuple,
+    record: z.record,
+    map: z.map,
+    set: z.set,
+    enum: z.enum,
+    union: z.union,
+    literal: z.literal,
+};
+
+export const formatField = {
+    email: z.email,
+    url: z.url,
+    uuid: z.uuid,
+    cuid: z.cuid,
+    cuid2: z.cuid2,
+    ulid: z.ulid,
+    nanoid: z.nanoid,
+    jwt: z.jwt,
+    emoji: z.emoji,
+    ipv4: z.ipv4,
+    ipv6: z.ipv6,
+    mac: z.mac,
+    base64: z.base64,
+    base64url: z.base64url,
+    hex: z.hex,
+};
+
+export const specialField = {
+    any: z.any,
+    unknown: z.unknown,
+    never: z.never,
+    nullable: z.nullable,
+    optional: z.optional,
+};
+
+export function shape<T extends z.ZodRawShape>(definition: T | ((factory: ShapeFactory) => T)): z.ZodObject<T> {
     if (typeof definition === "function") {
-        return z.object(definition(field));
+        return z.object(
+            definition({
+                ...primitiveField,
+                ...structureField,
+                ...formatField,
+                ...specialField,
+            }),
+        );
     }
 
     return z.object(definition);

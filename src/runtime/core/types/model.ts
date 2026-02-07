@@ -1,5 +1,9 @@
 import type { Shape, ShapeType } from "./shape";
 
+export interface RuntimeModelConfig {
+    identifier?: string;
+}
+
 export enum ModelKind {
     OBJECT = "object",
     ARRAY = "array",

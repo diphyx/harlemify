@@ -1,16 +1,18 @@
-import type { ActionConcurrent } from "./core/types/action";
+// @ts-expect-error - Generated at build time by addTemplate
+import config from "#build/harlemify.config";
+
+import type { RuntimeModelConfig } from "./core/types/model";
+import type { RuntimeViewConfig } from "./core/types/view";
+import type { RuntimeActionConfig } from "./core/types/action";
 
 export type RuntimeConfig = {
-    model?: {
-        identifier?: string;
-    };
-    action?: {
-        endpoint?: string;
-        headers?: Record<string, string>;
-        query?: Record<string, unknown>;
-        timeout?: number;
-        concurrent?: ActionConcurrent;
-    };
+    model?: RuntimeModelConfig;
+    view?: RuntimeViewConfig;
+    action?: RuntimeActionConfig;
 };
 
-export const runtimeConfig: RuntimeConfig = {};
+export const runtimeConfig: RuntimeConfig = {
+    model: config.model ?? {},
+    view: config.view ?? {},
+    action: config.action ?? {},
+};

@@ -1,5 +1,6 @@
 import type { Shape, ShapeType } from "../types/shape";
 import {
+    type RuntimeModelConfig,
     type ModelOneOptions,
     type ModelManyOptions,
     type ModelOneDefinition,
@@ -8,12 +9,15 @@ import {
     ModelKind,
 } from "../types/model";
 
-export function createModelFactory(): ModelFactory {
+export function createModelFactory(config?: RuntimeModelConfig): ModelFactory {
     function one<S extends Shape>(shape: ShapeType<S>, options?: ModelOneOptions<S>): ModelOneDefinition<S> {
         return {
             shape,
             kind: ModelKind.OBJECT,
-            options,
+            options: {
+                identifier: config?.identifier,
+                ...options,
+            },
         };
     }
 
@@ -21,7 +25,10 @@ export function createModelFactory(): ModelFactory {
         return {
             shape,
             kind: ModelKind.ARRAY,
-            options,
+            options: {
+                identifier: config?.identifier,
+                ...options,
+            },
         };
     }
 

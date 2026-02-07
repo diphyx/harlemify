@@ -2,6 +2,7 @@ import { buildCommitMethod } from "../utils/action";
 
 import type { Model } from "../types/model";
 import {
+    type RuntimeActionConfig,
     type ActionApiDefinition,
     type ActionApiShortcutDefinition,
     type ActionDefinition,
@@ -14,9 +15,24 @@ import {
     DEFINITION,
 } from "../types/action";
 
-export function createActionFactory<M extends Model, V>(_model?: M, _view?: V): ActionFactory<M, V> {
+export function createActionFactory<M extends Model, V>(
+    config?: RuntimeActionConfig,
+    _model?: M,
+    _view?: V,
+): ActionFactory<M, V> {
     function apiCall<A>(apiDefinition: ActionApiDefinition<V>): ActionApiChain<M, V, A> {
-        const definition: ActionDefinition<M, V, A> = { api: apiDefinition };
+        apiDefinition = {
+            endpoint: config?.endpoint,
+            headers: config?.headers,
+            query: config?.query,
+            timeout: config?.timeout,
+            concurrent: config?.concurrent,
+            ...apiDefinition,
+        };
+
+        const actionDefinition: ActionDefinition<M, V, A> = {
+            api: apiDefinition,
+        };
 
         return {
             handle<R>(callback: ActionHandleCallback<M, V, R, A>): ActionHandleChain<M, V, R> {
@@ -32,9 +48,9 @@ export function createActionFactory<M extends Model, V>(_model?: M, _view?: V): 
                     },
                 };
             },
-            commit: buildCommitMethod(definition),
+            commit: buildCommitMethod(actionDefinition),
             get [DEFINITION]() {
-                return definition;
+                return actionDefinition;
             },
         };
     }
@@ -43,6 +59,13 @@ export function createActionFactory<M extends Model, V>(_model?: M, _view?: V): 
         return apiCall({
             ...definition,
             method: ActionApiMethod.GET,
+        });
+    }
+
+    function apiHead<A>(definition: ActionApiShortcutDefinition<V>): ActionApiChain<M, V, A> {
+        return apiCall({
+            ...definition,
+            method: ActionApiMethod.HEAD,
         });
     }
 
@@ -76,6 +99,7 @@ export function createActionFactory<M extends Model, V>(_model?: M, _view?: V): 
 
     const api = Object.assign(apiCall, {
         get: apiGet,
+        head: apiHead,
         post: apiPost,
         put: apiPut,
         patch: apiPatch,

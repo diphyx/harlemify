@@ -2,6 +2,14 @@ import type { ComputedRef, DeepReadonly, MaybeRefOrGetter, Ref } from "vue";
 
 import type { Model, ModelShape, MutationsOneOptions, MutationsManyOptions } from "./model";
 
+export interface RuntimeActionConfig {
+    endpoint?: string;
+    headers?: Record<string, string>;
+    query?: Record<string, unknown>;
+    timeout?: number;
+    concurrent?: ActionConcurrent;
+}
+
 export const DEFINITION = Symbol("definition");
 
 export enum ActionOneMode {
@@ -34,6 +42,7 @@ export enum ActionConcurrent {
 
 export enum ActionApiMethod {
     GET = "GET",
+    HEAD = "HEAD",
     POST = "POST",
     PUT = "PUT",
     PATCH = "PATCH",
@@ -66,12 +75,14 @@ export type ActionError = ActionApiError | ActionHandleError | ActionCommitError
 export type ActionApiValue<V, T> = MaybeRefOrGetter<T> | ((view: DeepReadonly<V>) => T);
 
 export interface ActionApiDefinition<V> {
+    endpoint?: string;
     url: ActionApiValue<V, string>;
     method: ActionApiMethod;
     headers?: ActionApiValue<V, Record<string, string>>;
     query?: ActionApiValue<V, Record<string, unknown>>;
     body?: ActionApiValue<V, unknown>;
     timeout?: number;
+    concurrent?: ActionConcurrent;
 }
 
 export type ActionCommitValue<M extends Model, K extends keyof M, Mode> = Mode extends ActionOneMode.SET
@@ -180,6 +191,7 @@ export type ActionApiShortcutDefinition<V> = Omit<ActionApiDefinition<V>, "metho
 export interface ActionApiFactory<M extends Model, V> {
     <A>(definition: ActionApiDefinition<V>): ActionApiChain<M, V, A>;
     get<A>(definition: ActionApiShortcutDefinition<V>): ActionApiChain<M, V, A>;
+    head<A>(definition: ActionApiShortcutDefinition<V>): ActionApiChain<M, V, A>;
     post<A>(definition: ActionApiShortcutDefinition<V>): ActionApiChain<M, V, A>;
     put<A>(definition: ActionApiShortcutDefinition<V>): ActionApiChain<M, V, A>;
     patch<A>(definition: ActionApiShortcutDefinition<V>): ActionApiChain<M, V, A>;

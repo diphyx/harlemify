@@ -1,13 +1,20 @@
+// Core
 export { createStore } from "./core/store";
-export { useIsolatedActionStatus, useIsolatedActionError } from "./composables/action";
+export type { Store, StoreConfig } from "./core/store";
 
+// Shape
+export { shape } from "./core/layers/shape";
+export type { ShapeInfer } from "./core/types/shape";
+
+// Model
 export { ModelKind } from "./core/types/model";
 
+// Action
 export { ActionOneMode, ActionManyMode, ActionStatus, ActionConcurrent, ActionApiMethod } from "./core/types/action";
 export type {
     Action,
-    ActionApiShortcutDefinition,
     ActionCallPayload,
+    ActionApiShortcutDefinition,
     ActionError,
     ActionApiError,
     ActionHandleError,
@@ -15,6 +22,8 @@ export type {
     ActionConcurrentError,
 } from "./core/types/action";
 
-export type { ShapeInfer } from "./core/types/shape";
-export type { StoreConfig, Store } from "./core/store";
+// Composables
+export { useIsolatedActionStatus, useIsolatedActionError } from "./composables/action";
+
+// Config
 export type { RuntimeConfig } from "./config";
