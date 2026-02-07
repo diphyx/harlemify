@@ -14,7 +14,7 @@ import {
     DEFINITION,
 } from "../types/action";
 
-export function createActionFactory<M extends Model, V>(): ActionFactory<M, V> {
+export function createActionFactory<M extends Model, V>(_model?: M, _view?: V): ActionFactory<M, V> {
     function apiCall<A>(apiDefinition: ActionApiDefinition<V>): ActionApiChain<M, V, A> {
         const definition: ActionDefinition<M, V, A> = { api: apiDefinition };
 

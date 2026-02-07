@@ -8,6 +8,8 @@ import { initializeState, createMutations, createCommitter } from "./utils/model
 import { createView } from "./utils/view";
 import { createAction } from "./utils/action";
 
+import type { ComputedRef } from "vue";
+
 import type { Model, ModelFactory, Mutations } from "./types/model";
 import type { ViewDefinitions, ViewResult, ViewFactory } from "./types/view";
 import {
@@ -25,7 +27,7 @@ import {
 export type StoreModel<M extends Model> = ActionCommitter<M>;
 
 export type StoreView<M extends Model, VD extends ViewDefinitions<M>> = {
-    readonly [K in keyof VD]: ViewResult<M, VD[K]>;
+    readonly [K in keyof VD]: ComputedRef<ViewResult<M, VD[K]>>;
 };
 
 export type StoreAction<M extends Model, V, AD extends Record<string, ActionDefinition<M, V, unknown>>> = {

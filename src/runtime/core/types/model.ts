@@ -1,4 +1,4 @@
-import type { Shape, ShapeDefinition } from "./shape";
+import type { Shape, ShapeType } from "./shape";
 
 export enum ModelKind {
     OBJECT = "object",
@@ -16,20 +16,20 @@ export interface ModelManyOptions<S extends Shape> {
 }
 
 export interface ModelOneDefinition<S extends Shape> {
-    shape: ShapeDefinition;
+    shape: ShapeType<S>;
     kind: ModelKind.OBJECT;
     options?: ModelOneOptions<S>;
 }
 
 export interface ModelManyDefinition<S extends Shape> {
-    shape: ShapeDefinition;
+    shape: ShapeType<S>;
     kind: ModelKind.ARRAY;
     options?: ModelManyOptions<S>;
 }
 
 export type ModelDefinition<S extends Shape> = ModelOneDefinition<S> | ModelManyDefinition<S>;
 
-export type Model = Record<string, ModelDefinition<Shape>>;
+export type Model = Record<string, ModelDefinition<any>>;
 
 export type ModelInstance<M extends Model, K extends keyof M> =
     M[K] extends ModelOneDefinition<infer S> ? S | null : M[K] extends ModelManyDefinition<infer S> ? S[] : never;
@@ -49,8 +49,8 @@ export type ModelStateOf<M extends Model> = {
 };
 
 export interface ModelFactory {
-    one<S extends Shape>(shape: ShapeDefinition, options?: ModelOneOptions<S>): ModelOneDefinition<S>;
-    many<S extends Shape>(shape: ShapeDefinition, options?: ModelManyOptions<S>): ModelManyDefinition<S>;
+    one<S extends Shape>(shape: ShapeType<S>, options?: ModelOneOptions<S>): ModelOneDefinition<S>;
+    many<S extends Shape>(shape: ShapeType<S>, options?: ModelManyOptions<S>): ModelManyDefinition<S>;
 }
 
 export interface MutationsOneOptions {

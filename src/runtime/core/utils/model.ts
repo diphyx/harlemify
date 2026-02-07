@@ -1,8 +1,8 @@
 import { defu } from "defu";
+import type { ShapeDefinition, Shape } from "../types/shape";
 import type { Store as SourceStore, BaseState, Mutation } from "@harlem/core";
 
 import { resolveShape } from "./shape";
-import type { Shape } from "../types/shape";
 import {
     type Model,
     type ModelOneDefinition,
@@ -35,7 +35,7 @@ function getIdentifier(definition: ModelOneDefinition<Shape> | ModelManyDefiniti
         return definition.options.identifier;
     }
 
-    const { identifier } = resolveShape(definition.shape);
+    const { identifier } = resolveShape(definition.shape as ShapeDefinition);
     if (identifier) {
         return identifier;
     }

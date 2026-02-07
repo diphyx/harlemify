@@ -1,6 +1,6 @@
 import type { ComputedRef, DeepReadonly, MaybeRefOrGetter, Ref } from "vue";
 
-import type { Model, ModelManyKey, ModelOneKey, ModelShape, MutationsOneOptions, MutationsManyOptions } from "./model";
+import type { Model, ModelShape, MutationsOneOptions, MutationsManyOptions } from "./model";
 
 export const DEFINITION = Symbol("definition");
 
@@ -93,14 +93,14 @@ export type ActionCommitValue<M extends Model, K extends keyof M, Mode> = Mode e
                   : never;
 
 export type ActionCommitter<M extends Model> = {
-    <K extends ModelOneKey<M>, Mode extends ActionOneMode>(
+    <K extends keyof M, Mode extends ActionOneMode>(
         model: K,
         mode: Mode,
         ...args: Mode extends ActionOneMode.RESET
             ? []
             : [value: ActionCommitValue<M, K, Mode>, options?: MutationsOneOptions]
     ): void;
-    <K extends ModelManyKey<M>, Mode extends ActionManyMode>(
+    <K extends keyof M, Mode extends ActionManyMode>(
         model: K,
         mode: Mode,
         ...args: Mode extends ActionManyMode.RESET
@@ -144,14 +144,14 @@ export interface ActionDefinition<M extends Model, V, R = void> {
 export type ActionDefinitions<M extends Model, V> = Record<string, ActionDefinition<M, V, unknown>>;
 
 export interface ActionCommitMethod<M extends Model, V, R> {
-    <K extends ModelOneKey<M>, Mode extends ActionOneMode>(
+    <K extends keyof M, Mode extends ActionOneMode>(
         model: K,
         mode: Mode,
         ...args: Mode extends ActionOneMode.RESET
             ? []
             : [value?: ActionCommitValue<M, K, Mode>, options?: MutationsOneOptions]
     ): ActionCommitChain<M, V, R>;
-    <K extends ModelManyKey<M>, Mode extends ActionManyMode>(
+    <K extends keyof M, Mode extends ActionManyMode>(
         model: K,
         mode: Mode,
         ...args: Mode extends ActionManyMode.RESET

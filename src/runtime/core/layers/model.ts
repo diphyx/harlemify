@@ -1,4 +1,4 @@
-import type { Shape, ShapeDefinition } from "../types/shape";
+import type { Shape, ShapeType } from "../types/shape";
 import {
     type ModelOneOptions,
     type ModelManyOptions,
@@ -9,7 +9,7 @@ import {
 } from "../types/model";
 
 export function createModelFactory(): ModelFactory {
-    function one<S extends Shape>(shape: ShapeDefinition, options?: ModelOneOptions<S>): ModelOneDefinition<S> {
+    function one<S extends Shape>(shape: ShapeType<S>, options?: ModelOneOptions<S>): ModelOneDefinition<S> {
         return {
             shape,
             kind: ModelKind.OBJECT,
@@ -17,7 +17,7 @@ export function createModelFactory(): ModelFactory {
         };
     }
 
-    function many<S extends Shape>(shape: ShapeDefinition, options?: ModelManyOptions<S>): ModelManyDefinition<S> {
+    function many<S extends Shape>(shape: ShapeType<S>, options?: ModelManyOptions<S>): ModelManyDefinition<S> {
         return {
             shape,
             kind: ModelKind.ARRAY,

@@ -1,13 +1,13 @@
-import type { DeepReadonly } from "vue";
-
 import type { Model, ModelInstance } from "./model";
 
-export type ViewFromResolver<M extends Model, K extends keyof M, R> = (value: DeepReadonly<ModelInstance<M, K>>) => R;
+export type ViewFromResolver<M extends Model, K extends keyof M, R> = (value: ModelInstance<M, K>) => R;
+
+export type ModelInstanceTuple<M extends Model, K extends readonly (keyof M)[]> = {
+    [I in keyof K]: K[I] extends keyof M ? ModelInstance<M, K[I]> : never;
+};
 
 export type ViewMergeResolver<M extends Model, K extends readonly (keyof M)[], R> = (
-    ...values: {
-        [I in keyof K]: K[I] extends keyof M ? DeepReadonly<ModelInstance<M, K[I]>> : never;
-    }
+    ...values: [...ModelInstanceTuple<M, K>]
 ) => R;
 
 export interface ViewFromDefinition<M extends Model, K extends keyof M, R = ModelInstance<M, K>> {
@@ -36,6 +36,14 @@ export type ViewResult<M extends Model, VD extends ViewDefinition<M>> =
 export interface ViewFactory<M extends Model> {
     from<K extends keyof M>(source: K): ViewFromDefinition<M, K, ModelInstance<M, K>>;
     from<K extends keyof M, R>(source: K, resolver: ViewFromResolver<M, K, R>): ViewFromDefinition<M, K, R>;
+    merge<K1 extends keyof M, K2 extends keyof M, R>(
+        sources: readonly [K1, K2],
+        resolver: (v1: ModelInstance<M, K1>, v2: ModelInstance<M, K2>) => R,
+    ): ViewMergeDefinition<M, readonly [K1, K2], R>;
+    merge<K1 extends keyof M, K2 extends keyof M, K3 extends keyof M, R>(
+        sources: readonly [K1, K2, K3],
+        resolver: (v1: ModelInstance<M, K1>, v2: ModelInstance<M, K2>, v3: ModelInstance<M, K3>) => R,
+    ): ViewMergeDefinition<M, readonly [K1, K2, K3], R>;
     merge<K extends readonly (keyof M)[], R>(
         sources: K,
         resolver: ViewMergeResolver<M, K, R>,

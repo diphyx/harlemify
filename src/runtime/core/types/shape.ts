@@ -2,7 +2,9 @@ import type { z } from "zod";
 
 export type ShapeDefinition = z.ZodObject<z.ZodRawShape>;
 
-export type ShapeInfer<T extends z.ZodObject<any>> = z.infer<T>;
+export type ShapeType<S> = z.ZodType<S>;
+
+export type ShapeInfer<T extends z.ZodType<any>> = z.infer<T>;
 
 export type Shape = Record<string, unknown>;
 
