@@ -1,10 +1,12 @@
 import "zod";
 import "@nuxt/schema";
 
-import type { SchemaMeta, RuntimeConfig } from "./runtime";
+import type { RuntimeConfig } from "./runtime";
 
 declare module "zod" {
-    interface GlobalMeta extends SchemaMeta {}
+    interface GlobalMeta {
+        identifier?: boolean;
+    }
 }
 
 declare module "@nuxt/schema" {

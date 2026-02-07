@@ -1,13 +1,16 @@
-import type { ApiFetchAdapterOptions } from "./utils/adapter";
+import type { ActionConcurrent } from "./core/types/action";
 
 export type RuntimeConfig = {
-    api?: {
+    model?: {
+        identifier?: string;
+    };
+    action?: {
+        endpoint?: string;
         headers?: Record<string, string>;
         query?: Record<string, unknown>;
-        adapter?: ApiFetchAdapterOptions;
+        timeout?: number;
+        concurrent?: ActionConcurrent;
     };
 };
 
-export const runtimeConfig: RuntimeConfig = {
-    api: {},
-};
+export const runtimeConfig: RuntimeConfig = {};

@@ -8,7 +8,8 @@ import config from "#build/harlemify.config";
 import { runtimeConfig } from "./config";
 
 export default defineNuxtPlugin((nuxtApp) => {
-    runtimeConfig.api = config.api;
+    runtimeConfig.model = config.model;
+    runtimeConfig.action = config.action;
 
     const plugins = [];
 
@@ -16,7 +17,7 @@ export default defineNuxtPlugin((nuxtApp) => {
         plugins.push(createServerSSRPlugin());
     }
 
-    if (import.meta.client && window.__harlemState) {
+    if (import.meta.client && window["__harlemState"]) {
         plugins.push(createClientSSRPlugin());
     }
 
