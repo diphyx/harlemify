@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createStore } from "@harlem/core";
 
 import { shape } from "../src/runtime/core/layers/shape";
@@ -21,12 +21,7 @@ import type { Model } from "../src/runtime/core/types/model";
 import { useIsolatedActionStatus, useIsolatedActionError } from "../src/runtime/composables/action";
 import type { ShapeInfer } from "../src/runtime/core/types/shape";
 
-const mockFetch = vi.fn();
-vi.stubGlobal("$fetch", mockFetch);
-
-beforeEach(() => {
-    vi.clearAllMocks();
-});
+const mockFetch = globalThis.$fetch as unknown as ReturnType<typeof vi.fn>;
 
 const UserShape = shape((factory) => {
     return {
