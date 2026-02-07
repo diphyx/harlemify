@@ -1,4 +1,4 @@
-import { defineNuxtModule, addPlugin, addTemplate, createResolver, addImportsDir } from "@nuxt/kit";
+import { defineNuxtModule, addPlugin, addTemplate, createResolver, addImports, addImportsDir } from "@nuxt/kit";
 
 import type { RuntimeConfig } from "./runtime";
 
@@ -10,13 +10,7 @@ export default defineNuxtModule<RuntimeConfig>({
             nuxt: ">=3.0.0 || >=4.0.0",
         },
     },
-    defaults: {
-        api: {
-            headers: {},
-            query: {},
-            adapter: {},
-        },
-    },
+    defaults: {},
     setup(options, nuxt) {
         const { resolve } = createResolver(import.meta.url);
 
@@ -29,10 +23,13 @@ export default defineNuxtModule<RuntimeConfig>({
         });
 
         addPlugin(resolve("./runtime", "plugin"));
-
-        addImportsDir(resolve("./runtime", "core"));
         addImportsDir(resolve("./runtime", "composables"));
-        addImportsDir(resolve("./runtime", "utils"));
+        addImports([
+            {
+                name: "createStore",
+                from: resolve("./runtime/core/store"),
+            },
+        ]);
 
         nuxt.options.build.transpile.push(/@harlem\//);
     },

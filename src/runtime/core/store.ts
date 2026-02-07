@@ -1,77 +1,118 @@
-import harlem from "@harlem/core";
+import { createStore as createSourceStore } from "@harlem/core";
 
-import { createStoreSchema } from "./schema";
-import { createStoreGetters } from "./getters";
-import { createStoreMutations } from "./mutations";
-import { createStoreActions } from "./actions";
-import { createStoreHandlers } from "./handler";
+import { createModelFactory } from "./layers/model";
+import { createViewFactory } from "./layers/view";
+import { createActionFactory } from "./layers/action";
 
-import type { EntityDefinition } from "./entity";
-import type { SchemaShape, SchemaDefinition, StoreSchema } from "./schema";
-import type { StoreGetters } from "./getters";
-import type { StoreMutations } from "./mutations";
-import type { StoreActions } from "./actions";
-import type { HandlersDefinition, StoreHandlers } from "./handler";
+import { initializeState, createMutations, createCommitter } from "./utils/model";
+import { createView } from "./utils/view";
+import { createAction } from "./utils/action";
 
-interface StoreDefinition<S extends string, P extends string, T extends SchemaShape> {
-    entity: EntityDefinition<S, P>;
-    schema: SchemaDefinition<T>;
-    handlers: HandlersDefinition<SchemaDefinition<T, "infer">>;
-}
+import type { Model, ModelFactory, Mutations } from "./types/model";
+import type { ViewDefinitions, ViewResult, ViewFactory } from "./types/view";
+import {
+    type Action,
+    type ActionApiChain,
+    type ActionCommitChain,
+    type ActionCommitter,
+    type ActionDefinition,
+    type ActionDefinitions,
+    type ActionFactory,
+    type ActionHandleChain,
+    DEFINITION,
+} from "./types/action";
 
-interface StoreOptions {
-    indicator?: string;
-}
+export type StoreModel<M extends Model> = ActionCommitter<M>;
 
-export type Store<S extends string, P extends string, T, H extends HandlersDefinition<T>, I extends keyof T> = {
-    source: any;
-    entity: EntityDefinition<S, P>;
-    schema: StoreSchema<T>;
-    getters: StoreGetters<T>;
-    mutations: StoreMutations<T, I>;
-    actions: StoreActions<H>;
-    handlers: StoreHandlers<H, T>;
+export type StoreView<M extends Model, VD extends ViewDefinitions<M>> = {
+    readonly [K in keyof VD]: ViewResult<M, VD[K]>;
 };
 
+export type StoreAction<M extends Model, V, AD extends Record<string, ActionDefinition<M, V, unknown>>> = {
+    [K in keyof AD]: Action<V>;
+};
+
+export interface StoreConfig<
+    M extends Model,
+    VD extends ViewDefinitions<M>,
+    _AD extends ActionDefinitions<M, StoreView<M, VD>>,
+> {
+    name: string;
+    model: (factory: ModelFactory) => M;
+    view: (factory: ViewFactory<M>) => VD;
+    action: (
+        factory: ActionFactory<M, StoreView<M, VD>>,
+    ) => Record<
+        string,
+        | ActionApiChain<M, StoreView<M, VD>, any>
+        | ActionHandleChain<M, StoreView<M, VD>, any>
+        | ActionCommitChain<M, StoreView<M, VD>, any>
+    >;
+}
+
+export interface Store<
+    M extends Model,
+    VD extends ViewDefinitions<M>,
+    AD extends ActionDefinitions<M, StoreView<M, VD>>,
+> {
+    model: StoreModel<M>;
+    view: StoreView<M, VD>;
+    action: StoreAction<M, StoreView<M, VD>, AD>;
+}
+
+function createStoreModel<M extends Model>(mutations: Mutations<M>): StoreModel<M> {
+    return createCommitter(mutations);
+}
+
+function createStoreView<M extends Model, VD extends ViewDefinitions<M>>(
+    source: ReturnType<typeof createSourceStore>,
+    viewDefinitions: VD,
+): StoreView<M, VD> {
+    return createView(source, viewDefinitions);
+}
+
+function createStoreAction<
+    M extends Model,
+    VD extends ViewDefinitions<M>,
+    AD extends ActionDefinitions<M, StoreView<M, VD>>,
+>(
+    actionDefinitions: Record<string, any>,
+    view: StoreView<M, VD>,
+    mutations: Mutations<M>,
+): StoreAction<M, StoreView<M, VD>, AD> {
+    const actions = {} as Record<string, Action<StoreView<M, VD>>>;
+
+    for (const [key, chain] of Object.entries(actionDefinitions)) {
+        actions[key] = createAction((chain as any)[DEFINITION], view, mutations);
+    }
+
+    return actions as StoreAction<M, StoreView<M, VD>, AD>;
+}
+
 export function createStore<
-    S extends string,
-    P extends string,
-    T extends SchemaShape,
-    H extends HandlersDefinition<SchemaDefinition<T, "infer">>,
-    I extends keyof SchemaDefinition<T, "infer"> = "id" & keyof SchemaDefinition<T, "infer">,
->(parameters: StoreDefinition<S, P, T>, options?: StoreOptions): Store<S, P, SchemaDefinition<T, "infer">, H, I> {
-    type Unit = SchemaDefinition<T, "infer">;
+    M extends Model,
+    VD extends ViewDefinitions<M>,
+    AD extends ActionDefinitions<M, StoreView<M, VD>>,
+>(config: StoreConfig<M, VD, AD>): Store<M, VD, AD> {
+    const modelFactory = createModelFactory();
+    const viewFactory = createViewFactory<M>();
+    const actionFactory = createActionFactory<M, StoreView<M, VD>>();
 
-    const schema = createStoreSchema(parameters.schema, {
-        indicator: options?.indicator as keyof Unit,
-    });
+    const modelDefinitions = config.model(modelFactory);
+    const viewDefinitions = config.view(viewFactory);
+    const actionDefinitions = config.action(actionFactory);
 
-    const source = harlem.createStore(parameters.entity.unit, {
-        unit: null as Unit | null,
-        units: [] as Unit[],
-        handlers: [],
-    });
+    const state = initializeState(modelDefinitions);
+    const source = createSourceStore(config.name, state);
+    const mutations = createMutations(source, modelDefinitions);
 
-    const getters = createStoreGetters(source);
-    const mutations = createStoreMutations(source, schema.indicator as I);
-    const actions = createStoreActions(source);
-
-    const handlers = createStoreHandlers(parameters.handlers, {
-        source,
-        schema,
-        entity: parameters.entity,
-        getters,
-        mutations,
-        actions,
-    });
+    const model = createStoreModel(mutations);
+    const view = createStoreView<M, VD>(source, viewDefinitions);
+    const action = createStoreAction<M, VD, AD>(actionDefinitions, view, mutations);
 
     return {
-        source,
-        entity: parameters.entity,
-        schema,
-        getters,
-        mutations,
-        actions,
-        handlers,
+        model,
+        view,
+        action,
     };
 }

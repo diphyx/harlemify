@@ -1,0 +1,105 @@
+import { buildCommitMethod } from "../utils/action";
+
+import type { Model } from "../types/model";
+import {
+    type ActionApiDefinition,
+    type ActionApiShortcutDefinition,
+    type ActionDefinition,
+    type ActionApiChain,
+    type ActionHandleChain,
+    type ActionHandleCallback,
+    type ActionHandleCallbackNoApi,
+    type ActionFactory,
+    ActionApiMethod,
+    DEFINITION,
+} from "../types/action";
+
+export function createActionFactory<M extends Model, V>(): ActionFactory<M, V> {
+    function apiCall<A>(apiDefinition: ActionApiDefinition<V>): ActionApiChain<M, V, A> {
+        const definition: ActionDefinition<M, V, A> = { api: apiDefinition };
+
+        return {
+            handle<R>(callback: ActionHandleCallback<M, V, R, A>): ActionHandleChain<M, V, R> {
+                const handleDefinition: ActionDefinition<M, V, R> = {
+                    api: apiDefinition,
+                    handle: callback as ActionHandleCallback<M, V, R, unknown>,
+                };
+
+                return {
+                    commit: buildCommitMethod(handleDefinition),
+                    get [DEFINITION]() {
+                        return handleDefinition;
+                    },
+                };
+            },
+            commit: buildCommitMethod(definition),
+            get [DEFINITION]() {
+                return definition;
+            },
+        };
+    }
+
+    function apiGet<A>(definition: ActionApiShortcutDefinition<V>): ActionApiChain<M, V, A> {
+        return apiCall({
+            ...definition,
+            method: ActionApiMethod.GET,
+        });
+    }
+
+    function apiPost<A>(definition: ActionApiShortcutDefinition<V>): ActionApiChain<M, V, A> {
+        return apiCall({
+            ...definition,
+            method: ActionApiMethod.POST,
+        });
+    }
+
+    function apiPut<A>(definition: ActionApiShortcutDefinition<V>): ActionApiChain<M, V, A> {
+        return apiCall({
+            ...definition,
+            method: ActionApiMethod.PUT,
+        });
+    }
+
+    function apiPatch<A>(definition: ActionApiShortcutDefinition<V>): ActionApiChain<M, V, A> {
+        return apiCall({
+            ...definition,
+            method: ActionApiMethod.PATCH,
+        });
+    }
+
+    function apiDelete<A>(definition: ActionApiShortcutDefinition<V>): ActionApiChain<M, V, A> {
+        return apiCall({
+            ...definition,
+            method: ActionApiMethod.DELETE,
+        });
+    }
+
+    const api = Object.assign(apiCall, {
+        get: apiGet,
+        post: apiPost,
+        put: apiPut,
+        patch: apiPatch,
+        delete: apiDelete,
+    });
+
+    function handle<R>(callback: ActionHandleCallbackNoApi<M, V, R>): ActionHandleChain<M, V, R> {
+        const definition: ActionDefinition<M, V, R> = {
+            handle: callback,
+        };
+
+        return {
+            commit: buildCommitMethod(definition),
+            get [DEFINITION]() {
+                return definition;
+            },
+        };
+    }
+
+    const commit = buildCommitMethod({} as ActionDefinition<M, V, void>);
+
+    return {
+        api,
+        handle,
+        commit,
+    };
+}
