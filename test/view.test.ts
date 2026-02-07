@@ -8,11 +8,11 @@ import { initializeState, createMutations } from "../src/runtime/core/utils/mode
 import { createView } from "../src/runtime/core/utils/view";
 import type { ShapeInfer } from "../src/runtime/core/types/shape";
 
-const UserShape = shape((field) => {
+const UserShape = shape((factory) => {
     return {
-        id: field.number(),
-        name: field.string(),
-        email: field.string(),
+        id: factory.number(),
+        name: factory.string(),
+        email: factory.string(),
     };
 });
 
@@ -26,7 +26,7 @@ describe("createViewFactory", () => {
         users: modelFactory.many(UserShape),
     };
 
-    const viewFactory = createViewFactory(model);
+    const viewFactory = createViewFactory({}, model);
 
     it("from() creates single-source definition", () => {
         const definition = viewFactory.from("user");
@@ -69,7 +69,7 @@ describe("createView", () => {
             users: modelFactory.many(UserShape),
         };
 
-        const viewFactory = createViewFactory(model);
+        const viewFactory = createViewFactory();
 
         const state = initializeState(model);
         const source = createStore("test-view-" + Math.random(), state);

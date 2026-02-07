@@ -8,11 +8,11 @@ import { ModelKind } from "../src/runtime/core/types/model";
 import { ActionOneMode } from "../src/runtime/core/types/action";
 import type { ShapeInfer } from "../src/runtime/core/types/shape";
 
-const UserShape = shape((field) => {
+const UserShape = shape((factory) => {
     return {
-        id: field.number(),
-        name: field.string(),
-        email: field.string(),
+        id: factory.number(),
+        name: factory.string(),
+        email: factory.string(),
     };
 });
 
@@ -26,7 +26,7 @@ describe("createModelFactory", () => {
 
         expect(definition.kind).toBe(ModelKind.OBJECT);
         expect(definition.shape).toBe(UserShape);
-        expect(definition.options).toBeUndefined();
+        expect(definition.options).toEqual({ identifier: undefined });
     });
 
     it("one() accepts options", () => {
@@ -49,7 +49,7 @@ describe("createModelFactory", () => {
 
         expect(definition.kind).toBe(ModelKind.ARRAY);
         expect(definition.shape).toBe(UserShape);
-        expect(definition.options).toBeUndefined();
+        expect(definition.options).toEqual({ identifier: undefined });
     });
 
     it("many() accepts options", () => {
@@ -190,12 +190,12 @@ describe("createMutations", () => {
         });
 
         it("patch with deep option uses defu", () => {
-            const NestedShape = shape((field) => {
+            const NestedShape = shape((factory) => {
                 return {
-                    id: field.number(),
-                    config: field.object({
-                        theme: field.string(),
-                        notifications: field.boolean(),
+                    id: factory.number(),
+                    config: factory.object({
+                        theme: factory.string(),
+                        notifications: factory.boolean(),
                     }),
                 };
             });

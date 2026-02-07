@@ -11,21 +11,21 @@ beforeEach(() => {
     vi.clearAllMocks();
 });
 
-const UserShape = shape((field) => {
+const UserShape = shape((factory) => {
     return {
-        id: field.number(),
-        name: field.string(),
-        email: field.string(),
+        id: factory.number(),
+        name: factory.string(),
+        email: factory.string(),
     };
 });
 
 type User = ShapeInfer<typeof UserShape>;
 
-const PostShape = shape((field) => {
+const PostShape = shape((factory) => {
     return {
-        id: field.number(),
-        title: field.string(),
-        body: field.string(),
+        id: factory.number(),
+        title: factory.string(),
+        body: factory.string(),
     };
 });
 

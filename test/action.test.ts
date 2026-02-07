@@ -28,11 +28,11 @@ beforeEach(() => {
     vi.clearAllMocks();
 });
 
-const UserShape = shape((field) => {
+const UserShape = shape((factory) => {
     return {
-        id: field.number(),
-        name: field.string(),
-        email: field.string(),
+        id: factory.number(),
+        name: factory.string(),
+        email: factory.string(),
     };
 });
 
@@ -46,7 +46,7 @@ describe("createActionFactory", () => {
         users: modelFactory.many(UserShape),
     };
 
-    const factory = createActionFactory(model, {});
+    const factory = createActionFactory({}, model);
 
     describe("api()", () => {
         it("returns chain with handle, commit, and DEFINITION", () => {

@@ -1,14 +1,15 @@
 import { describe, it, expect } from "vitest";
+import { ZodObject } from "zod";
 
-import { shape, ZodObject } from "../src/runtime/core/layers/shape";
+import { shape } from "../src/runtime/core/layers/shape";
 import { resolveShape } from "../src/runtime/core/utils/shape";
 
 describe("shape", () => {
     it("creates a zod object schema", () => {
-        const schema = shape((field) => {
+        const schema = shape((factory) => {
             return {
-                id: field.number(),
-                name: field.string(),
+                id: factory.number(),
+                name: factory.string(),
             };
         });
 
@@ -18,11 +19,11 @@ describe("shape", () => {
 
 describe("resolveShape", () => {
     it("extracts fields from schema", () => {
-        const schema = shape((field) => {
+        const schema = shape((factory) => {
             return {
-                id: field.number(),
-                name: field.string(),
-                email: field.string(),
+                id: factory.number(),
+                name: factory.string(),
+                email: factory.string(),
             };
         });
 
@@ -32,10 +33,10 @@ describe("resolveShape", () => {
     });
 
     it("returns undefined when no id or _id field exists", () => {
-        const schema = shape((field) => {
+        const schema = shape((factory) => {
             return {
-                uid: field.string(),
-                name: field.string(),
+                uid: factory.string(),
+                name: factory.string(),
             };
         });
 
@@ -45,10 +46,10 @@ describe("resolveShape", () => {
     });
 
     it("falls back to id field", () => {
-        const schema = shape((field) => {
+        const schema = shape((factory) => {
             return {
-                id: field.number(),
-                name: field.string(),
+                id: factory.number(),
+                name: factory.string(),
             };
         });
 
@@ -58,10 +59,10 @@ describe("resolveShape", () => {
     });
 
     it("falls back to _id field", () => {
-        const schema = shape((field) => {
+        const schema = shape((factory) => {
             return {
-                _id: field.string(),
-                name: field.string(),
+                _id: factory.string(),
+                name: factory.string(),
             };
         });
 
@@ -71,11 +72,11 @@ describe("resolveShape", () => {
     });
 
     it("prefers id over _id", () => {
-        const schema = shape((field) => {
+        const schema = shape((factory) => {
             return {
-                id: field.number(),
-                _id: field.string(),
-                name: field.string(),
+                id: factory.number(),
+                _id: factory.string(),
+                name: factory.string(),
             };
         });
 
@@ -85,10 +86,10 @@ describe("resolveShape", () => {
     });
 
     it("returns undefined identifier when no id field exists", () => {
-        const schema = shape((field) => {
+        const schema = shape((factory) => {
             return {
-                name: field.string(),
-                email: field.string(),
+                name: factory.string(),
+                email: factory.string(),
             };
         });
 
@@ -98,10 +99,10 @@ describe("resolveShape", () => {
     });
 
     it("id field used even when other fields have meta", () => {
-        const schema = shape((field) => {
+        const schema = shape((factory) => {
             return {
-                id: field.number(),
-                slug: field.string(),
+                id: factory.number(),
+                slug: factory.string(),
             };
         });
 
@@ -111,11 +112,11 @@ describe("resolveShape", () => {
     });
 
     it("extracts static default values", () => {
-        const schema = shape((field) => {
+        const schema = shape((factory) => {
             return {
-                id: field.number(),
-                name: field.string().default("unnamed"),
-                active: field.boolean().default(true),
+                id: factory.number(),
+                name: factory.string().default("unnamed"),
+                active: factory.boolean().default(true),
             };
         });
 
@@ -128,10 +129,10 @@ describe("resolveShape", () => {
     });
 
     it("extracts function default values", () => {
-        const schema = shape((field) => {
+        const schema = shape((factory) => {
             return {
-                id: field.number(),
-                tags: field.array(field.string()).default(() => ["default"]),
+                id: factory.number(),
+                tags: factory.array(factory.string()).default(() => ["default"]),
             };
         });
 
@@ -141,10 +142,10 @@ describe("resolveShape", () => {
     });
 
     it("returns empty defaults when no defaults exist", () => {
-        const schema = shape((field) => {
+        const schema = shape((factory) => {
             return {
-                id: field.number(),
-                name: field.string(),
+                id: factory.number(),
+                name: factory.string(),
             };
         });
 
