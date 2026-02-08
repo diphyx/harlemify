@@ -4,12 +4,14 @@
 
 ## Features
 
-- **Shape-Driven** - Zod shapes define types and identifiers
-- **Three-Layer Architecture** - Model (state), View (computed), Action (async operations)
-- **Chainable Action Builders** - Fluent `api`, `handle`, `commit` chains
-- **Per-Action Status Tracking** - Built-in `loading`, `status`, `error`, `data` on every action
-- **Concurrency Control** - Block, skip, cancel, or allow concurrent calls
-- **SSR Support** - Server-side rendering with automatic hydration
+- **Single Factory** - Define shape, model, view, and action in one `createStore` call — fully typed end to end
+- **Zod Shapes** - Schema-first design with built-in validation, type inference, and identifier metadata
+- **Reactive Models** - `one()` and `many()` state containers with `set`, `patch`, `add`, `remove`, `reset` mutations
+- **Computed Views** - Derive read-only state from models with `from()` and `merge()` — auto-tracked by Vue
+- **API & Handler Actions** - Declarative HTTP actions with auto-commit, or custom handlers with full model/view access
+- **Action Metadata** - Every action exposes `loading`, `status`, `error`, `data`, and `reset()` out of the box
+- **Concurrency Control** - Block, skip, cancel, or allow parallel calls per action
+- **SSR Ready** - Server-side rendering with automatic state hydration
 
 ## Install
 
@@ -35,7 +37,7 @@ export default defineNuxtConfig({
 
 ```typescript
 // stores/user.ts
-import { createStore, shape, ActionOneMode, ActionManyMode, type ShapeInfer } from "@diphyx/harlemify";
+import { createStore, shape, ModelManyMode, type ShapeInfer } from "@diphyx/harlemify";
 
 const userShape = shape((factory) => {
     return {
@@ -63,19 +65,13 @@ export const userStore = createStore({
             users: from("list"),
         };
     },
-    action({ api, commit }) {
+    action({ api, handler }) {
         return {
-            list: api
-                .get({
-                    url: "/users",
-                })
-                .commit("list", ActionManyMode.SET),
-            create: api
-                .post({
-                    url: "/users",
-                })
-                .commit("list", ActionManyMode.ADD),
-            clear: commit("list", ActionManyMode.RESET),
+            list: api.get({ url: "/users" }, { model: "list", mode: ModelManyMode.SET }),
+            create: api.post({ url: "/users" }, { model: "list", mode: ModelManyMode.ADD }),
+            clear: handler(async ({ model }) => {
+                model.list.reset();
+            }),
         };
     },
 });

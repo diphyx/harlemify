@@ -8,10 +8,20 @@ export type { ShapeInfer } from "./core/types/shape";
 
 // Model
 export { ModelKind, ModelOneMode, ModelManyMode } from "./core/types/model";
+export type { ModelOneCommitOptions, ModelManyCommitOptions } from "./core/types/model";
+
+// View
 
 // Action
 export { ActionStatus, ActionConcurrent, ActionApiMethod } from "./core/types/action";
-export type { ActionCall, ActionCallOptions } from "./core/types/action";
+export type {
+    ActionCall,
+    ActionCallOptions,
+    ActionCallTransformerOptions,
+    ActionCallBindOptions,
+    ActionCallCommitOptions,
+    ActionResolvedApi,
+} from "./core/types/action";
 export { ActionApiError, ActionHandlerError, ActionCommitError, ActionConcurrentError } from "./core/utils/action";
 
 // Composables
