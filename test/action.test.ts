@@ -18,7 +18,7 @@ import type { ViewDefinitions } from "../src/runtime/core/types/view";
 import { useIsolatedActionStatus, useIsolatedActionError } from "../src/runtime/composables/action";
 import type { ShapeInfer } from "../src/runtime/core/types/shape";
 
-const mockFetch = globalThis.$fetch;
+const mockFetch = (globalThis as any).$fetch;
 
 const UserShape = shape((factory) => {
     return {
