@@ -7,21 +7,21 @@ TypeScript interfaces, types, enums, and error classes.
 ### Store
 
 ```typescript
-interface Store<M, VD, AD> {
-    model: StoreModel<M>;
-    view: StoreView<M, VD>;
-    action: StoreAction<M, StoreView<M, VD>, AD>;
+interface Store<MD, VD, AD> {
+    model: StoreModel<MD>;
+    view: StoreView<MD, VD>;
+    action: StoreAction<MD, VD, AD>;
 }
 ```
 
 ### StoreConfig
 
 ```typescript
-interface StoreConfig<M, VD, AD> {
+interface StoreConfig<MD, VD, AD> {
     name: string;
-    model: (factory: ModelFactory) => M;
-    view: (factory: ViewFactory<M>) => VD;
-    action: (factory: ActionFactory<M, StoreView<M, VD>>) => AD;
+    model: (factory: ModelFactory) => MD;
+    view: (factory: ViewFactory<MD>) => VD;
+    action: (factory: ActionFactory<MD, VD>) => AD;
 }
 ```
 
@@ -33,45 +33,75 @@ interface StoreConfig<M, VD, AD> {
 
 ```typescript
 interface ModelFactory {
-    one<S extends Shape>(shape: ShapeType<S>, options?: ModelOneOptions<S>): ModelOneDefinition<S>;
-    many<S extends Shape>(shape: ShapeType<S>, options?: ModelManyOptions<S>): ModelManyDefinition<S>;
+    one<S extends Shape>(shape: ShapeType<S>, options?: ModelOneDefinitionOptions<S>): ModelOneDefinition<S>;
+    many<S extends Shape>(shape: ShapeType<S>, options?: ModelManyDefinitionOptions<S>): ModelManyDefinition<S>;
 }
 ```
 
-### ModelOneOptions
+### ModelOneDefinitionOptions
 
 ```typescript
-interface ModelOneOptions<S> {
+interface ModelOneDefinitionOptions<S> {
     identifier?: keyof S;
     default?: S;
 }
 ```
 
-### ModelManyOptions
+### ModelManyDefinitionOptions
 
 ```typescript
-interface ModelManyOptions<S> {
+interface ModelManyDefinitionOptions<S> {
     identifier?: keyof S;
     default?: S[];
 }
 ```
 
-### MutationsOneOptions
+### ModelOneCommitOptions
 
 ```typescript
-interface MutationsOneOptions {
+interface ModelOneCommitOptions {
     deep?: boolean;
 }
 ```
 
-### MutationsManyOptions
+### ModelManyCommitOptions
 
 ```typescript
-interface MutationsManyOptions {
+interface ModelManyCommitOptions {
     by?: string;
     prepend?: boolean;
     unique?: boolean;
     deep?: boolean;
+}
+```
+
+### StoreModel
+
+```typescript
+type StoreModel<MD> = {
+    [K in keyof MD]: MD[K] extends ModelOneDefinition<infer S> ? ModelOneCall<S> : ModelManyCall<S>;
+};
+```
+
+### ModelOneCall
+
+```typescript
+interface ModelOneCall<S> {
+    set(value: S): void;
+    reset(): void;
+    patch(value: Partial<S>, options?: ModelOneCommitOptions): void;
+}
+```
+
+### ModelManyCall
+
+```typescript
+interface ModelManyCall<S> {
+    set(value: S[]): void;
+    reset(): void;
+    patch(value: Partial<S> | Partial<S>[], options?: ModelManyCommitOptions): void;
+    remove(value: S | S[], options?: ModelManyCommitOptions): void;
+    add(value: S | S[], options?: ModelManyCommitOptions): void;
 }
 ```
 
@@ -82,10 +112,10 @@ interface MutationsManyOptions {
 ### ViewFactory
 
 ```typescript
-interface ViewFactory<M> {
-    from<K extends keyof M>(source: K): ViewFromDefinition<M, K, ModelInstance<M, K>>;
-    from<K extends keyof M, R>(source: K, resolver: (value: ModelInstance<M, K>) => R): ViewFromDefinition<M, K, R>;
-    merge<K extends readonly (keyof M)[], R>(sources: K, resolver: (...values) => R): ViewMergeDefinition<M, K, R>;
+interface ViewFactory<MD> {
+    from<K extends keyof MD>(model: K): ViewFromDefinition<MD, K, ModelDefinitionInfer<MD, K>>;
+    from<K extends keyof MD, R>(model: K, resolver: (value: ModelDefinitionInfer<MD, K>) => R): ViewFromDefinition<MD, K, R>;
+    merge<K extends readonly (keyof MD)[], R>(models: K, resolver: (...values) => R): ViewMergeDefinition<MD, K, R>;
 }
 ```
 
@@ -96,149 +126,149 @@ interface ViewFactory<M> {
 ### ActionFactory
 
 ```typescript
-interface ActionFactory<M, V> {
-    api: ActionApiFactory<M, V>;
-    handle<R>(callback: ActionHandleCallbackNoApi<M, V, R>): ActionHandleChain<M, V, R>;
-    commit: ActionCommitMethod<M, V, void>;
+interface ActionFactory<MD, VD> {
+    api: ActionApiFactory<MD, VD>;
+    handler<R>(callback: ActionHandlerCallback<MD, VD, R>): ActionHandlerDefinition<MD, VD, R>;
 }
 ```
 
-### ActionApiDefinition
+### ActionApiFactory
 
 ```typescript
-interface ActionApiDefinition<V> {
+interface ActionApiFactory<MD, VD> {
+    (request: ActionApiRequest<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
+    get(request: ActionApiRequestShortcut<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
+    head(request: ActionApiRequestShortcut<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
+    post(request: ActionApiRequestShortcut<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
+    put(request: ActionApiRequestShortcut<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
+    patch(request: ActionApiRequestShortcut<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
+    delete(request: ActionApiRequestShortcut<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
+}
+```
+
+### ActionApiRequest
+
+```typescript
+interface ActionApiRequest<MD, VD> {
     endpoint?: string;
-    url: MaybeRefOrGetter<string> | ((view: DeepReadonly<V>) => string);
-    method: ActionApiMethod;
-    headers?: MaybeRefOrGetter<Record<string, string>> | ((view: DeepReadonly<V>) => Record<string, string>);
-    query?: MaybeRefOrGetter<Record<string, unknown>> | ((view: DeepReadonly<V>) => Record<string, unknown>);
-    body?: MaybeRefOrGetter<unknown> | ((view: DeepReadonly<V>) => unknown);
-    timeout?: number;
+    url: ActionApiRequestValue<MD, VD, string>;
+    method: ActionApiRequestValue<MD, VD, ActionApiMethod>;
+    headers?: ActionApiRequestValue<MD, VD, Record<string, string>>;
+    query?: ActionApiRequestValue<MD, VD, Record<string, unknown>>;
+    body?: ActionApiRequestValue<MD, VD, unknown>;
+    timeout?: ActionApiRequestValue<MD, VD, number>;
     concurrent?: ActionConcurrent;
 }
 ```
 
-### ActionCallPayload
+### ActionApiCommit
 
 ```typescript
-interface ActionCallPayload<V, T = unknown, R = T> {
-    headers?: Record<string, string> | ((view: DeepReadonly<V>) => Record<string, string>);
-    query?: Record<string, unknown> | ((view: DeepReadonly<V>) => Record<string, unknown>);
-    body?: unknown | ((view: DeepReadonly<V>) => unknown);
+interface ActionApiCommit<MD> {
+    model: keyof MD;
+    mode: ModelOneMode | ModelManyMode;
+    value?: (data: unknown) => unknown;
+    options?: ModelOneCommitOptions | ModelManyCommitOptions;
+}
+```
+
+### ActionHandlerCallback
+
+```typescript
+type ActionHandlerCallback<MD, VD, R> = (context: {
+    model: StoreModel<MD>;
+    view: StoreView<MD, VD>;
+}) => Promise<R>;
+```
+
+### ActionCallOptions
+
+```typescript
+interface ActionCallOptions {
+    params?: Record<string, string>;
+    headers?: Record<string, string>;
+    query?: Record<string, unknown>;
+    body?: unknown;
     timeout?: number;
     signal?: AbortSignal;
-    transformer?: (response: T) => R;
+    transformer?: ActionCallTransformerOptions;
     concurrent?: ActionConcurrent;
-    bind?: ActionCallBind;
-    commit?: ActionCallCommit;
+    bind?: ActionCallBindOptions;
+    commit?: ActionCallCommitOptions;
 }
 ```
 
-### ActionCallBind
+### ActionCallTransformerOptions
 
 ```typescript
-interface ActionCallBind {
+interface ActionCallTransformerOptions {
+    request?: (api: ActionResolvedApi) => ActionResolvedApi;
+    response?: (data: unknown) => unknown;
+}
+```
+
+### ActionResolvedApi
+
+```typescript
+interface ActionResolvedApi {
+    url: string;
+    method: ActionApiMethod;
+    headers: Record<string, string>;
+    query: Record<string, unknown>;
+    body?: Record<string, unknown> | BodyInit | null;
+    timeout?: number;
+    signal: AbortSignal;
+}
+```
+
+### ActionCallBindOptions
+
+```typescript
+interface ActionCallBindOptions {
     status?: Ref<ActionStatus>;
-    error?: Ref<ActionError | null>;
+    error?: Ref<Error | null>;
 }
 ```
 
-### ActionCallCommit
+### ActionCallCommitOptions
 
 ```typescript
-interface ActionCallCommit {
-    mode?: ActionOneMode | ActionManyMode;
+interface ActionCallCommitOptions {
+    mode?: ModelOneMode | ModelManyMode;
 }
 ```
 
-### Action
+### ActionCall
 
 ```typescript
-interface Action<V, T = void> {
-    (payload?: ActionCallPayload<V, T>): Promise<T>;
-    <R>(payload: ActionCallPayload<V, T, R>): Promise<R>;
+interface ActionCall<T = void> {
+    (options?: ActionCallOptions): Promise<T>;
     readonly loading: ComputedRef<boolean>;
     readonly status: Readonly<Ref<ActionStatus>>;
-    readonly error: Readonly<Ref<ActionError | null>>;
+    readonly error: Readonly<Ref<Error | null>>;
     readonly data: DeepReadonly<T> | null;
     reset: () => void;
 }
-```
-
-### ActionHandleContext
-
-```typescript
-interface ActionHandleContext<M, V, ApiResponse = unknown> {
-    api: <T = ApiResponse>() => Promise<T>;
-    view: DeepReadonly<V>;
-    commit: ActionCommitter<M>;
-}
-```
-
-### ActionHandleContextNoApi
-
-```typescript
-interface ActionHandleContextNoApi<M, V> {
-    view: DeepReadonly<V>;
-    commit: ActionCommitter<M>;
-}
-```
-
-### Chain Types
-
-```typescript
-interface ActionApiChain<M, V, ApiResponse> {
-    handle<R>(callback: ActionHandleCallback<M, V, R, ApiResponse>): ActionHandleChain<M, V, R>;
-    commit: ActionCommitMethod<M, V, ApiResponse>;
-    readonly [DEFINITION]: ActionDefinition<M, V, ApiResponse>;
-}
-
-interface ActionHandleChain<M, V, R> {
-    commit: ActionCommitMethod<M, V, R>;
-    readonly [DEFINITION]: ActionDefinition<M, V, R>;
-}
-
-interface ActionCommitChain<M, V, R> {
-    readonly [DEFINITION]: ActionDefinition<M, V, R>;
-}
-```
-
----
-
-## Symbols
-
-### AUTO
-
-```typescript
-const AUTO: unique symbol;
-```
-
-A symbol used as the `value` argument in `.commit()` to explicitly signal that the action result (API response or handle return value) should be used as the commit value. This is especially useful when you need to pass commit options without providing an explicit value:
-
-```typescript
-import { AUTO } from "@diphyx/harlemify";
-
-.commit("list", ActionManyMode.ADD, AUTO, { unique: true })
 ```
 
 ---
 
 ## Enums
 
-### ActionOneMode
+### ModelOneMode
 
 ```typescript
-enum ActionOneMode {
+enum ModelOneMode {
     SET = "set",
     RESET = "reset",
     PATCH = "patch",
 }
 ```
 
-### ActionManyMode
+### ModelManyMode
 
 ```typescript
-enum ActionManyMode {
+enum ModelManyMode {
     SET = "set",
     RESET = "reset",
     PATCH = "patch",
@@ -297,27 +327,30 @@ enum ModelKind {
 
 ### ActionApiError
 
-Thrown when an HTTP request fails:
+Thrown when an HTTP request fails. Extracts details from the fetch error:
 
 ```typescript
 interface ActionApiError extends Error {
     name: "ActionApiError";
-    status?: number;
-    statusText?: string;
-    data?: unknown;
+    status: number; // Defaults to 500 if not available
+    statusText: string; // Defaults to "Internal Server Error"
+    data: unknown; // Response body, defaults to null
 }
 ```
 
-### ActionHandleError
+The constructor reads `status` from `source.status` or `source.response.status`, `statusText` from `source.statusText` or `source.response.statusText`, and `data` from `source.data` or `source.response._data`. Message defaults to `"API request failed"`.
 
-Thrown when a handle callback throws:
+### ActionHandlerError
+
+Thrown when a handler callback throws. Any non-action error thrown inside a handler is wrapped:
 
 ```typescript
-interface ActionHandleError extends Error {
-    name: "ActionHandleError";
-    cause: Error;
+interface ActionHandlerError extends Error {
+    name: "ActionHandlerError";
 }
 ```
+
+> **Note:** If the handler throws an `ActionApiError` or another `ActionHandlerError`, it is re-thrown as-is without wrapping. Message defaults to `"Action handler failed"`.
 
 ### ActionCommitError
 
@@ -326,13 +359,14 @@ Thrown when a commit operation fails:
 ```typescript
 interface ActionCommitError extends Error {
     name: "ActionCommitError";
-    cause: Error;
 }
 ```
 
+Message defaults to `"Action commit failed"`.
+
 ### ActionConcurrentError
 
-Thrown when an action is blocked by the concurrency guard:
+Thrown when an action is blocked by `ActionConcurrent.BLOCK` while already pending:
 
 ```typescript
 interface ActionConcurrentError extends Error {
@@ -340,13 +374,7 @@ interface ActionConcurrentError extends Error {
 }
 ```
 
-### ActionError
-
-Union of all error types:
-
-```typescript
-type ActionError = ActionApiError | ActionHandleError | ActionCommitError | ActionConcurrentError;
-```
+Message is always `"Action is already pending"`.
 
 ### Error Handling
 
@@ -354,17 +382,15 @@ type ActionError = ActionApiError | ActionHandleError | ActionCommitError | Acti
 try {
     await store.action.fetch();
 } catch (error) {
-    const e = error as ActionError;
-
-    switch (e.name) {
+    switch (error.name) {
         case "ActionApiError":
-            console.error("HTTP error:", e.status, e.data);
+            console.error("HTTP error:", error.status, error.data);
             break;
-        case "ActionHandleError":
-            console.error("Handle error:", e.cause);
+        case "ActionHandlerError":
+            console.error("Handler error:", error.cause);
             break;
         case "ActionCommitError":
-            console.error("Commit error:", e.cause);
+            console.error("Commit error:", error.cause);
             break;
         case "ActionConcurrentError":
             console.warn("Action already pending");
@@ -388,10 +414,10 @@ Returns a `Ref<ActionStatus>` initialized to `ActionStatus.IDLE`. Use with `bind
 ### useIsolatedActionError
 
 ```typescript
-function useIsolatedActionError(): Ref<ActionError | null>;
+function useIsolatedActionError(): Ref<Error | null>;
 ```
 
-Returns a `Ref<ActionError | null>` initialized to `null`. Use with `bind` option to track action errors independently.
+Returns a `Ref<Error | null>` initialized to `null`. Use with `bind` option to track action errors independently.
 
 ---
 

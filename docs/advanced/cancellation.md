@@ -120,14 +120,17 @@ watch(query, (value) => {
 For simpler cancellation, use `ActionConcurrent.CANCEL` which handles abort automatically:
 
 ```typescript
-action: (a) => ({
-    search: a.api
-        .get({
-            url: "/users",
-            concurrent: ActionConcurrent.CANCEL,
-        })
-        .commit("list", ActionManyMode.SET),
-});
+action({ api }) {
+    return {
+        search: api.get(
+            {
+                url: "/users",
+                concurrent: ActionConcurrent.CANCEL,
+            },
+            { model: "list", mode: ModelManyMode.SET },
+        ),
+    };
+},
 ```
 
 ```typescript

@@ -1,106 +1,50 @@
 # Store Patterns
 
-Harlemify supports three main store patterns for different use cases.
+Three common patterns for structuring your stores.
 
-## Pattern Comparison
+| Pattern                      | Model                     | Use Case                           |
+| ---------------------------- | ------------------------- | ---------------------------------- |
+| [Collection](collection.md)  | `many()`                  | Lists with CRUD (users, posts)     |
+| [Singleton](singleton.md)    | `one()`                   | Single entity (config, settings)   |
+| [Nested](nested.md)          | `one()` + handler actions | Complex objects with sub-resources |
 
-| Pattern                     | Model                      | Use Case                           | Example                        |
-| --------------------------- | -------------------------- | ---------------------------------- | ------------------------------ |
-| [Collection](collection.md) | `many()`                   | Lists of items                     | Users, Products, Posts         |
-| [Singleton](singleton.md)   | `one()`                    | Single entity                      | Config, Settings, Current User |
-| [Nested](nested.md)         | `one()` with handle chains | Complex objects with sub-resources | Project with milestones        |
+## [Collection](collection.md)
 
-## Choosing a Pattern
-
-### Use Collection When:
-
-- Managing lists of similar items
-- Need CRUD operations (Create, Read, Update, Delete)
-- Items are identified by an ID
-
-### Use Singleton When:
-
-- Only one instance exists
-- No list operations needed
-- Examples: app config, authenticated user profile
-
-### Use Nested When:
-
-- Complex objects with sub-resources
-- Need to load parts separately via different endpoints
-- Deep object structures with lazy-loaded fields
-
-## Quick Examples
-
-**Collection:**
+Manage lists of items with full CRUD. API actions map directly to mutation modes: `SET` to replace, `ADD` to append, `PATCH` to update by identifier, `REMOVE` to delete.
 
 ```typescript
-model({ many }) {
-    return {
-        list: many(userShape),
-    };
-},
 action({ api }) {
     return {
-        list: api
-            .get({
-                url: "/users",
-            })
-            .commit("list", ActionManyMode.SET),
-        create: api
-            .post({
-                url: "/users",
-            })
-            .commit("list", ActionManyMode.ADD),
+        list: api.get({ url: "/posts" }, { model: "list", mode: ModelManyMode.SET }),
+        create: api.post({ url: "/posts" }, { model: "list", mode: ModelManyMode.ADD }),
     };
 },
 ```
 
-**Singleton:**
+## [Singleton](singleton.md)
+
+A single entity with `SET` to load and `PATCH` to partially update. No identifiers needed.
 
 ```typescript
-model({ one }) {
-    return {
-        config: one(configShape),
-    };
-},
 action({ api }) {
     return {
-        get: api.get({ url: "/config" }).commit("config", ActionOneMode.SET),
-        update: api.patch({ url: "/config" }).commit("config", ActionOneMode.PATCH),
+        get: api.get({ url: "/config" }, { model: "config", mode: ModelOneMode.SET }),
+        update: api.patch({ url: "/config" }, { model: "config", mode: ModelOneMode.PATCH }),
     };
 },
 ```
 
-**Nested:**
+## [Nested](nested.md)
+
+Complex objects where sub-resources load from separate endpoints. Use `handler` actions to fetch nested data and patch it into the parent model.
 
 ```typescript
-model({ one }) {
+action({ handler }) {
     return {
-        current: one(projectShape),
-    };
-},
-action({ api }) {
-    return {
-        get: api
-            .get({
-                url: "/projects/1",
-            })
-            .commit("current", ActionOneMode.SET),
-        milestones: api
-            .get({
-                url: "/projects/1/milestones",
-            })
-            .handle(async ({ api, commit }) => {
-                const milestones = await api();
-                commit("current", ActionOneMode.PATCH, { milestones });
-            }),
+        milestones: handler(async ({ model, view }) => {
+            const result = await $fetch(`/projects/${view.project.value?.id}/milestones`);
+            model.current.patch({ milestones: result });
+        }),
     };
 },
 ```
-
-## Next Steps
-
-- [Collection Store](collection.md) - Full CRUD example
-- [Singleton Store](singleton.md) - Config/settings example
-- [Nested Store](nested.md) - Complex objects example

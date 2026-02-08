@@ -1,145 +1,70 @@
 # Core Concepts
 
-Harlemify is built around four core concepts that work together to provide factory-driven state management.
-
-## Architecture Overview
+Harlemify stores are built from four layers, each defined by a factory function inside `createStore`.
 
 ```
-Shape (Zod)
-    ↓
-createStore({ name, model, view, action })
-    ↓
-┌─────────────────────────────────────┐
-│  Store                              │
-│  ├── Model  → State (one / many)    │
-│  ├── View   → Computed (from/merge) │
-│  └── Action → API + Handle + Commit │
-└─────────────────────────────────────┘
-    ↓
-store.model / store.view / store.action
-    ↓
-Component (Vue)
+Shape (Zod)  →  createStore({ name, model, view, action })
+                    ├── Model  → State (one / many)
+                    ├── View   → Computed (from / merge)
+                    └── Action → API / Handler
 ```
 
-## The Four Pillars
+## [Shape](shape.md)
 
-### [Shape](shape.md)
-
-Define your data structure using Zod via the `shape` helper:
+Define data structures with Zod via the `shape` helper. Mark identifiers with `.meta()` for automatic array matching.
 
 ```typescript
-const userShape = shape((factory) => {
-    return {
-        id: factory.number().meta({
-            identifier: true,
-        }),
-        name: factory.string(),
-        email: factory.email(),
-    };
-});
+const userShape = shape((factory) => ({
+    id: factory.number().meta({ identifier: true }),
+    name: factory.string(),
+    email: factory.email(),
+}));
 ```
 
-### [Model](model.md)
+## [Model](model.md)
 
-Models define state containers using factory functions:
+State containers using `one(shape)` for single items and `many(shape)` for collections. Each model key exposes typed mutation methods (`set`, `patch`, `reset`, `add`, `remove`).
 
 ```typescript
 model({ one, many }) {
     return {
-        current: one(userShape),   // Single item (User | null)
-        list: many(userShape),     // Collection (User[])
+        current: one(userShape),   // User | null
+        list: many(userShape),     // User[]
     };
 },
 ```
 
-### [View](view.md)
+## [View](view.md)
 
-Views create reactive computed properties from model state:
+Reactive `ComputedRef` properties derived from model state. Use `from` for single-source views and `merge` to combine multiple models.
 
 ```typescript
 view({ from, merge }) {
     return {
         user: from("current"),
-        users: from("list"),
-        count: from("list", (model) => {
-            return model.length;
-        }),
-        summary: merge(["current", "list"], (current, list) => {
-            return {
-                name: current?.name,
-                total: list.length,
-            };
+        count: from("list", (model) => model.length),
+        summary: merge(["current", "list"], (current, list) => ({
+            selected: current?.name ?? null,
+            total: list.length,
+        })),
+    };
+},
+```
+
+## [Action](action.md)
+
+Async operations with two entry points. `api` makes HTTP requests with optional auto-commit to a model. `handler` runs custom logic with direct model and view access.
+
+```typescript
+action({ api, handler }) {
+    return {
+        list: api.get({ url: "/users" }, { model: "list", mode: ModelManyMode.SET }),
+        sort: handler(async ({ model, view }) => {
+            const sorted = [...view.users.value].sort((a, b) => a.name.localeCompare(b.name));
+            model.list.set(sorted);
         }),
     };
 },
 ```
 
-### [Action](action.md)
-
-Actions define async operations with chainable builders:
-
-```typescript
-action({ api, commit }) {
-    return {
-        fetch: api
-            .get({
-                url: "/users",
-            })
-            .commit("list", ActionManyMode.SET),
-        clear: commit("list", ActionManyMode.RESET),
-    };
-},
-```
-
-## How They Connect
-
-```typescript
-// 1. Shape defines the data structure
-const userShape = shape((factory) => {
-    return {
-        id: factory.number().meta({
-            identifier: true,
-        }),
-        name: factory.string(),
-    };
-});
-
-// 2. Store brings model, view, and action together
-const userStore = createStore({
-    name: "users",
-    model({ one, many }) {
-        return {
-            current: one(userShape),
-            list: many(userShape),
-        };
-    },
-    view({ from }) {
-        return {
-            users: from("list"),
-        };
-    },
-    action({ api }) {
-        return {
-            list: api
-                .get({
-                    url: "/users",
-                })
-                .commit("list", ActionManyMode.SET),
-        };
-    },
-});
-
-// 3. Use in components
-const { model, view, action } = userStore;
-
-await action.list(); // Fetch and commit to state
-view.users.value; // Reactive computed list
-model("list", ActionManyMode.RESET); // Direct mutation
-```
-
-## Next Steps
-
-- [Shape](shape.md) - Define your data structure
-- [Model](model.md) - Configure state containers
-- [View](view.md) - Create computed properties
-- [Action](action.md) - Define async operations
+Every action tracks `loading`, `status`, `error`, and `data` automatically.

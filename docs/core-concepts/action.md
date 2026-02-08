@@ -1,275 +1,187 @@
 # Action
 
-Actions define async operations that combine API calls, data processing, and state mutations. The action factory provides three entry points: `api`, `handle`, and `commit`.
-
-## Action Factory
-
-The action factory is destructured from the first parameter of the `action` function:
+Actions define async operations. The action factory provides two entry points: `api` and `handler`.
 
 ```typescript
-action({ api, handle, commit }) {
+action({ api, handler }) {
     return {
-        fetch: api
-            .get({
-                url: "/users",
-            })
-            .commit("list", ActionManyMode.SET),
-        sort: handle(async ({ view, commit }) => { ... }),
-        clear: commit("list", ActionManyMode.RESET),
+        fetch: api.get({ url: "/users" }, { model: "list", mode: ModelManyMode.SET }),
+        sort: handler(async ({ model, view }) => { ... }),
     };
 },
 ```
 
-## Chain Patterns
+## API Actions
 
-Actions follow a chainable builder pattern. There are three entry points, each producing a different chain:
-
-### API Chain
-
-Start with `api` to make an HTTP request. The result can optionally be handled and/or committed:
-
-```
-api.get(...)                          → auto commit
-api.get(...).commit(...)              → auto commit to model
-api.get(...).handle(...)              → custom processing
-api.get(...).handle(...).commit(...)  → process then commit
-```
-
-### Handle Chain
-
-Start with `handle` for logic without an API call:
-
-```
-handle(...)                → custom logic only
-handle(...).commit(...)    → custom logic then commit
-```
-
-### Commit Chain
-
-Start with `commit` for direct state mutations:
-
-```
-commit(...)                → direct mutation
-```
-
-## API Methods
-
-The `api` factory supports all HTTP methods:
+Make HTTP requests and optionally commit the response to a model:
 
 ```typescript
-api.get({ url: "/users" }); // GET
-api.head({ url: "/users" }); // HEAD
-api.post({ url: "/users" }); // POST
-api.put({ url: "/users/1" }); // PUT
-api.patch({ url: "/users/1" }); // PATCH
-api.delete({ url: "/users/1" }); // DELETE
+api.get({ url: "/users" }, { model: "list", mode: ModelManyMode.SET });
 ```
 
-You can also use the generic form with an explicit method:
+The first argument is the request, the second (optional) is the commit config.
+
+### HTTP Methods
 
 ```typescript
-api({
-    method: ActionApiMethod.GET,
-    url: "/users",
-});
+api.get({ url: "/users" });
+api.head({ url: "/users" });
+api.post({ url: "/users" });
+api.put({ url: "/users/1" });
+api.patch({ url: "/users/1" });
+api.delete({ url: "/users/1" });
 ```
 
-## API Definition
+> **Note:** `GET` and `HEAD` requests always have their `body` set to `undefined`, even if a body is provided at definition or call time.
 
-Each API call accepts a definition object:
+### Dynamic URLs
+
+Use a function to resolve URLs from view state:
 
 ```typescript
-api.get({
-    url: "/users",                              // Static URL
-    // or
-    url(view) {                                 // Dynamic URL from view
-        return `/users/${view.user.value?.id}`;
+api.get(
+    {
+        url(view) {
+            return `/users/${view.user.value?.id}`;
+        },
     },
-    headers: { "X-Custom": "value" },           // Static headers
-    // or
-    headers(view) { ... },                      // Dynamic headers
-    query: { page: 1 },                         // Static query params
-    // or
-    query(view) { ... },                        // Dynamic query params
-    body: { name: "John" },                     // Static body (non-GET only)
-    // or
-    body(view) { ... },                         // Dynamic body
-    timeout: 5000,                              // Request timeout
-    concurrent: ActionConcurrent.CANCEL,        // Concurrency strategy
-})
+    { model: "current", mode: ModelOneMode.SET },
+);
 ```
 
-## Handle Callback
+### URL Parameters
 
-The handle callback receives a context with access to `api`, `view`, and `commit`:
+Use `:param` syntax and resolve at call time:
 
 ```typescript
-// With API
-api.get({
-    url(view) {
-        return `/users/${view.user.value?.id}`;
-    },
-}).handle(async ({ api, view, commit }) => {
-    const user = await api<User>(); // Call the API
-    commit("current", ActionOneMode.SET, user);
-    commit("list", ActionManyMode.PATCH, user);
-    return user;
-});
+// Definition
+api.get({ url: "/users/:id" }, { model: "current", mode: ModelOneMode.SET });
 
-// Without API
-handle(async ({ view, commit }) => {
-    const sorted = [...view.users.value].sort((a, b) => {
-        return a.name.localeCompare(b.name);
-    });
-    commit("list", ActionManyMode.SET, sorted);
+// Call
+await store.action.get({ params: { id: "42" } });
+```
+
+### Commit Config
+
+The second argument defines how to commit the response:
+
+```typescript
+{
+    model: "list",                          // Target model key
+    mode: ModelManyMode.ADD,                // Commit mode
+    value: (data) => data.items,            // Optional: transform before commit
+    options: { unique: true, prepend: true }, // Optional: mutation options
+}
+```
+
+## Handler Actions
+
+Custom logic with direct access to model and view:
+
+```typescript
+handler(async ({ model, view }) => {
+    const sorted = [...view.users.value].sort((a, b) => a.name.localeCompare(b.name));
+    model.list.set(sorted);
     return sorted;
 });
 ```
 
-**Context properties:**
-
-| Property                                | Description                                                      |
-| --------------------------------------- | ---------------------------------------------------------------- |
-| `api<T>()`                              | Execute the API request (only available when chained from `api`) |
-| `view`                                  | Readonly access to all store views                               |
-| `commit(model, mode, value?, options?)` | Commit mutations to any model                                    |
-
-## Commit
-
-The commit method stores the API response (or handle result) into a model:
+Handlers can commit to multiple models in a single call:
 
 ```typescript
-// One-model commits
-.commit("current", ActionOneMode.SET)
-.commit("current", ActionOneMode.PATCH)
-.commit("current", ActionOneMode.RESET)
-
-// Many-model commits
-.commit("list", ActionManyMode.SET)
-.commit("list", ActionManyMode.ADD)
-.commit("list", ActionManyMode.PATCH)
-.commit("list", ActionManyMode.REMOVE)
-.commit("list", ActionManyMode.RESET)
+handler(async ({ model, view }) => {
+    const result = await $fetch(`/projects/${view.project.value?.id}/toggle`, { method: "PUT" });
+    model.current.patch(result);
+    model.list.patch(result);
+    return result;
+});
 ```
 
-### Auto Commit Value
+## Execution Lifecycle
 
-When chaining `.commit()` after `api` or `handle`, the action result is automatically used as the commit value. To make this intent explicit — especially when passing options — use the `AUTO` symbol instead of `undefined`:
+Every action call defers via `nextTick()` before executing. This ensures Vue's reactivity system has processed any pending state changes before the action runs.
 
-```typescript
-import { AUTO } from "@diphyx/harlemify";
-
-// Without options — AUTO is implicit
-.commit("list", ActionManyMode.SET)
-
-// With options — use AUTO to signal "use the action result"
-.commit("list", ActionManyMode.ADD, AUTO, { unique: true })
-```
-
-### Commit with Options
-
-```typescript
-// Add to beginning of list
-.commit("list", ActionManyMode.ADD, AUTO, { prepend: true })
-
-// Add only unique items
-.commit("list", ActionManyMode.ADD, AUTO, { unique: true })
-
-// Match by a different field
-.commit("list", ActionManyMode.PATCH, AUTO, { by: "email" })
-
-// Deep merge
-.commit("current", ActionOneMode.PATCH, AUTO, { deep: true })
-```
+- For API actions, the lifecycle is: **nextTick → concurrency check → resolve API → request → commit → done**.
+- For handler actions: **nextTick → concurrency check → callback → done**.
 
 ## Calling Actions
 
-Actions are called via `store.action`:
-
 ```typescript
-// Basic call
 await store.action.fetch();
 
-// With payload options
 await store.action.fetch({
+    params: { id: "42" },
     headers: { Authorization: "Bearer token" },
-    query: { page: 1, limit: 10 },
+    query: { page: 1 },
     body: { name: "John" },
     timeout: 5000,
-    signal: abortController.signal,
+    signal: controller.signal,
     concurrent: ActionConcurrent.CANCEL,
 });
 ```
 
-### Call-time Payload Options
+See [ActionCallOptions](../api/types.md#actioncalloptions) for all options.
 
-| Option        | Type                                         | Description                                      |
-| ------------- | -------------------------------------------- | ------------------------------------------------ |
-| `headers`     | `Record<string, string>` or `(view) => ...`  | Additional headers (merged with definition)      |
-| `query`       | `Record<string, unknown>` or `(view) => ...` | Additional query params (merged with definition) |
-| `body`        | `unknown` or `(view) => ...`                 | Override request body                            |
-| `timeout`     | `number`                                     | Override timeout                                 |
-| `signal`      | `AbortSignal`                                | For request cancellation                         |
-| `concurrent`  | `ActionConcurrent`                           | Override concurrency strategy                    |
-| `transformer` | `(response) => R`                            | Transform the response                           |
-| `bind`        | `{ status?, error? }`                        | Bind to isolated status/error refs               |
-| `commit`      | `{ mode? }`                                  | Override the commit mode                         |
+> **Option priority:** Call-time options override definition-time values, which override module config, which override built-in defaults. For example, `headers` passed at call time are merged on top of definition headers and config headers via `defu`.
 
-### Response Transformer
+### Transformer
 
-Transform the action's return value at call-time:
+Transform request and/or response at call time:
 
 ```typescript
-const userName = await store.action.fetch({
-    transformer: (user) => user?.name,
+await store.action.fetch({
+    transformer: {
+        request: (api) => ({ ...api, headers: { ...api.headers, "X-Custom": "value" } }),
+        response: (data) => data.name,
+    },
 });
 ```
 
+### Bind
+
+Track status independently with isolated refs:
+
+```typescript
+const status = useIsolatedActionStatus();
+await store.action.fetch({ bind: { status } });
+```
+
+See [Isolated Status](../advanced/isolated-status.md) for details.
+
 ## Action Properties
 
-Every action has built-in reactive properties:
+Every action has built-in reactive metadata:
 
 ```typescript
 store.action.fetch.loading; // ComputedRef<boolean>
 store.action.fetch.status; // Readonly<Ref<ActionStatus>>
-store.action.fetch.error; // Readonly<Ref<ActionError | null>>
+store.action.fetch.error; // Readonly<Ref<Error | null>>
 store.action.fetch.data; // DeepReadonly<T> | null
-store.action.fetch.reset(); // Reset status, error, and data
+store.action.fetch.reset(); // Reset to idle
 ```
 
-### Status Values
-
-| Status                 | Description            |
-| ---------------------- | ---------------------- |
-| `ActionStatus.IDLE`    | No request made yet    |
-| `ActionStatus.PENDING` | Request in progress    |
-| `ActionStatus.SUCCESS` | Last request succeeded |
-| `ActionStatus.ERROR`   | Last request failed    |
+> **Note:** `data`, `status`, and `error` persist after execution. Call `reset()` to clear them back to their initial values (`null`, `IDLE`, `null`).
 
 ### Template Usage
 
 ```vue
 <template>
     <div v-if="action.list.loading.value">Loading...</div>
-    <div v-else-if="action.list.error.value">Error: {{ action.list.error.value.message }}</div>
+    <div v-else-if="action.list.error.value">{{ action.list.error.value.message }}</div>
     <ul v-else>
-        <li v-for="user in view.users.value" :key="user.id">
-            {{ user.name }}
-        </li>
+        <li v-for="user in view.users.value" :key="user.id">{{ user.name }}</li>
     </ul>
 </template>
 ```
 
 ## Error Types
 
-Actions throw typed errors depending on where the failure occurred:
-
-| Error                   | Description                                              |
-| ----------------------- | -------------------------------------------------------- |
-| `ActionApiError`        | HTTP request failed (has `status`, `statusText`, `data`) |
-| `ActionHandleError`     | Handle callback threw an error                           |
-| `ActionCommitError`     | Commit operation failed                                  |
-| `ActionConcurrentError` | Action blocked by concurrency guard                      |
+| Error                   | When                         |
+| ----------------------- | ---------------------------- |
+| `ActionApiError`        | HTTP request failed          |
+| `ActionHandlerError`    | Handler callback threw       |
+| `ActionCommitError`     | Commit operation failed      |
+| `ActionConcurrentError` | Blocked by concurrency guard |
 
 ```typescript
 try {
@@ -277,14 +189,12 @@ try {
 } catch (error) {
     if (error.name === "ActionApiError") {
         console.error("API error:", error.status, error.data);
-    } else if (error.name === "ActionConcurrentError") {
-        console.warn("Action already pending");
     }
 }
 ```
 
 ## Next Steps
 
-- [Store Patterns](../store-patterns/README.md) - See complete store examples
 - [Concurrency](../advanced/concurrency.md) - Control concurrent action execution
 - [Cancellation](../advanced/cancellation.md) - Cancel in-flight requests
+- [Types](../api/types.md) - Full type reference

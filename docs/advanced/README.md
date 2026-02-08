@@ -1,21 +1,19 @@
 # Advanced
 
-Advanced features for customizing harlemify behavior.
+Features for fine-tuning action behavior and debugging.
 
-## Topics
+## [Concurrency](concurrency.md)
 
-### [Concurrency](concurrency.md)
+Control what happens when an action is called while already pending. Four strategies: `BLOCK` (throw error), `SKIP` (return existing promise), `CANCEL` (abort previous, start new), `ALLOW` (run both). Set at definition time, call time, or globally.
 
-Control what happens when an action is called while already pending: block, skip, cancel, or allow.
+## [Cancellation](cancellation.md)
 
-### [Cancellation](cancellation.md)
+Cancel in-flight requests using `AbortSignal`. Pass a signal via the `signal` call-time option, or use `ActionConcurrent.CANCEL` for automatic cancellation of previous calls.
 
-Cancel in-flight requests using AbortSignal.
+## [Debug Logging](logging.md)
 
-### [Debug Logging](logging.md)
+Enable per-store debug logging with Consola. See model mutations, action lifecycle, API requests, commit phases, and concurrency events. Configure via `harlemify.logger` in `nuxt.config.ts`.
 
-Enable per-store debug logging with Consola for development troubleshooting.
+## [Isolated Status](isolated-status.md)
 
-### [Isolated Status](isolated-status.md)
-
-Bind action status and error tracking to isolated refs for independent UI state.
+Track action status and errors independently across different UI contexts. Use `useIsolatedActionStatus` and `useIsolatedActionError` composables with the `bind` call-time option.

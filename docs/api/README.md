@@ -15,12 +15,14 @@ Complete API documentation for harlemify.
 | ----------------- | ----------------------------------------------- |
 | [Types](types.md) | TypeScript interfaces, enums, and error classes |
 
-## Import
+## Exports
 
 ```typescript
 import {
     // Core
     createStore,
+    type Store,
+    type StoreConfig,
 
     // Shape
     shape,
@@ -28,26 +30,27 @@ import {
 
     // Model
     ModelKind,
+    ModelOneMode,
+    ModelManyMode,
+    type ModelOneCommitOptions,
+    type ModelManyCommitOptions,
 
-    // Action Enums
-    ActionOneMode,
-    ActionManyMode,
+    // Action
     ActionStatus,
     ActionConcurrent,
     ActionApiMethod,
+    type ActionCall,
+    type ActionCallOptions,
+    type ActionCallTransformerOptions,
+    type ActionCallBindOptions,
+    type ActionCallCommitOptions,
+    type ActionResolvedApi,
 
-    // Action Types
-    type Action,
-    type ActionCallPayload,
-    type ActionError,
-    type ActionApiError,
-    type ActionHandleError,
-    type ActionCommitError,
-    type ActionConcurrentError,
-
-    // Store Types
-    type Store,
-    type StoreConfig,
+    // Error Classes
+    ActionApiError,
+    ActionHandlerError,
+    ActionCommitError,
+    ActionConcurrentError,
 
     // Composables
     useIsolatedActionStatus,

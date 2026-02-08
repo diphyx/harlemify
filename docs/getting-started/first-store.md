@@ -8,7 +8,7 @@ Create a Zod-powered shape with the `shape` helper:
 
 ```typescript
 // stores/user.ts
-import { createStore, shape, ActionOneMode, ActionManyMode, type ShapeInfer } from "@diphyx/harlemify";
+import { createStore, shape, ModelOneMode, ModelManyMode, type ShapeInfer } from "@diphyx/harlemify";
 
 const userShape = shape((factory) => {
     return {
@@ -23,9 +23,7 @@ const userShape = shape((factory) => {
 export type User = ShapeInfer<typeof userShape>;
 ```
 
-**Shape Meta:**
-
-- `identifier: true` - Marks the primary key field used for matching items in array mutations (`patch`, `remove`)
+The `identifier: true` meta marks the primary key field used for matching items in array mutations (`patch`, `remove`). See [Shape](../core-concepts/shape.md) for details.
 
 ## Step 2: Define Models
 
@@ -64,55 +62,51 @@ view({ from, merge }) {
 
 ## Step 4: Define Actions
 
-Actions combine API calls, data processing, and state mutations using a chainable builder:
+Use `api` for HTTP requests with optional auto-commit:
 
 ```typescript
-action({ api, commit }) {
+action({ api }) {
     return {
-        get: api
-            .get({
+        get: api.get(
+            {
                 url(view) {
                     return `/users/${view.user.value?.id}`;
                 },
-            })
-            .commit("current", ActionOneMode.SET),
-        list: api
-            .get({
-                url: "/users",
-            })
-            .commit("list", ActionManyMode.SET),
-        create: api
-            .post({
-                url: "/users",
-            })
-            .commit("list", ActionManyMode.ADD),
-        update: api
-            .patch({
+            },
+            { model: "current", mode: ModelOneMode.SET },
+        ),
+        list: api.get({ url: "/users" }, { model: "list", mode: ModelManyMode.SET }),
+        create: api.post({ url: "/users" }, { model: "list", mode: ModelManyMode.ADD }),
+        update: api.patch(
+            {
                 url(view) {
                     return `/users/${view.user.value?.id}`;
                 },
-            })
-            .commit("list", ActionManyMode.PATCH),
-        delete: api
-            .delete({
+            },
+            { model: "list", mode: ModelManyMode.PATCH },
+        ),
+        delete: api.delete(
+            {
                 url(view) {
                     return `/users/${view.user.value?.id}`;
                 },
-            })
-            .commit("list", ActionManyMode.REMOVE),
-        clear: commit("list", ActionManyMode.RESET),
+            },
+            { model: "list", mode: ModelManyMode.REMOVE },
+        ),
     };
 },
 ```
 
 ## Step 5: Create the Store
 
+Combine all layers into `createStore`:
+
 ```typescript
 export const userStore = createStore({
     name: "users",
     model({ one, many }) { ... },
     view({ from, merge }) { ... },
-    action({ api, commit }) { ... },
+    action({ api }) { ... },
 });
 ```
 
@@ -124,22 +118,18 @@ import { userStore } from "~/stores/user";
 
 const { model, view, action } = userStore;
 
-// Load users on mount
 await action.list();
 
-// Create a new user
 async function handleCreate() {
     await action.create({
         body: { name: "John Doe", email: "john@example.com" },
     });
 }
 
-// Select a user
 function selectUser(user: User) {
-    model("current", ActionOneMode.SET, user);
+    model.current.set(user);
 }
 
-// Delete selected user
 async function handleDelete() {
     await action.delete();
 }
@@ -162,86 +152,6 @@ async function handleDelete() {
         <p>Total: {{ view.count.value }}</p>
     </div>
 </template>
-```
-
-## Complete File
-
-```typescript
-// stores/user.ts
-import { createStore, shape, ActionOneMode, ActionManyMode, type ShapeInfer } from "@diphyx/harlemify";
-
-const userShape = shape((factory) => {
-    return {
-        id: factory.number().meta({
-            identifier: true,
-        }),
-        name: factory.string(),
-        email: factory.email(),
-    };
-});
-
-export type User = ShapeInfer<typeof userShape>;
-
-export const userStore = createStore({
-    name: "users",
-    model({ one, many }) {
-        return {
-            current: one(userShape),
-            list: many(userShape),
-        };
-    },
-    view({ from, merge }) {
-        return {
-            user: from("current"),
-            users: from("list"),
-            count: from("list", (model) => {
-                return model.length;
-            }),
-            summary: merge(["current", "list"], (current, list) => {
-                return {
-                    selected: current?.name ?? null,
-                    total: list.length,
-                };
-            }),
-        };
-    },
-    action({ api, commit }) {
-        return {
-            get: api
-                .get({
-                    url(view) {
-                        return `/users/${view.user.value?.id}`;
-                    },
-                })
-                .commit("current", ActionOneMode.SET),
-            list: api
-                .get({
-                    url: "/users",
-                })
-                .commit("list", ActionManyMode.SET),
-            create: api
-                .post({
-                    url: "/users",
-                })
-                .commit("list", ActionManyMode.ADD),
-            update: api
-                .patch({
-                    url(view) {
-                        return `/users/${view.user.value?.id}`;
-                    },
-                })
-                .commit("list", ActionManyMode.PATCH),
-            delete: api
-                .delete({
-                    url(view) {
-                        return `/users/${view.user.value?.id}`;
-                    },
-                })
-                .commit("list", ActionManyMode.REMOVE),
-            clear: commit("list", ActionManyMode.RESET),
-        };
-    },
-});
 ```
 
 ## Next Steps

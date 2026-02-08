@@ -119,19 +119,19 @@ Returns a `Ref<ActionStatus>` initialized to `ActionStatus.IDLE`.
 ### useIsolatedActionError
 
 ```typescript
-function useIsolatedActionError(): Ref<ActionError | null>;
+function useIsolatedActionError(): Ref<Error | null>;
 ```
 
-Returns a `Ref<ActionError | null>` initialized to `null`.
+Returns a `Ref<Error | null>` initialized to `null`.
 
 ### bind Option
 
-Pass isolated refs via the `bind` property in action call payload:
+Pass isolated refs via the `bind` property in action call options:
 
 ```typescript
-interface ActionCallBind {
+interface ActionCallBindOptions {
     status?: Ref<ActionStatus>;
-    error?: Ref<ActionError | null>;
+    error?: Ref<Error | null>;
 }
 ```
 

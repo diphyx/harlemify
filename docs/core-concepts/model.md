@@ -1,10 +1,6 @@
 # Model
 
-Models define the state containers in your store. The model factory provides two methods: `one` for single items and `many` for collections.
-
-## Model Factory
-
-The model factory is destructured from the first parameter of the `model` function:
+Models define the state containers. The model factory provides `one` for single items and `many` for collections.
 
 ```typescript
 model({ one, many }) {
@@ -17,121 +13,62 @@ model({ one, many }) {
 
 ## One (Single Item)
 
-`one(shape)` creates a single-item state container initialized to `null`:
+`one(shape)` creates a state container initialized to `null`:
 
 ```typescript
-model({ one }) {
-    return {
-        user: one(userShape),
-    };
-},
-// State: { user: null }
-```
-
-### One Options
-
-```typescript
-one(userShape, {
-    default: { id: 0, name: "" }, // Custom default value (instead of null)
-});
+one(userShape)
+one(userShape, { default: { id: 0, name: "" } }) // Custom default
 ```
 
 ### One Mutations
 
-One-models support three mutation modes:
-
-| Mode                  | Description                                 |
-| --------------------- | ------------------------------------------- |
-| `ActionOneMode.SET`   | Replace the entire value                    |
-| `ActionOneMode.RESET` | Reset to default (`null` or custom default) |
-| `ActionOneMode.PATCH` | Shallow merge into existing value           |
-
 ```typescript
-// Via model committer
-store.model("user", ActionOneMode.SET, userData);
-store.model("user", ActionOneMode.PATCH, { name: "Updated" });
-store.model("user", ActionOneMode.RESET);
-
-// Deep patch
-store.model("user", ActionOneMode.PATCH, { meta: { role: "admin" } }, { deep: true });
+store.model.user.set(userData);
+store.model.user.patch({ name: "Updated" });
+store.model.user.patch({ meta: { role: "admin" } }, { deep: true });
+store.model.user.reset();
 ```
+
+| Method  | Description                                 |
+| ------- | ------------------------------------------- |
+| `set`   | Replace the entire value                    |
+| `patch` | Shallow merge (or deep with `{ deep: true }`) |
+| `reset` | Reset to default (`null` or custom default) |
+
+> **Note:** `patch` on a `null` state does nothing silently. Set a value first before patching.
 
 ## Many (Collection)
 
-`many(shape)` creates a collection state container initialized to `[]`:
+`many(shape)` creates a collection initialized to `[]`:
 
 ```typescript
-model({ many }) {
-    return {
-        users: many(userShape),
-    };
-},
-// State: { users: [] }
+many(userShape)
+many(userShape, { identifier: "uuid" })       // Override identifier field
+many(userShape, { default: [defaultUser] })   // Custom default
 ```
 
-### Many Options
-
-```typescript
-many(userShape, {
-    identifier: "uuid", // Override identifier field for item matching
-    default: [defaultUser], // Custom default value (instead of [])
-});
-```
-
-The `identifier` option is only relevant for `many()` models. It determines which field is used to match items in `PATCH`, `REMOVE`, and `ADD` (with `unique`) operations. If not specified, harlemify resolves it from the shape metadata or falls back to `id` / `_id`.
+The `identifier` determines which field is used to match items in `patch`, `remove`, and `add` (with `unique`). If not set, it resolves from shape metadata or falls back to `id` / `_id`.
 
 ### Many Mutations
 
-Many-models support five mutation modes:
-
-| Mode                    | Description                               |
-| ----------------------- | ----------------------------------------- |
-| `ActionManyMode.SET`    | Replace the entire array                  |
-| `ActionManyMode.RESET`  | Reset to default (`[]` or custom default) |
-| `ActionManyMode.PATCH`  | Update matching items by identifier       |
-| `ActionManyMode.REMOVE` | Remove matching items by identifier       |
-| `ActionManyMode.ADD`    | Append items to the array                 |
-
 ```typescript
-// Via model committer
-store.model("users", ActionManyMode.SET, usersArray);
-store.model("users", ActionManyMode.ADD, newUser);
-store.model("users", ActionManyMode.PATCH, { id: 1, name: "Updated" });
-store.model("users", ActionManyMode.REMOVE, { id: 1, name: "Alice", email: "a@b.c" });
-store.model("users", ActionManyMode.RESET);
+store.model.users.set(usersArray);
+store.model.users.add(newUser);
+store.model.users.add(newUser, { prepend: true, unique: true });
+store.model.users.patch({ id: 1, name: "Updated" });
+store.model.users.patch({ email: "new@test.com" }, { by: "email", deep: true });
+store.model.users.remove({ id: 1, name: "Alice", email: "a@b.c" });
+store.model.users.remove(user, { by: "email" });
+store.model.users.reset();
 ```
 
-### Many Mutation Options
-
-```typescript
-// Add to beginning instead of end
-store.model("users", ActionManyMode.ADD, newUser, { prepend: true });
-
-// Add only if not already present (by identifier)
-store.model("users", ActionManyMode.ADD, newUser, { unique: true });
-
-// Match by a different field
-store.model("users", ActionManyMode.PATCH, { email: "new@test.com" }, { by: "email" });
-
-// Deep merge nested objects
-store.model("users", ActionManyMode.PATCH, { id: 1, meta: { role: "admin" } }, { deep: true });
-```
-
-## Combining Models
-
-A store can have any number of model definitions:
-
-```typescript
-model({ one, many }) {
-    return {
-        current: one(projectShape),
-        list: many(projectShape),
-        config: one(configShape),
-    };
-},
-```
-
-Each model key becomes a separate state container with its own mutations.
+| Method   | Description                               |
+| -------- | ----------------------------------------- |
+| `set`    | Replace the entire array                  |
+| `add`    | Append (or prepend) items                 |
+| `patch`  | Update matching items by identifier       |
+| `remove` | Remove matching items by identifier       |
+| `reset`  | Reset to default (`[]` or custom default) |
 
 ## Next Steps
 

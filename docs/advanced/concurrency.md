@@ -15,17 +15,18 @@ Control what happens when an action is called while it's already pending.
 
 ### At Definition Time
 
-Set a default concurrency strategy in the action's API definition:
+Set a default concurrency strategy in the action's API request:
 
 ```typescript
 action({ api }) {
     return {
-        search: api
-            .get({
+        search: api.get(
+            {
                 url: "/users",
                 concurrent: ActionConcurrent.CANCEL,
-            })
-            .commit("list", ActionManyMode.SET),
+            },
+            { model: "list", mode: ModelManyMode.SET },
+        ),
     };
 },
 ```
@@ -66,11 +67,7 @@ Prevent duplicate submissions. Good for form submissions and create operations:
 ```typescript
 action({ api }) {
     return {
-        create: api
-            .post({
-                url: "/users",
-            })
-            .commit("list", ActionManyMode.ADD),
+        create: api.post({ url: "/users" }, { model: "list", mode: ModelManyMode.ADD }),
     };
 },
 ```
@@ -103,12 +100,13 @@ Abort the previous request and start fresh. Good for search/autocomplete:
 ```typescript
 action({ api }) {
     return {
-        search: api
-            .get({
+        search: api.get(
+            {
                 url: "/users",
                 concurrent: ActionConcurrent.CANCEL,
-            })
-            .commit("list", ActionManyMode.SET),
+            },
+            { model: "list", mode: ModelManyMode.SET },
+        ),
     };
 },
 ```

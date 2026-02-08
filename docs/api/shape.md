@@ -88,9 +88,15 @@ const userShape = shape((factory) => {
 });
 ```
 
-The identifier is used by `ActionManyMode.PATCH`, `ActionManyMode.REMOVE`, and the `unique` option in `ActionManyMode.ADD` to match items in arrays.
+The identifier is used by `ModelManyMode.PATCH`, `ModelManyMode.REMOVE`, and the `unique` option in `ModelManyMode.ADD` to match items in arrays.
 
-If no identifier is marked, harlemify falls back to fields named `id` or `_id` when needed by collection operations.
+**Identifier resolution priority:**
+
+1. `identifier` option passed to `many(shape, { identifier: "uuid" })`
+2. Field marked with `.meta({ identifier: true })` in the shape
+3. Field named `id` (if present in shape)
+4. Field named `_id` (if present in shape)
+5. Falls back to `"id"` (may fail at runtime if the field doesn't exist)
 
 ## See Also
 

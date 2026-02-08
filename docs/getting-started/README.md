@@ -49,7 +49,7 @@ Harlemify automatically imports `createStore` in your Nuxt project. The composab
 You still need to manually import types and enums:
 
 ```typescript
-import { shape, ActionOneMode, ActionManyMode, type ShapeInfer } from "@diphyx/harlemify";
+import { shape, ModelOneMode, ModelManyMode, type ShapeInfer } from "@diphyx/harlemify";
 ```
 
 ## Next Step
