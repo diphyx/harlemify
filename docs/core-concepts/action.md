@@ -127,11 +127,12 @@ handle(async ({ view, commit }) => {
 ```
 
 **Context properties:**
-| Property | Description |
-|----------|-------------|
-| `api&#60;T&#62;()` | Execute the API request (only available when chained from `api`) |
-| `view` | Readonly access to all store views |
-| `commit(model, mode, value?, options?)` | Commit mutations to any model |
+
+| Property                                | Description                                                      |
+| --------------------------------------- | ---------------------------------------------------------------- |
+| `api<T>()`                              | Execute the API request (only available when chained from `api`) |
+| `view`                                  | Readonly access to all store views                               |
+| `commit(model, mode, value?, options?)` | Commit mutations to any model                                    |
 
 ## Commit
 

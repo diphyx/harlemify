@@ -5,13 +5,13 @@ Creates a Zod object schema for use as a model shape.
 ## Signature
 
 ```typescript
-function shape<T>(definition: T | ((factory: ShapeFactory) => T)): ShapeType<T>
+function shape<T>(definition: T | ((factory: ShapeFactory) => T)): ShapeType<T>;
 ```
 
 ## Parameters
 
-| Parameter | Type | Description |
-|----------|------|-------------|
+| Parameter    | Type                                  | Description                          |
+| ------------ | ------------------------------------- | ------------------------------------ |
 | `definition` | `T \| ((factory: ShapeFactory) => T)` | A shape object or a factory function |
 
 ## Returns
