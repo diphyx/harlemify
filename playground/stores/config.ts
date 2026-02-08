@@ -2,9 +2,6 @@ import { createStore, shape, ActionOneMode, type ShapeInfer } from "../../src/ru
 
 const configShape = shape((factory) => {
     return {
-        id: factory.number().meta({
-            identifier: true,
-        }),
         theme: factory.enum(["light", "dark"]),
         language: factory.string(),
         notifications: factory.boolean(),

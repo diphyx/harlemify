@@ -73,6 +73,8 @@ type User = ShapeInfer<typeof userShape>;
 
 ## Identifier Meta
 
+The identifier is **optional**. It is only relevant for `many()` collection models where item matching is needed. Shapes used with `one()` models do not need an identifier.
+
 Mark a field as the identifier for array matching:
 
 ```typescript
@@ -88,7 +90,7 @@ const userShape = shape((factory) => {
 
 The identifier is used by `ActionManyMode.PATCH`, `ActionManyMode.REMOVE`, and the `unique` option in `ActionManyMode.ADD` to match items in arrays.
 
-If no identifier is marked, harlemify falls back to fields named `id` or `_id`.
+If no identifier is marked, harlemify falls back to fields named `id` or `_id` when needed by collection operations.
 
 ## See Also
 

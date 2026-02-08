@@ -32,7 +32,6 @@ model({ one }) {
 
 ```typescript
 one(userShape, {
-    identifier: "uuid", // Override identifier field
     default: { id: 0, name: "" }, // Custom default value (instead of null)
 });
 ```
@@ -74,10 +73,12 @@ model({ many }) {
 
 ```typescript
 many(userShape, {
-    identifier: "uuid", // Override identifier field
+    identifier: "uuid", // Override identifier field for item matching
     default: [defaultUser], // Custom default value (instead of [])
 });
 ```
+
+The `identifier` option is only relevant for `many()` models. It determines which field is used to match items in `PATCH`, `REMOVE`, and `ADD` (with `unique`) operations. If not specified, harlemify resolves it from the shape metadata or falls back to `id` / `_id`.
 
 ### Many Mutations
 

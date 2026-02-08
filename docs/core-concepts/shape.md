@@ -24,7 +24,9 @@ The factory callback provides access to all Zod types: primitives (`string`, `nu
 
 ## Identifier Meta
 
-Mark the primary key field with `.meta({ identifier: true })`. This is used for matching items in array mutations (`patch`, `remove`).
+The identifier is an **optional** feature that provides easy item matching in `many()` collection mutations (`patch`, `remove`, `add` with `unique`). Not every shape needs an identifier — shapes used with `one()` models work perfectly fine without one.
+
+Mark the primary key field with `.meta({ identifier: true })` when your shape is used in a collection:
 
 ```typescript
 const userShape = shape((factory) => {
@@ -38,7 +40,19 @@ const userShape = shape((factory) => {
 });
 ```
 
-If no identifier is explicitly marked, harlemify looks for fields named `id` or `_id` as fallback.
+Shapes without an identifier are completely valid:
+
+```typescript
+const configShape = shape((factory) => {
+    return {
+        theme: factory.enum(["light", "dark"]),
+        language: factory.string(),
+        notifications: factory.boolean(),
+    };
+});
+```
+
+If no identifier is explicitly marked, harlemify falls back to fields named `id` or `_id` when needed by collection operations.
 
 ## Type Inference
 
@@ -96,9 +110,6 @@ const projectShape = shape((factory) => {
 ```typescript
 const configShape = shape((factory) => {
     return {
-        id: factory.number().meta({
-            identifier: true,
-        }),
         theme: factory.enum(["light", "dark"]),
         language: factory.string(),
     };

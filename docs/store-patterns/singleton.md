@@ -11,14 +11,13 @@ Use singleton stores for single entities like configuration, settings, or the cu
 
 ## Shape
 
+Singleton shapes don't need an identifier — the identifier feature is only relevant for `many()` collection models where item matching is needed.
+
 ```typescript
 import { shape, type ShapeInfer } from "@diphyx/harlemify";
 
 const configShape = shape((factory) => {
     return {
-        id: factory.number().meta({
-            identifier: true,
-        }),
         theme: factory.enum(["light", "dark"]),
         language: factory.string(),
         notifications: factory.boolean(),
@@ -129,9 +128,7 @@ async function toggleNotifications() {
 ```typescript
 const meShape = shape((factory) => {
     return {
-        id: factory.number().meta({
-            identifier: true,
-        }),
+        id: factory.number(),
         name: factory.string(),
         email: factory.email(),
         avatar: factory.string(),
