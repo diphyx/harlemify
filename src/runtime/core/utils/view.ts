@@ -1,32 +1,34 @@
 import type { Store as SourceStore, BaseState } from "@harlem/core";
 
-import type { StoreView } from "../store";
-import type { Model } from "../types/model";
-import type { ViewDefinitions } from "../types/view";
+import type { ModelDefinitions } from "../types/model";
+import type { ViewDefinition, ViewCall } from "../types/view";
 
-export function createView<M extends Model, VD extends ViewDefinitions<M>>(
+function resolveModels<MD extends ModelDefinitions>(definition: ViewDefinition<MD>): readonly (keyof MD)[] {
+    return "model" in definition ? definition.model : definition.models;
+}
+
+export function createView<MD extends ModelDefinitions, R = unknown>(
+    definition: ViewDefinition<MD>,
     source: SourceStore<BaseState>,
-    definitions: VD,
-): StoreView<M, VD> {
-    const view = {} as Record<string, unknown>;
-    for (const [key, definition] of Object.entries(definitions)) {
-        definition.logger?.debug("View registered", {
-            view: key,
-            sources: definition.sources,
+): ViewCall<R> {
+    const models = resolveModels(definition);
+
+    definition.logger?.debug("Registering view", {
+        view: definition.key,
+        models,
+    });
+
+    const view = source.getter(definition.key, (state) => {
+        const values = models.map((sourceKey) => {
+            return state[sourceKey as string];
         });
 
-        view[key] = source.getter(key, (state) => {
-            const values = definition.sources.map((sourceKey) => {
-                return state[sourceKey as string];
-            });
+        if (definition.resolver) {
+            return (definition.resolver as (...args: unknown[]) => unknown)(...values);
+        }
 
-            if (definition.resolver) {
-                return definition.resolver(...(values as [any]));
-            }
+        return values[0];
+    });
 
-            return values[0];
-        });
-    }
-
-    return view as StoreView<M, VD>;
+    return view;
 }

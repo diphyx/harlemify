@@ -1,8 +1,11 @@
-import type { z } from "zod";
+import type { ShapeDefinition, ShapeMeta, ShapeType } from "../types/shape";
 
-import type { ShapeMeta } from "../types/shape";
+interface ShapeFieldDef {
+    meta?: { identifier?: boolean };
+    defaultValue?: unknown;
+}
 
-export function resolveShape(shape: z.ZodObject<z.ZodRawShape>): ShapeMeta {
+export function resolveShape(shape: ShapeDefinition): ShapeMeta {
     const meta: ShapeMeta = {
         identifier: undefined,
         defaults: {},
@@ -12,7 +15,7 @@ export function resolveShape(shape: z.ZodObject<z.ZodRawShape>): ShapeMeta {
     for (const [key, field] of Object.entries(shape.shape)) {
         meta.fields.push(key);
 
-        const fieldDefinition = (field as any).def;
+        const fieldDefinition = (field as ShapeType<unknown> & { def?: ShapeFieldDef }).def;
 
         if (fieldDefinition?.meta?.identifier) {
             meta.identifier = key;

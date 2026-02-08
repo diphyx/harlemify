@@ -1,38 +1,26 @@
 import { defu } from "defu";
-import type { ShapeDefinition, Shape } from "../types/shape";
 import type { Store as SourceStore, BaseState, Mutation } from "@harlem/core";
 
 import { resolveShape } from "./shape";
+
+import type { ShapeDefinition, Shape } from "../types/shape";
 import {
-    type Model,
+    type ModelDefinition,
     type ModelOneDefinition,
     type ModelManyDefinition,
-    type ModelStateOf,
-    type MutationsOneOptions,
-    type MutationsManyOptions,
-    type MutationsOne,
-    type MutationsMany,
-    type Mutations,
+    type ModelOneCommitOptions,
+    type ModelManyCommitOptions,
+    type ModelOneCommit,
+    type ModelManyCommit,
+    type ModelCall,
     ModelKind,
+    ModelOneMode,
+    ModelManyMode,
 } from "../types/model";
-import { type ActionCommitter, ActionOneMode, ActionManyMode, AUTO } from "../types/action";
 
-export function initializeState<M extends Model>(model: M): ModelStateOf<M> {
-    const state = {} as Record<string, unknown>;
-    for (const [key, definition] of Object.entries(model)) {
-        if (definition.kind === ModelKind.OBJECT) {
-            state[key] = definition.options?.default ?? null;
-        } else {
-            state[key] = definition.options?.default ?? [];
-        }
-    }
-
-    return state as ModelStateOf<M>;
-}
-
-function getIdentifier(definition: ModelOneDefinition<Shape> | ModelManyDefinition<Shape>): string {
+function resolveIdentifier<S extends Shape>(definition: ModelOneDefinition<S> | ModelManyDefinition<S>): string {
     if (definition.options?.identifier) {
-        return definition.options.identifier;
+        return definition.options.identifier as string;
     }
 
     const { identifier } = resolveShape(definition.shape as ShapeDefinition);
@@ -43,42 +31,44 @@ function getIdentifier(definition: ModelOneDefinition<Shape> | ModelManyDefiniti
     return "id";
 }
 
-function createOneMutations<S extends Shape>(
-    source: SourceStore<BaseState>,
+function createOneCommit<S extends Shape>(
     definition: ModelOneDefinition<S>,
-    key: string,
-): MutationsOne<S> {
-    const setOperation: Mutation<S> = source.mutation(`${key}:set`, (state, value: S) => {
-        state[key] = value;
+    source: SourceStore<BaseState>,
+): ModelOneCommit<S> {
+    const setOperation: Mutation<S> = source.mutation(`${definition.key}:set`, (state, value: S) => {
+        state[definition.key] = value;
     });
 
-    const resetOperation: Mutation<undefined> = source.mutation(`${key}:reset`, (state) => {
-        state[key] = definition.options?.default ?? null;
+    const resetOperation: Mutation<undefined> = source.mutation(`${definition.key}:reset`, (state) => {
+        state[definition.key] = definition.options?.default ?? null;
     });
 
     const patchOperation: Mutation<{
         value: Partial<S>;
-        options?: MutationsOneOptions;
-    }> = source.mutation(`${key}:patch`, (state, payload: { value: Partial<S>; options?: MutationsOneOptions }) => {
-        if (state[key] === null) {
-            return;
-        }
+        options?: ModelOneCommitOptions;
+    }> = source.mutation(
+        `${definition.key}:patch`,
+        (state, payload: { value: Partial<S>; options?: ModelOneCommitOptions }) => {
+            if (state[definition.key] === null) {
+                return;
+            }
 
-        if (payload.options?.deep) {
-            state[key] = defu(payload.value, state[key]) as S;
+            if (payload.options?.deep) {
+                state[definition.key] = defu(payload.value, state[definition.key]) as S;
 
-            return;
-        }
+                return;
+            }
 
-        state[key] = {
-            ...state[key],
-            ...payload.value,
-        };
-    });
+            state[definition.key] = {
+                ...state[definition.key],
+                ...payload.value,
+            };
+        },
+    );
 
     function set(value: S) {
         definition.logger?.debug("Model mutation", {
-            model: key,
+            model: definition.key,
             mutation: "set",
         });
 
@@ -87,16 +77,16 @@ function createOneMutations<S extends Shape>(
 
     function reset() {
         definition.logger?.debug("Model mutation", {
-            model: key,
+            model: definition.key,
             mutation: "reset",
         });
 
         resetOperation();
     }
 
-    function patch(value: Partial<S>, options?: MutationsOneOptions) {
+    function patch(value: Partial<S>, options?: ModelOneCommitOptions) {
         definition.logger?.debug("Model mutation", {
-            model: key,
+            model: definition.key,
             mutation: "patch",
         });
 
@@ -113,31 +103,30 @@ function createOneMutations<S extends Shape>(
     };
 }
 
-function createManyMutations<S extends Shape>(
-    source: SourceStore<BaseState>,
+function createManyCommit<S extends Shape>(
     definition: ModelManyDefinition<S>,
-    key: string,
-): MutationsMany<S> {
-    const identifier = getIdentifier(definition as any);
+    source: SourceStore<BaseState>,
+): ModelManyCommit<S> {
+    const identifier = resolveIdentifier(definition);
 
-    const setOperation: Mutation<S[]> = source.mutation(`${key}:set`, (state, value: S[]) => {
-        state[key] = value;
+    const setOperation: Mutation<S[]> = source.mutation(`${definition.key}:set`, (state, value: S[]) => {
+        state[definition.key] = value;
     });
 
-    const resetOperation: Mutation<undefined> = source.mutation(`${key}:reset`, (state) => {
-        state[key] = definition.options?.default ?? [];
+    const resetOperation: Mutation<undefined> = source.mutation(`${definition.key}:reset`, (state) => {
+        state[definition.key] = definition.options?.default ?? [];
     });
 
     const patchOperation: Mutation<{
         value: Partial<S> | Partial<S>[];
-        options?: MutationsManyOptions;
+        options?: ModelManyCommitOptions;
     }> = source.mutation(
-        `${key}:patch`,
-        (state, payload: { value: Partial<S> | Partial<S>[]; options?: MutationsManyOptions }) => {
+        `${definition.key}:patch`,
+        (state, payload: { value: Partial<S> | Partial<S>[]; options?: ModelManyCommitOptions }) => {
             const items = Array.isArray(payload.value) ? payload.value : [payload.value];
             const by = payload.options?.by ?? identifier;
 
-            state[key] = state[key].map((item: S) => {
+            state[definition.key] = state[definition.key].map((item: S) => {
                 const found = items.find((p) => {
                     return p[by] === item[by];
                 });
@@ -160,54 +149,60 @@ function createManyMutations<S extends Shape>(
 
     const removeOperation: Mutation<{
         value: S | S[];
-        options?: MutationsManyOptions;
-    }> = source.mutation(`${key}:remove`, (state, payload: { value: S | S[]; options?: MutationsManyOptions }) => {
-        const items = Array.isArray(payload.value) ? payload.value : [payload.value];
-        const by = payload.options?.by ?? identifier;
+        options?: ModelManyCommitOptions;
+    }> = source.mutation(
+        `${definition.key}:remove`,
+        (state, payload: { value: S | S[]; options?: ModelManyCommitOptions }) => {
+            const items = Array.isArray(payload.value) ? payload.value : [payload.value];
+            const by = payload.options?.by ?? identifier;
 
-        const ids = new Set(
-            items.map((item) => {
-                return item[by];
-            }),
-        );
-
-        state[key] = state[key].filter((item: S) => {
-            return !ids.has(item[by]);
-        });
-    });
-
-    const addOperation: Mutation<{
-        value: S | S[];
-        options?: MutationsManyOptions;
-    }> = source.mutation(`${key}:add`, (state, payload: { value: S | S[]; options?: MutationsManyOptions }) => {
-        let items = Array.isArray(payload.value) ? payload.value : [payload.value];
-
-        if (payload.options?.unique) {
-            const by = payload.options.by ?? identifier;
-
-            const existingIds = new Set(
-                state[key].map((item: S) => {
+            const ids = new Set(
+                items.map((item) => {
                     return item[by];
                 }),
             );
 
-            items = items.filter((item) => {
-                return !existingIds.has(item[by]);
+            state[definition.key] = state[definition.key].filter((item: S) => {
+                return !ids.has(item[by]);
             });
-        }
+        },
+    );
 
-        if (payload.options?.prepend) {
-            state[key] = [...items, ...state[key]];
+    const addOperation: Mutation<{
+        value: S | S[];
+        options?: ModelManyCommitOptions;
+    }> = source.mutation(
+        `${definition.key}:add`,
+        (state, payload: { value: S | S[]; options?: ModelManyCommitOptions }) => {
+            let items = Array.isArray(payload.value) ? payload.value : [payload.value];
 
-            return;
-        }
+            if (payload.options?.unique) {
+                const by = payload.options.by ?? identifier;
 
-        state[key] = [...state[key], ...items];
-    });
+                const existingIds = new Set(
+                    state[definition.key].map((item: S) => {
+                        return item[by];
+                    }),
+                );
+
+                items = items.filter((item) => {
+                    return !existingIds.has(item[by]);
+                });
+            }
+
+            if (payload.options?.prepend) {
+                state[definition.key] = [...items, ...state[definition.key]];
+
+                return;
+            }
+
+            state[definition.key] = [...state[definition.key], ...items];
+        },
+    );
 
     function set(value: S[]) {
         definition.logger?.debug("Model mutation", {
-            model: key,
+            model: definition.key,
             mutation: "set",
         });
 
@@ -216,16 +211,16 @@ function createManyMutations<S extends Shape>(
 
     function reset() {
         definition.logger?.debug("Model mutation", {
-            model: key,
+            model: definition.key,
             mutation: "reset",
         });
 
         resetOperation();
     }
 
-    function patch(value: Partial<S> | Partial<S>[], options?: MutationsManyOptions) {
+    function patch(value: Partial<S> | Partial<S>[], options?: ModelManyCommitOptions) {
         definition.logger?.debug("Model mutation", {
-            model: key,
+            model: definition.key,
             mutation: "patch",
         });
 
@@ -235,9 +230,9 @@ function createManyMutations<S extends Shape>(
         });
     }
 
-    function remove(value: S | S[], options?: MutationsManyOptions) {
+    function remove(value: S | S[], options?: ModelManyCommitOptions) {
         definition.logger?.debug("Model mutation", {
-            model: key,
+            model: definition.key,
             mutation: "remove",
         });
 
@@ -247,9 +242,9 @@ function createManyMutations<S extends Shape>(
         });
     }
 
-    function add(value: S | S[], options?: MutationsManyOptions) {
+    function add(value: S | S[], options?: ModelManyCommitOptions) {
         definition.logger?.debug("Model mutation", {
-            model: key,
+            model: definition.key,
             mutation: "add",
         });
 
@@ -268,61 +263,48 @@ function createManyMutations<S extends Shape>(
     };
 }
 
-export function createMutations<M extends Model>(source: SourceStore<BaseState>, model: M): Mutations<M> {
-    const mutations = {} as Record<string, MutationsOne<Shape> | MutationsMany<Shape>>;
-    for (const [key, definition] of Object.entries(model)) {
-        definition.logger?.debug("Model registered", {
-            model: key,
-            kind: definition.kind,
-        });
-
-        if (definition.kind === ModelKind.OBJECT) {
-            mutations[key] = createOneMutations(source, definition as ModelOneDefinition<Shape>, key);
-        } else {
-            mutations[key] = createManyMutations(source, definition as ModelManyDefinition<Shape>, key);
-        }
-    }
-
-    return mutations as Mutations<M>;
+function isOneDefinition<S extends Shape>(definition: ModelDefinition<S>): definition is ModelOneDefinition<S> {
+    return definition.kind === ModelKind.OBJECT;
 }
 
-export function executeCommit<M extends Model>(
-    definition: {
-        model: keyof M;
-        mode: ActionOneMode | ActionManyMode;
-        value?: unknown;
-        options?: MutationsOneOptions | MutationsManyOptions;
-    },
-    mutations: Mutations<M>,
-    result?: unknown,
-): void {
-    const handler = (mutations[definition.model] as any)[definition.mode];
-
-    switch (definition.mode) {
-        case ActionOneMode.RESET:
-        case ActionManyMode.RESET: {
-            handler();
-
-            break;
-        }
-        default: {
-            handler(
-                definition.value === AUTO || definition.value === undefined ? result : definition.value,
-                definition.options,
-            );
-        }
+function resolveCommit<S extends Shape>(
+    definition: ModelDefinition<S>,
+    source: SourceStore<BaseState>,
+): ModelOneCommit<S> | ModelManyCommit<S> {
+    if (isOneDefinition(definition)) {
+        return createOneCommit(definition, source);
     }
+
+    return createManyCommit(definition, source);
 }
 
-export function createCommitter<M extends Model>(mutations: Mutations<M>): ActionCommitter<M> {
-    function committer(
-        model: keyof M,
-        mode: ActionOneMode | ActionManyMode,
-        value?: unknown,
-        options?: MutationsOneOptions | MutationsManyOptions,
-    ) {
-        executeCommit({ model, mode, value, options }, mutations);
-    }
+export function createModel<S extends Shape>(
+    definition: ModelDefinition<S>,
+    source: SourceStore<BaseState>,
+): ModelCall<S> {
+    definition.logger?.debug("Registering model", {
+        model: definition.key,
+        kind: definition.kind,
+    });
 
-    return committer as ActionCommitter<M>;
+    const commit = resolveCommit(definition, source);
+
+    const model: ModelCall<S> = Object.assign(commit, {
+        commit(mode: ModelOneMode | ModelManyMode, value?: unknown, options?: unknown) {
+            const handler = commit[mode as keyof typeof commit] as (...args: unknown[]) => void;
+            switch (mode) {
+                case ModelOneMode.RESET:
+                case ModelManyMode.RESET: {
+                    handler();
+
+                    break;
+                }
+                default: {
+                    handler(value, options);
+                }
+            }
+        },
+    });
+
+    return model;
 }
