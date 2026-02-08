@@ -38,4 +38,14 @@ test.describe("config page", () => {
     test("action status updates after load", async ({ page }) => {
         await expect(page.getByTestId("status-get").locator(".monitor-state")).toHaveText("success");
     });
+
+    test("reset restores shape defaults with overrides", async ({ page }) => {
+        await page.getByTestId("toggle-theme").click();
+        await expect(page.getByTestId("theme-value")).toHaveText("light");
+        await page.getByTestId("toggle-notifications").click();
+        await expect(page.getByTestId("notifications-value")).toHaveText("off");
+        await page.getByTestId("reset-config").click();
+        await expect(page.getByTestId("theme-value")).toHaveText("dark");
+        await expect(page.getByTestId("notifications-value")).toHaveText("on");
+    });
 });

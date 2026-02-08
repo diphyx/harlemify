@@ -155,4 +155,20 @@ test.describe("projects page", () => {
     test("action status updates after list", async ({ page }) => {
         await expect(page.getByTestId("status-list").locator(".monitor-state")).toHaveText("success");
     });
+
+    test("create modal opens with shape defaults (empty form)", async ({ page }) => {
+        await page.getByTestId("add-project").click();
+        await expect(page.getByTestId("input-name")).toHaveValue("");
+        await expect(page.getByTestId("input-description")).toHaveValue("");
+    });
+
+    test("create modal resets to shape defaults after save", async ({ page }) => {
+        await page.getByTestId("add-project").click();
+        await page.getByTestId("input-name").fill("Temp Project");
+        await page.getByTestId("input-description").fill("Temp desc");
+        await page.getByTestId("save-project").click();
+        await page.getByTestId("add-project").click();
+        await expect(page.getByTestId("input-name")).toHaveValue("");
+        await expect(page.getByTestId("input-description")).toHaveValue("");
+    });
 });

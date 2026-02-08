@@ -69,4 +69,20 @@ test.describe("posts page", () => {
     test("action status shows success after list", async ({ page }) => {
         await expect(page.getByTestId("status-list").locator(".monitor-state")).toHaveText("success");
     });
+
+    test("create modal opens with shape defaults (empty form)", async ({ page }) => {
+        await page.getByTestId("add-post").click();
+        await expect(page.getByTestId("input-title")).toHaveValue("");
+        await expect(page.getByTestId("input-body")).toHaveValue("");
+    });
+
+    test("create modal resets to shape defaults after save", async ({ page }) => {
+        await page.getByTestId("add-post").click();
+        await page.getByTestId("input-title").fill("Temp Post");
+        await page.getByTestId("input-body").fill("Temp body");
+        await page.getByTestId("save-post").click();
+        await page.getByTestId("add-post").click();
+        await expect(page.getByTestId("input-title")).toHaveValue("");
+        await expect(page.getByTestId("input-body")).toHaveValue("");
+    });
 });
