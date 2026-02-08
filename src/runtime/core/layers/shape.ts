@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import type { ShapeFactory } from "../types/shape";
+import type { ShapeFactory, ShapeRawDefinition } from "../types/shape";
+import { createShape } from "../utils/shape";
 
 export const primitiveField = {
     string: z.string,
@@ -48,9 +49,9 @@ export const specialField = {
     optional: z.optional,
 };
 
-export function shape<T extends z.ZodRawShape>(definition: T | ((factory: ShapeFactory) => T)): z.ZodObject<T> {
+export function shape<T extends ShapeRawDefinition>(definition: T | ((factory: ShapeFactory) => T)) {
     if (typeof definition === "function") {
-        return z.object(
+        return createShape(
             definition({
                 ...primitiveField,
                 ...structureField,
@@ -60,5 +61,5 @@ export function shape<T extends z.ZodRawShape>(definition: T | ((factory: ShapeF
         );
     }
 
-    return z.object(definition);
+    return createShape(definition);
 }

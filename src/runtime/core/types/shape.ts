@@ -1,18 +1,44 @@
 import type { z } from "zod";
 
-export type ShapeDefinition = z.ZodObject<z.ZodRawShape>;
-
-export type ShapeType<S> = z.ZodType<S>;
-
-export type ShapeInfer<T extends z.ZodType<any>> = z.infer<T>;
+// Types
 
 export type Shape = Record<string, unknown>;
+export type ShapeRawDefinition = z.ZodRawShape;
+export type ShapeDefinition = z.ZodObject<ShapeRawDefinition>;
+export type ShapeType<S> = z.ZodType<S>;
+export type ShapeInfer<T extends z.ZodType<any>> = z.infer<T>;
+export type ShapeCall<T extends ShapeRawDefinition> = z.ZodObject<T> & {
+    defaults: (overrides?: Partial<z.infer<z.ZodObject<T>>>) => z.infer<z.ZodObject<T>>;
+};
+
+// Interfaces
 
 export interface ShapeMeta {
     identifier?: string;
     defaults: Record<string, unknown>;
     fields: string[];
 }
+
+export interface ShapeFieldDefinition {
+    meta?: { identifier?: boolean };
+    defaultValue?: unknown;
+}
+
+export interface ZodFieldDefinition {
+    type?: string;
+    shape?: Record<string, z.ZodType>;
+    element?: z.ZodType;
+    items?: z.ZodType[];
+    entries?: Record<string, string | number>;
+    values?: unknown[];
+    options?: z.ZodType[];
+    innerType?: z.ZodType;
+    defaultValue?: unknown;
+    keyType?: z.ZodType;
+    valueType?: z.ZodType;
+}
+
+// Factory
 
 export interface ShapeFactory {
     // Primitives
