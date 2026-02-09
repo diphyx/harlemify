@@ -18,7 +18,3 @@
     - [Cancellation](advanced/cancellation.md)
     - [Debug Logging](advanced/logging.md)
     - [Isolated Status](advanced/isolated-status.md)
-- API Reference
-    - [createStore](api/create-store.md)
-    - [shape](api/shape.md)
-    - [Types](api/types.md)

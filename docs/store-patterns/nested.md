@@ -69,10 +69,7 @@ export const projectStore = createStore({
 
             // Multi-model commit via handler
             toggle: handler(async ({ model, view }) => {
-                const result = await $fetch<Project>(
-                    `/projects/${view.project.value?.id}/toggle`,
-                    { method: "PUT" },
-                );
+                const result = await $fetch<Project>(`/projects/${view.project.value?.id}/toggle`, { method: "PUT" });
                 model.current.patch(result);
                 model.list.patch(result);
                 return result;
@@ -80,9 +77,7 @@ export const projectStore = createStore({
 
             // Nested field loaders
             milestones: handler(async ({ model, view }) => {
-                const result = await $fetch<ProjectMilestone[]>(
-                    `/projects/${view.project.value?.id}/milestones`,
-                );
+                const result = await $fetch<ProjectMilestone[]>(`/projects/${view.project.value?.id}/milestones`);
                 model.current.patch({ milestones: result });
                 model.list.patch({ milestones: result });
                 return result;
@@ -90,13 +85,8 @@ export const projectStore = createStore({
 
             // Deep patch for nested objects
             options: handler(async ({ model, view }) => {
-                const result = await $fetch<ProjectOptions>(
-                    `/projects/${view.project.value?.id}/options`,
-                );
-                model.current.patch(
-                    { meta: { ...view.meta.value, options: result } },
-                    { deep: true },
-                );
+                const result = await $fetch<ProjectOptions>(`/projects/${view.project.value?.id}/options`);
+                model.current.patch({ meta: { ...view.meta.value, options: result } }, { deep: true });
                 return result;
             }),
 
@@ -141,13 +131,9 @@ function selectProject(project: Project) {
     <main v-if="view.project.value">
         <h1>{{ view.project.value.name }}</h1>
 
-        <button @click="action.milestones()" v-if="!view.milestones.value.length">
-            Load Milestones
-        </button>
+        <button @click="action.milestones()" v-if="!view.milestones.value.length">Load Milestones</button>
         <ul v-else>
-            <li v-for="m in view.milestones.value" :key="m.id">
-                {{ m.name }} - {{ m.done ? "Done" : "Pending" }}
-            </li>
+            <li v-for="m in view.milestones.value" :key="m.id">{{ m.name }} - {{ m.done ? "Done" : "Pending" }}</li>
         </ul>
     </main>
 </template>
@@ -156,4 +142,3 @@ function selectProject(project: Project) {
 ## Next Steps
 
 - [Concurrency](../advanced/concurrency.md) - Control concurrent action execution
-- [API Reference](../api/README.md) - Complete type definitions

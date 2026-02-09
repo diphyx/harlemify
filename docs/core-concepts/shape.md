@@ -54,6 +54,30 @@ const configShape = shape((factory) => {
 
 If no identifier is explicitly marked, harlemify falls back to fields named `id` or `_id` when needed by collection operations.
 
+## Alias Meta
+
+When your API uses different key naming conventions than your shape (e.g. kebab-case `first-name` vs snake_case `first_name`), use `.meta({ alias })` to define the mapping once at the shape level:
+
+```typescript
+const contactShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        first_name: factory.string().meta({ alias: "first-name" }),
+        last_name: factory.string().meta({ alias: "last-name" }),
+        email: factory.email(),
+    };
+});
+```
+
+Alias remapping is applied automatically during action execution:
+
+- **Inbound (response):** API keys (`first-name`) are remapped to shape keys (`first_name`) before committing to the store
+- **Outbound (request body):** Shape keys (`first_name`) are remapped to alias keys (`first-name`) before sending
+
+This eliminates the need for `transformer.request` / `transformer.response` at every call site for key renaming.
+
 ## Type Inference
 
 Export the inferred type using `ShapeInfer`:

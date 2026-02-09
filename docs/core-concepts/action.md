@@ -34,6 +34,8 @@ api.delete({ url: "/users/1" });
 
 > **Note:** `GET` and `HEAD` requests always have their `body` set to `undefined`, even if a body is provided at definition or call time.
 
+> **Note:** API actions use `$fetch` with `responseType: "json"` and are designed for JSON APIs. For non-JSON responses (blobs, streams, text, etc.), use a [handler action](#handler-actions) with a direct `$fetch` call instead.
+
 ### Dynamic URLs
 
 Use a function to resolve URLs from view state:
@@ -120,8 +122,6 @@ await store.action.fetch({
 });
 ```
 
-See [ActionCallOptions](../api/types.md#actioncalloptions) for all options.
-
 > **Option priority:** Call-time options override definition-time values, which override module config, which override built-in defaults. For example, `headers` passed at call time are merged on top of definition headers and config headers via `defu`.
 
 ### Transformer
@@ -174,6 +174,41 @@ store.action.fetch.reset(); // Reset to idle
 </template>
 ```
 
+## Alias Mapping
+
+When a shape defines field aliases via `.meta({ alias })`, key remapping is applied automatically during action execution — no transformers needed.
+
+```typescript
+const contactShape = shape((factory) => ({
+    id: factory.number().meta({ identifier: true }),
+    first_name: factory.string().meta({ alias: "first-name" }),
+    last_name: factory.string().meta({ alias: "last-name" }),
+    email: factory.email(),
+}));
+```
+
+### How it works
+
+For actions with a `commit` config pointing to a model that uses an aliased shape:
+
+- **Outbound:** Request body keys are remapped from shape keys to alias keys before sending. `{ first_name: "John" }` becomes `{ "first-name": "John" }`.
+- **Inbound:** Response keys are remapped from alias keys to shape keys before committing to the store. `{ "first-name": "John" }` becomes `{ first_name: "John" }`.
+
+### Ordering with transformers
+
+Alias remapping respects the transformer pipeline:
+
+- **Outbound:** `resolveBody()` → alias remap → `transformer.request`
+- **Inbound:** `$fetch` → `transformer.response` → alias remap → commit
+
+This means user transformers see alias keys outbound and original API keys inbound, while the store always uses shape keys.
+
+### When aliases are skipped
+
+- Actions without a `commit` config (no model to resolve aliases from)
+- Models whose shape has no aliases defined
+- Non-object body types (`FormData`, `Blob`, etc.)
+
 ## Error Types
 
 | Error                   | When                         |
@@ -197,4 +232,3 @@ try {
 
 - [Concurrency](../advanced/concurrency.md) - Control concurrent action execution
 - [Cancellation](../advanced/cancellation.md) - Cancel in-flight requests
-- [Types](../api/types.md) - Full type reference
