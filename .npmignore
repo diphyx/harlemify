@@ -2,6 +2,7 @@
 src
 playground
 test
+e2e
 docs
 
 # Config
@@ -12,7 +13,12 @@ coverage
 
 # Dev files
 *.log
+.DS_Store
 .gitignore
-.eslintrc
+.npmignore
 tsconfig.json
 vitest.config.ts
+playwright.config.ts
+eslint.config.js
+prettier.config.js
+pnpm-lock.yaml
