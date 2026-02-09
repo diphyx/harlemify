@@ -2,7 +2,7 @@
 
 > Factory-driven state management for Nuxt powered by [Harlem](https://harlemjs.com/)
 
-![Version](https://img.shields.io/badge/version-4.0.0-42b883)
+![Version](https://img.shields.io/badge/version-5.0.0-42b883)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 Harlemify provides a declarative, factory-based approach to state management. Define your data shapes with Zod, then use model, view, and action factories to create fully typed, reactive stores with built-in API integration, computed views, and status tracking.
