@@ -3,6 +3,7 @@ import type { ConsolaInstance } from "consola";
 import type { ModelDefinitions, ModelDefinitionInfer } from "../types/model";
 import type {
     RuntimeViewConfig,
+    ViewDefinitionOptions,
     ViewFromDefinitionResolver,
     ViewMergeDefinitionResolver,
     ViewFromDefinition,
@@ -17,6 +18,7 @@ export function createViewFactory<MD extends ModelDefinitions>(
     function from<K extends keyof MD, R = ModelDefinitionInfer<MD, K>>(
         model: K,
         resolver?: ViewFromDefinitionResolver<MD, K, R>,
+        options?: ViewDefinitionOptions,
     ): ViewFromDefinition<MD, K, R> {
         let key = "";
         const definition = {
@@ -28,6 +30,10 @@ export function createViewFactory<MD extends ModelDefinitions>(
             },
             model: [model] as const,
             resolver,
+            options: {
+                clone: config?.clone,
+                ...options,
+            },
             logger,
         };
 
@@ -37,6 +43,7 @@ export function createViewFactory<MD extends ModelDefinitions>(
     function merge<K extends readonly (keyof MD)[], R>(
         models: K,
         resolver: ViewMergeDefinitionResolver<MD, K, R>,
+        options?: ViewDefinitionOptions,
     ): ViewMergeDefinition<MD, K, R> {
         let key = "";
         return {
@@ -48,6 +55,10 @@ export function createViewFactory<MD extends ModelDefinitions>(
             },
             models,
             resolver,
+            options: {
+                clone: config?.clone,
+                ...options,
+            },
             logger,
         } as ViewMergeDefinition<MD, K, R>;
     }

@@ -1,7 +1,27 @@
 import type { Store as SourceStore, BaseState } from "@harlem/core";
 
 import type { ModelDefinitions } from "../types/model";
-import type { ViewDefinition, ViewCall } from "../types/view";
+import { type ViewDefinition, type ViewCall, ViewClone } from "../types/view";
+
+function resolveClonedValue<MD extends ModelDefinitions>(definition: ViewDefinition<MD>, value: unknown): unknown {
+    if (!definition.options?.clone || value === null || value === undefined) {
+        return value;
+    }
+
+    if (definition.options.clone === ViewClone.DEEP) {
+        return JSON.parse(JSON.stringify(value));
+    }
+
+    if (Array.isArray(value)) {
+        return [...value];
+    }
+
+    if (typeof value === "object") {
+        return { ...value };
+    }
+
+    return value;
+}
 
 function resolveModels<MD extends ModelDefinitions>(definition: ViewDefinition<MD>): readonly (keyof MD)[] {
     return "model" in definition ? definition.model : definition.models;
@@ -20,7 +40,12 @@ export function createView<MD extends ModelDefinitions, R = unknown>(
 
     const view = source.getter(definition.key, (state) => {
         const values = models.map((sourceKey) => {
-            return state[sourceKey as string];
+            const value = state[sourceKey as string];
+            if (definition.resolver) {
+                return resolveClonedValue(definition, value);
+            }
+
+            return value;
         });
 
         if (definition.resolver) {

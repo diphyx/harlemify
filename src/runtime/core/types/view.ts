@@ -3,9 +3,24 @@ import type { ComputedRef } from "vue";
 import type { BaseDefinition } from "./base";
 import type { ModelDefinitions, ModelDefinitionInfer, ModelDefinitionInferTuple } from "./model";
 
+// Enums
+
+export enum ViewClone {
+    SHALLOW = "shallow",
+    DEEP = "deep",
+}
+
 // Config
 
-export interface RuntimeViewConfig {}
+export interface RuntimeViewConfig {
+    clone?: ViewClone;
+}
+
+// Options
+
+export interface ViewDefinitionOptions {
+    clone?: ViewClone;
+}
 
 // Resolvers
 
@@ -26,6 +41,7 @@ export interface ViewFromDefinition<
 > extends BaseDefinition {
     model: readonly [K];
     resolver?: ViewFromDefinitionResolver<MD, K, R>;
+    options?: ViewDefinitionOptions;
 }
 
 export interface ViewMergeDefinition<
@@ -35,6 +51,7 @@ export interface ViewMergeDefinition<
 > extends BaseDefinition {
     models: K;
     resolver: ViewMergeDefinitionResolver<MD, K, R>;
+    options?: ViewDefinitionOptions;
 }
 
 export type ViewDefinition<MD extends ModelDefinitions> =
@@ -56,10 +73,15 @@ export type ViewDefinitionInfer<MD extends ModelDefinitions, VD extends ViewDefi
 
 export interface ViewFactory<MD extends ModelDefinitions> {
     from<K extends keyof MD>(model: K): ViewFromDefinition<MD, K, ModelDefinitionInfer<MD, K>>;
-    from<K extends keyof MD, R>(model: K, resolver: ViewFromDefinitionResolver<MD, K, R>): ViewFromDefinition<MD, K, R>;
+    from<K extends keyof MD, R>(
+        model: K,
+        resolver: ViewFromDefinitionResolver<MD, K, R>,
+        options?: ViewDefinitionOptions,
+    ): ViewFromDefinition<MD, K, R>;
     merge<MK1 extends keyof MD, MK2 extends keyof MD, R>(
         models: readonly [MK1, MK2],
         resolver: (mv1: ModelDefinitionInfer<MD, MK1>, mv2: ModelDefinitionInfer<MD, MK2>) => R,
+        options?: ViewDefinitionOptions,
     ): ViewMergeDefinition<MD, readonly [MK1, MK2], R>;
     merge<MK1 extends keyof MD, MK2 extends keyof MD, MK3 extends keyof MD, R>(
         models: readonly [MK1, MK2, MK3],
@@ -68,11 +90,36 @@ export interface ViewFactory<MD extends ModelDefinitions> {
             mv2: ModelDefinitionInfer<MD, MK2>,
             mv3: ModelDefinitionInfer<MD, MK3>,
         ) => R,
+        options?: ViewDefinitionOptions,
     ): ViewMergeDefinition<MD, readonly [MK1, MK2, MK3], R>;
-    merge<K extends readonly (keyof MD)[], R>(
-        models: K,
-        resolver: ViewMergeDefinitionResolver<MD, K, R>,
-    ): ViewMergeDefinition<MD, K, R>;
+    merge<MK1 extends keyof MD, MK2 extends keyof MD, MK3 extends keyof MD, MK4 extends keyof MD, R>(
+        models: readonly [MK1, MK2, MK3, MK4],
+        resolver: (
+            mv1: ModelDefinitionInfer<MD, MK1>,
+            mv2: ModelDefinitionInfer<MD, MK2>,
+            mv3: ModelDefinitionInfer<MD, MK3>,
+            mv4: ModelDefinitionInfer<MD, MK4>,
+        ) => R,
+        options?: ViewDefinitionOptions,
+    ): ViewMergeDefinition<MD, readonly [MK1, MK2, MK3, MK4], R>;
+    merge<
+        MK1 extends keyof MD,
+        MK2 extends keyof MD,
+        MK3 extends keyof MD,
+        MK4 extends keyof MD,
+        MK5 extends keyof MD,
+        R,
+    >(
+        models: readonly [MK1, MK2, MK3, MK4, MK5],
+        resolver: (
+            mv1: ModelDefinitionInfer<MD, MK1>,
+            mv2: ModelDefinitionInfer<MD, MK2>,
+            mv3: ModelDefinitionInfer<MD, MK3>,
+            mv4: ModelDefinitionInfer<MD, MK4>,
+            mv5: ModelDefinitionInfer<MD, MK5>,
+        ) => R,
+        options?: ViewDefinitionOptions,
+    ): ViewMergeDefinition<MD, readonly [MK1, MK2, MK3, MK4, MK5], R>;
 }
 
 // Call

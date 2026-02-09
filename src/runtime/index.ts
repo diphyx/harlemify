@@ -10,6 +10,10 @@ export type { ShapeInfer } from "./core/types/shape";
 export { ModelKind, ModelOneMode, ModelManyMode } from "./core/types/model";
 export type { ModelOneCommitOptions, ModelManyCommitOptions } from "./core/types/model";
 
+// View
+export { ViewClone } from "./core/types/view";
+export type { ViewDefinitionOptions } from "./core/types/view";
+
 // Action
 export { ActionStatus, ActionConcurrent, ActionApiMethod } from "./core/types/action";
 export type {
