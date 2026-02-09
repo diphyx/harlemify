@@ -271,6 +271,12 @@ async function handleTriggerError() {
                 </button>
             </div>
 
+            <!-- Sorted Milestones (clone: "deep") -->
+            <div class="state-section" data-testid="cloned-sorted-milestones">
+                <h4>Sorted Milestones (view.sortedMilestones, clone: "deep")</h4>
+                <pre>{{ JSON.stringify(projectStore.view.sortedMilestones.value, null, 2) }}</pre>
+            </div>
+
             <!-- Raw State -->
             <div class="state-section" data-testid="project-state">
                 <h4>project (view.project)</h4>

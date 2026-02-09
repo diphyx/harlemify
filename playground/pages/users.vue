@@ -127,6 +127,17 @@ function resetListAction() {
             </button>
         </div>
 
+        <div class="detail" data-testid="cloned-sorted">
+            <h3>Cloned View (view.sorted, clone: true)</h3>
+            <pre>{{
+                JSON.stringify(
+                    userStore.view.sorted.value?.map((u: User) => u.name),
+                    null,
+                    2,
+                )
+            }}</pre>
+        </div>
+
         <div class="detail" data-testid="merged-summary">
             <h3>Merged View (view.summary)</h3>
             <pre>{{ JSON.stringify(userStore.view.summary.value, null, 2) }}</pre>

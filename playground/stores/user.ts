@@ -1,4 +1,4 @@
-import { createStore, shape, ModelOneMode, ModelManyMode, type ShapeInfer } from "../../src/runtime";
+import { createStore, shape, ModelOneMode, ModelManyMode, ViewClone, type ShapeInfer } from "../../src/runtime";
 
 export const userShape = shape((factory) => {
     return {
@@ -27,6 +27,13 @@ export const userStore = createStore({
             count: from("list", (model) => {
                 return model.length;
             }),
+            sorted: from(
+                "list",
+                (list) => {
+                    return list.sort((a, b) => a.name.localeCompare(b.name));
+                },
+                { clone: ViewClone.SHALLOW },
+            ),
             summary: merge(["current", "list"], (current, list) => {
                 return {
                     selected: current?.name ?? null,

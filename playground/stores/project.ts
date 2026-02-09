@@ -1,4 +1,4 @@
-import { createStore, shape, ModelOneMode, ModelManyMode, type ShapeInfer } from "../../src/runtime";
+import { createStore, shape, ModelOneMode, ModelManyMode, ViewClone, type ShapeInfer } from "../../src/runtime";
 
 export const projectShape = shape((factory) => {
     return {
@@ -55,6 +55,15 @@ export const projectStore = createStore({
             completedMilestones: from("current", (model) => {
                 return model?.milestones.filter(({ done }) => done).length ?? 0;
             }),
+            sortedMilestones: from(
+                "current",
+                (model) => {
+                    if (!model) return [];
+                    model.milestones.sort((a, b) => a.name.localeCompare(b.name));
+                    return model.milestones;
+                },
+                { clone: ViewClone.DEEP },
+            ),
             meta: from("current", (model) => {
                 return model?.meta ?? null;
             }),

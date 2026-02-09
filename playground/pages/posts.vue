@@ -110,6 +110,17 @@ function resetSortAction() {
             </div>
         </div>
 
+        <div class="detail" data-testid="cloned-sorted">
+            <h3>Cloned View (view.sorted, clone: true)</h3>
+            <pre>{{
+                JSON.stringify(
+                    postStore.view.sorted.value?.map((p: Post) => p.title),
+                    null,
+                    2,
+                )
+            }}</pre>
+        </div>
+
         <div class="detail" data-testid="merged-overview">
             <h3>Merged View (view.overview)</h3>
             <pre>{{ JSON.stringify(postStore.view.overview.value, null, 2) }}</pre>
