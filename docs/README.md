@@ -2,7 +2,7 @@
 
 > Factory-driven state management for Nuxt powered by [Harlem](https://harlemjs.com/)
 
-![Version](https://img.shields.io/badge/version-5.0.0-42b883)
+![Version](https://img.shields.io/badge/version-5.1.0-42b883)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 Define your data **shape** once with Zod — get typed **models**, computed **views**, and async **actions** with a single `createStore` call.
