@@ -13,6 +13,7 @@ test.describe("home page", () => {
         await expect(page.getByRole("link", { name: /Config/ })).toBeVisible();
         await expect(page.getByRole("link", { name: /Users/ })).toBeVisible();
         await expect(page.getByRole("link", { name: /Posts/ })).toBeVisible();
+        await expect(page.getByRole("link", { name: /Contacts/ })).toBeVisible();
         await expect(page.getByRole("link", { name: /Projects/ })).toBeVisible();
     });
 
@@ -29,6 +30,11 @@ test.describe("home page", () => {
     test("navigates to posts page", async ({ page }) => {
         await page.getByRole("link", { name: /Posts/ }).click();
         await expect(page).toHaveURL("/posts");
+    });
+
+    test("navigates to contacts page", async ({ page }) => {
+        await page.getByRole("link", { name: /Contacts/ }).click();
+        await expect(page).toHaveURL("/contacts");
     });
 
     test("navigates to projects page", async ({ page }) => {
