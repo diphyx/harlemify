@@ -139,6 +139,23 @@ interface ModelManyCall<S> {
 
 ## View Types
 
+### ViewClone
+
+```typescript
+enum ViewClone {
+    SHALLOW = "shallow",
+    DEEP = "deep",
+}
+```
+
+### ViewDefinitionOptions
+
+```typescript
+interface ViewDefinitionOptions {
+    clone?: ViewClone;
+}
+```
+
 ### ViewFactory
 
 ```typescript
@@ -147,8 +164,12 @@ interface ViewFactory<MD> {
     from<K extends keyof MD, R>(
         model: K,
         resolver: (value: ModelDefinitionInfer<MD, K>) => R,
+        options?: ViewDefinitionOptions,
     ): ViewFromDefinition<MD, K, R>;
-    merge<K extends readonly (keyof MD)[], R>(models: K, resolver: (...values) => R): ViewMergeDefinition<MD, K, R>;
+    merge(models: readonly [MK1, MK2], resolver, options?): ViewMergeDefinition;
+    merge(models: readonly [MK1, MK2, MK3], resolver, options?): ViewMergeDefinition;
+    merge(models: readonly [MK1, MK2, MK3, MK4], resolver, options?): ViewMergeDefinition;
+    merge(models: readonly [MK1, MK2, MK3, MK4, MK5], resolver, options?): ViewMergeDefinition;
 }
 ```
 
@@ -459,6 +480,9 @@ export default defineNuxtConfig({
     harlemify: {
         model: {
             identifier: string, // Default identifier field
+        },
+        view: {
+            clone: ViewClone, // Default clone mode for all views
         },
         action: {
             endpoint: string, // Base endpoint URL
