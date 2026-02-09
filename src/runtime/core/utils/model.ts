@@ -3,7 +3,7 @@ import type { Store as SourceStore, BaseState, Mutation } from "@harlem/core";
 
 import { resolveShape } from "./shape";
 
-import type { ShapeDefinition, Shape } from "../types/shape";
+import type { ShapeDefinition, Shape, ShapeResolved } from "../types/shape";
 import {
     type ModelDefinition,
     type ModelOneDefinition,
@@ -18,17 +18,15 @@ import {
     ModelManyMode,
 } from "../types/model";
 
-function resolveIdentifier<S extends Shape>(definition: ModelOneDefinition<S> | ModelManyDefinition<S>): string {
+function resolveIdentifier<S extends Shape>(
+    definition: ModelOneDefinition<S> | ModelManyDefinition<S>,
+    shape: ShapeResolved,
+): string {
     if (definition.options?.identifier) {
         return definition.options.identifier as string;
     }
 
-    const { identifier } = resolveShape(definition.shape as ShapeDefinition);
-    if (identifier) {
-        return identifier;
-    }
-
-    return "id";
+    return shape.identifier ?? "id";
 }
 
 function createOneCommit<S extends Shape>(
@@ -105,9 +103,10 @@ function createOneCommit<S extends Shape>(
 
 function createManyCommit<S extends Shape>(
     definition: ModelManyDefinition<S>,
+    shape: ShapeResolved,
     source: SourceStore<BaseState>,
 ): ModelManyCommit<S> {
-    const identifier = resolveIdentifier(definition);
+    const identifier = resolveIdentifier(definition, shape);
 
     const setOperation: Mutation<S[]> = source.mutation(`${definition.key}:set`, (state, value: S[]) => {
         state[definition.key] = value;
@@ -269,13 +268,14 @@ function isOneDefinition<S extends Shape>(definition: ModelDefinition<S>): defin
 
 function resolveCommit<S extends Shape>(
     definition: ModelDefinition<S>,
+    shape: ShapeResolved,
     source: SourceStore<BaseState>,
 ): ModelOneCommit<S> | ModelManyCommit<S> {
     if (isOneDefinition(definition)) {
         return createOneCommit(definition, source);
     }
 
-    return createManyCommit(definition, source);
+    return createManyCommit(definition, shape, source);
 }
 
 export function createModel<S extends Shape>(
@@ -287,7 +287,8 @@ export function createModel<S extends Shape>(
         kind: definition.kind,
     });
 
-    const commit = resolveCommit(definition, source);
+    const shape = resolveShape(definition.shape as ShapeDefinition);
+    const commit = resolveCommit(definition, shape, source);
 
     const model: ModelCall<S> = Object.assign(commit, {
         commit(mode: ModelOneMode | ModelManyMode, value?: unknown, options?: unknown) {
@@ -303,6 +304,9 @@ export function createModel<S extends Shape>(
                     handler(value, options);
                 }
             }
+        },
+        aliases() {
+            return shape.aliases;
         },
     });
 

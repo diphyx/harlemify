@@ -111,10 +111,12 @@ export interface ModelManyCommit<S extends Shape> {
 
 export type ModelOneCall<S extends Shape> = ModelOneCommit<S> & {
     commit(mode: string, value?: unknown, options?: unknown): void;
+    aliases(): Record<string, string>;
 };
 
 export type ModelManyCall<S extends Shape> = ModelManyCommit<S> & {
     commit(mode: string, value?: unknown, options?: unknown): void;
+    aliases(): Record<string, string>;
 };
 
 export type ModelCall<S extends Shape> = ModelOneCall<S> | ModelManyCall<S>;
