@@ -9,6 +9,8 @@ import { createView } from "../src/runtime/core/utils/view";
 import { ViewClone } from "../src/runtime/core/types/view";
 import type { ShapeInfer } from "../src/runtime/core/types/shape";
 
+// Setup
+
 const UserShape = shape((factory) => {
     return {
         id: factory.number(),
@@ -18,6 +20,8 @@ const UserShape = shape((factory) => {
 });
 
 type User = ShapeInfer<typeof UserShape>;
+
+// Factory
 
 describe("createViewFactory", () => {
     const viewFactory = createViewFactory();
@@ -78,6 +82,8 @@ describe("createViewFactory", () => {
         expect(definition.options?.clone).toBe(ViewClone.SHALLOW);
     });
 });
+
+// View
 
 describe("createView", () => {
     function setup() {

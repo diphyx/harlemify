@@ -75,7 +75,7 @@ View resolver callbacks receive state as a Vue `readonly()` proxy. Mutating meth
 | `ViewClone.DEEP`    | Full deep clone via JSON serialization |
 
 ```typescript
-import { ViewClone } from "harlemify";
+import { ViewClone } from "@diphyx/harlemify";
 
 view({ from, merge }) {
     return {
@@ -127,4 +127,4 @@ api.get({ url: (view) => `/users/${view.user.value?.id}` }, { model: "current", 
 ## Next Steps
 
 - [Action](action.md) - Define async operations
-- [Store Patterns](../store-patterns/README.md) - See complete store examples
+- [Composables](../composables/README.md) - useStoreAction, useStoreModel, useStoreView

@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
+
 import { createStore } from "../src/runtime/core/store";
 import { shape } from "../src/runtime/core/layers/shape";
 import { ModelOneMode, ModelManyMode } from "../src/runtime/core/types/model";
 import { ActionStatus } from "../src/runtime/core/types/action";
 import type { ShapeInfer } from "../src/runtime/core/types/shape";
+
+// Setup
 
 const mockFetch = (globalThis as any).$fetch;
 
@@ -76,6 +79,8 @@ describe("createStore", () => {
         expect(store.view).toBeDefined();
         expect(store.action).toBeDefined();
     });
+
+    // Model
 
     describe("model", () => {
         it("set on one-model", () => {
@@ -201,6 +206,8 @@ describe("createStore", () => {
         });
     });
 
+    // View
+
     describe("views", () => {
         it("reflects current state", () => {
             const store = setup();
@@ -271,6 +278,8 @@ describe("createStore", () => {
             });
         });
     });
+
+    // Action
 
     describe("actions", () => {
         it("action has expected properties", () => {

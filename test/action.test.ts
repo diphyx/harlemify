@@ -3,11 +3,11 @@ import { createStore } from "@harlem/core";
 
 import { shape } from "../src/runtime/core/layers/shape";
 import { createModelFactory } from "../src/runtime/core/layers/model";
+import { createViewFactory } from "../src/runtime/core/layers/view";
 import { createActionFactory } from "../src/runtime/core/layers/action";
 import { createAction } from "../src/runtime/core/utils/action";
 import { ActionApiError } from "../src/runtime/core/utils/error";
 import { createStoreState, createStoreModel, createStoreView } from "../src/runtime/core/utils/store";
-import { createViewFactory } from "../src/runtime/core/layers/view";
 import {
     type ActionDefinition,
     ActionStatus,
@@ -16,8 +16,10 @@ import {
 } from "../src/runtime/core/types/action";
 import { ModelOneMode, ModelManyMode, type ModelDefinitions } from "../src/runtime/core/types/model";
 import type { ViewDefinitions } from "../src/runtime/core/types/view";
-import { useIsolatedActionStatus, useIsolatedActionError } from "../src/runtime/composables/action";
 import type { ShapeInfer } from "../src/runtime/core/types/shape";
+import { useIsolatedActionStatus, useIsolatedActionError } from "../src/runtime/composables/action";
+
+// Setup
 
 const mockFetch = (globalThis as any).$fetch;
 
@@ -30,6 +32,8 @@ const UserShape = shape((factory) => {
 });
 
 type User = ShapeInfer<typeof UserShape>;
+
+// Factory
 
 describe("createActionFactory", () => {
     const factory = createActionFactory();
@@ -113,6 +117,8 @@ describe("createActionFactory", () => {
         });
     });
 });
+
+// Action
 
 describe("createAction", () => {
     const modelFactory = createModelFactory();

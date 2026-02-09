@@ -44,7 +44,14 @@ export default defineNuxtConfig({
 
 ## Auto-Imports
 
-Harlemify automatically imports `createStore` in your Nuxt project. The composables `useIsolatedActionStatus` and `useIsolatedActionError` are also auto-imported from the composables directory.
+Harlemify automatically imports `createStore` and the composables in your Nuxt project:
+
+- `createStore`
+- `useStoreAction`
+- `useStoreModel`
+- `useStoreView`
+- `useIsolatedActionStatus`
+- `useIsolatedActionError`
 
 You still need to manually import types and enums:
 

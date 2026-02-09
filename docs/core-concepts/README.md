@@ -3,11 +3,29 @@
 Harlemify stores are built from four layers, each defined by a factory function inside `createStore`.
 
 ```
-Shape (Zod)  →  createStore({ name, model, view, action })
-                    ├── Model  → State (one / many)
-                    ├── View   → Computed (from / merge)
-                    └── Action → API / Handler
+Shape (Zod)
+└── createStore({ name, model, view, action })
+    ├── Model  → State
+    │   ├── one()
+    │   └── many()
+    ├── View   → Computed
+    │   ├── from()
+    │   └── merge()
+    └── Action → Async
+        ├── api()
+        └── handler()
 ```
+
+## Concepts
+
+Every store splits into three layers with a clear responsibility:
+
+- **Shape** — Data schema defined with Zod. Types everything in the store.
+- **Model** — Mutable state. Changed only through typed commits.
+- **View** — Read-only computed data derived from models.
+- **Action** — Async operations. Fetches data and commits it to models.
+
+Data flows one way: **Action → Model → View**.
 
 ## [Shape](shape.md)
 

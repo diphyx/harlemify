@@ -116,22 +116,17 @@ export const userStore = createStore({
 <script setup lang="ts">
 import { userStore } from "~/stores/user";
 
-const { model, view, action } = userStore;
+const { execute: listUsers, loading } = useStoreAction(userStore, "list");
+const { execute: createUser } = useStoreAction(userStore, "create");
+const { execute: deleteUser } = useStoreAction(userStore, "delete");
+const { set: selectUser } = useStoreModel(userStore, "current");
+const { data: users } = useStoreView(userStore, "users");
+const { data: count } = useStoreView(userStore, "count");
 
-await action.list();
+await listUsers();
 
 async function handleCreate() {
-    await action.create({
-        body: { name: "John Doe", email: "john@example.com" },
-    });
-}
-
-function selectUser(user: User) {
-    model.current.set(user);
-}
-
-async function handleDelete() {
-    await action.delete();
+    await createUser({ body: { name: "John Doe", email: "john@example.com" } });
 }
 </script>
 
@@ -139,17 +134,17 @@ async function handleDelete() {
     <div>
         <button @click="handleCreate">Add User</button>
 
-        <div v-if="action.list.loading.value">Loading...</div>
+        <div v-if="loading">Loading...</div>
 
         <ul v-else>
-            <li v-for="u in view.users.value" :key="u.id">
+            <li v-for="u in users.value" :key="u.id">
                 {{ u.name }} - {{ u.email }}
                 <button @click="selectUser(u)">Select</button>
-                <button @click="handleDelete">Delete</button>
+                <button @click="deleteUser()">Delete</button>
             </li>
         </ul>
 
-        <p>Total: {{ view.count.value }}</p>
+        <p>Total: {{ count.value }}</p>
     </div>
 </template>
 ```
@@ -157,4 +152,4 @@ async function handleDelete() {
 ## Next Steps
 
 - [Core Concepts](../core-concepts/README.md) - Understand how harlemify works
-- [Store Patterns](../store-patterns/README.md) - Learn collection, singleton, and nested patterns
+- [Composables](../composables/README.md) - useStoreAction, useStoreModel, useStoreView

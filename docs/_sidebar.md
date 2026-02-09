@@ -8,11 +8,11 @@
     - [Model](core-concepts/model.md)
     - [View](core-concepts/view.md)
     - [Action](core-concepts/action.md)
-- Store Patterns
-    - [Overview](store-patterns/README.md)
-    - [Collection Store](store-patterns/collection.md)
-    - [Singleton Store](store-patterns/singleton.md)
-    - [Nested Store](store-patterns/nested.md)
+- Composables
+    - [Overview](composables/README.md)
+    - [useStoreAction](composables/use-store-action.md)
+    - [useStoreModel](composables/use-store-model.md)
+    - [useStoreView](composables/use-store-view.md)
 - Advanced
     - [Concurrency](advanced/concurrency.md)
     - [Cancellation](advanced/cancellation.md)

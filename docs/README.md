@@ -5,43 +5,23 @@
 ![Version](https://img.shields.io/badge/version-5.0.0-42b883)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-Harlemify provides a declarative, factory-based approach to state management. Define your data shapes with Zod, then use model, view, and action factories to create fully typed, reactive stores with built-in API integration, computed views, and status tracking.
+Define your data **shape** once with Zod — get typed **models**, computed **views**, and async **actions** with a single `createStore` call.
 
-## Highlights
+## How It Works
 
-- Define shapes once with Zod, get types and validation automatically
-- Three-layer architecture: **Model** (state), **View** (computed), **Action** (async)
-- Two action types: `api` (HTTP + auto-commit) and `handler` (custom logic)
-- Per-action status, error, and loading tracking
-- Concurrency control (block, skip, cancel, allow)
-- Full TypeScript inference from shape to component
-- SSR support with automatic state hydration
-
-## Quick Start
-
-```bash
-npm install @diphyx/harlemify
+```
+Shape (Zod)
+└── createStore()
+    ├── Model  → State
+    ├── View   → Computed
+    └── Action → Async
 ```
 
-```typescript
-// nuxt.config.ts
-export default defineNuxtConfig({
-    modules: ["@diphyx/harlemify"],
-});
-```
+Every action tracks `loading`, `status`, and `error` automatically. Every model mutation is fully typed from the shape. Every view is a reactive `ComputedRef`.
+
+## Quick Example
 
 ```typescript
-// stores/user.ts
-import { createStore, shape, ModelOneMode, ModelManyMode, type ShapeInfer } from "@diphyx/harlemify";
-
-const userShape = shape((factory) => ({
-    id: factory.number().meta({ identifier: true }),
-    name: factory.string(),
-    email: factory.email(),
-}));
-
-type User = ShapeInfer<typeof userShape>;
-
 export const userStore = createStore({
     name: "users",
     model({ one, many }) {
@@ -60,20 +40,22 @@ export const userStore = createStore({
 
 ```vue
 <script setup>
-const { view, action } = userStore;
-await action.list();
+const { execute, loading } = useStoreAction(userStore, "list");
+const { data } = useStoreView(userStore, "users");
+
+await execute();
 </script>
 
 <template>
-    <div v-if="action.list.loading.value">Loading...</div>
-    <ul v-else>
-        <li v-for="user in view.users.value" :key="user.id">{{ user.name }}</li>
+    <ul v-if="!loading">
+        <li v-for="user in data.value" :key="user.id">{{ user.name }}</li>
     </ul>
 </template>
 ```
 
-## Next Steps
+## Docs
 
-- [Installation](getting-started/README.md) - Setup and configuration
-- [Your First Store](getting-started/first-store.md) - Step-by-step tutorial
-- [Core Concepts](core-concepts/README.md) - Shape, model, view, and action
+- **Getting Started** — [Installation](getting-started/README.md) · [Your First Store](getting-started/first-store.md)
+- **Core Concepts** — [Shape](core-concepts/shape.md) · [Model](core-concepts/model.md) · [View](core-concepts/view.md) · [Action](core-concepts/action.md)
+- **Composables** — [useStoreAction](composables/use-store-action.md) · [useStoreModel](composables/use-store-model.md) · [useStoreView](composables/use-store-view.md)
+- **Advanced** — [Concurrency](advanced/concurrency.md) · [Cancellation](advanced/cancellation.md) · [Logging](advanced/logging.md) · [Isolated Status](advanced/isolated-status.md)

@@ -1,0 +1,55 @@
+# Composables
+
+Vue composables for working with store actions, models, and views in components.
+
+## [useStoreAction](use-store-action.md)
+
+Reactive action execution with status, loading, error tracking, and optional isolated mode.
+
+```typescript
+const { execute, status, loading, error, reset } = useStoreAction(store, "list");
+```
+
+## [useStoreModel](use-store-model.md)
+
+Typed mutation methods for one and many models, with optional debounce and throttle.
+
+```typescript
+const { set, patch, reset } = useStoreModel(store, "current");
+const { set, add, remove } = useStoreModel(store, "list");
+```
+
+## [useStoreView](use-store-view.md)
+
+Reactive view data with proxy access and change tracking.
+
+```typescript
+const { data, track } = useStoreView(store, "user");
+
+data.value; // User | null
+data.name; // Proxy access without .value
+```
+
+Pass `proxy: false` to get a standard `ComputedRef` instead of the proxy:
+
+```typescript
+const { data } = useStoreView(store, "user", { proxy: false });
+
+data.value; // User | null — standard ComputedRef
+```
+
+## Destructuring
+
+Use standard JS destructuring to rename and avoid conflicts:
+
+```typescript
+// Rename to avoid conflicts between multiple composables
+const { set: setCurrent } = useStoreModel(store, "current");
+const { set: setList } = useStoreModel(store, "list");
+
+// Non-destructured — use generic via dot access
+const currentModel = useStoreModel(store, "current");
+const listModel = useStoreModel(store, "list");
+currentModel.set(value);
+listModel.set(values);
+```

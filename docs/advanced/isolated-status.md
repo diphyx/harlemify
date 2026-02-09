@@ -136,3 +136,5 @@ interface ActionCallBindOptions {
 ```
 
 When `bind` is provided, the action updates the bound refs instead of the global ones. The global `action.status` and `action.error` remain unchanged.
+
+> **Tip:** [`useStoreAction`](../composables/use-store-action.md) with `{ isolated: true }` wraps this pattern into a single composable call — use it when you want isolated tracking with less boilerplate.

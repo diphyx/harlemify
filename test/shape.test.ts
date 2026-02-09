@@ -4,6 +4,8 @@ import { z, ZodObject } from "zod";
 import { shape } from "../src/runtime/core/layers/shape";
 import { resolveShape, resolveAliasInbound, resolveAliasOutbound } from "../src/runtime/core/utils/shape";
 
+// Shape
+
 describe("shape", () => {
     it("creates a zod object schema from factory callback", () => {
         const schema = shape((factory) => {
@@ -25,6 +27,8 @@ describe("shape", () => {
         expect(schema).toBeInstanceOf(ZodObject);
     });
 });
+
+// Resolve
 
 describe("resolveShape", () => {
     it("extracts fields from schema", () => {
@@ -205,6 +209,8 @@ describe("resolveShape", () => {
     });
 });
 
+// Alias
+
 describe("resolveAliasInbound", () => {
     const aliases = { first_name: "first-name", last_name: "last-name" };
 
@@ -280,6 +286,8 @@ describe("resolveAliasOutbound", () => {
         expect(resolveAliasOutbound(data, {})).toBe(data);
     });
 });
+
+// Defaults
 
 describe("defaults", () => {
     it("generates zero values for primitive types", () => {

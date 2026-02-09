@@ -7,6 +7,8 @@ import { createStoreState, createStoreModel } from "../src/runtime/core/utils/st
 import { ModelKind, ModelOneMode } from "../src/runtime/core/types/model";
 import type { ShapeInfer } from "../src/runtime/core/types/shape";
 
+// Setup
+
 const UserShape = shape((factory) => {
     return {
         id: factory.number(),
@@ -16,6 +18,8 @@ const UserShape = shape((factory) => {
 });
 
 type User = ShapeInfer<typeof UserShape>;
+
+// Factory
 
 describe("createModelFactory", () => {
     const factory = createModelFactory();
@@ -57,6 +61,8 @@ describe("createModelFactory", () => {
         expect(definition.options?.identifier).toBe("email");
     });
 });
+
+// State
 
 describe("createStoreState", () => {
     const factory = createModelFactory();
@@ -125,6 +131,8 @@ describe("createStoreState", () => {
         expect(state.list).toEqual([]);
     });
 });
+
+// Model
 
 describe("createStoreModel", () => {
     const factory = createModelFactory();
