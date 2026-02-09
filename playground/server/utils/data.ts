@@ -29,6 +29,13 @@ export interface Contact {
     email: string;
 }
 
+// Todos
+export interface Todo {
+    id: number;
+    title: string;
+    done: boolean;
+}
+
 // Projects - demonstrating nested shape
 export interface ProjectMilestone {
     id: number;
@@ -92,6 +99,12 @@ const initialContacts: Contact[] = [
     { id: 3, "first-name": "Bob", "last-name": "Wilson", email: "bob@example.com" },
 ];
 
+const initialTodos: Todo[] = [
+    { id: 1, title: "Buy groceries", done: false },
+    { id: 2, title: "Write tests", done: true },
+    { id: 3, title: "Deploy app", done: false },
+];
+
 const initialProjects: Project[] = [
     {
         id: 1,
@@ -140,10 +153,12 @@ export const data = {
     users: [...initialUsers] as User[],
     posts: [...initialPosts] as Post[],
     contacts: [...initialContacts] as Contact[],
+    todos: [...initialTodos] as Todo[],
     projects: [...initialProjects] as Project[],
     nextUserId: 4,
     nextPostId: 4,
     nextContactId: 4,
+    nextTodoId: 4,
     nextProjectId: 3,
 };
 
@@ -157,6 +172,10 @@ export function getNextPostId() {
 
 export function getNextContactId() {
     return data.nextContactId++;
+}
+
+export function getNextTodoId() {
+    return data.nextTodoId++;
 }
 
 export function getNextProjectId() {
@@ -174,9 +193,11 @@ export function resetData() {
     data.users = deepClone(initialUsers);
     data.posts = deepClone(initialPosts);
     data.contacts = deepClone(initialContacts);
+    data.todos = deepClone(initialTodos);
     data.projects = deepClone(initialProjects);
     data.nextUserId = 4;
     data.nextPostId = 4;
     data.nextContactId = 4;
+    data.nextTodoId = 4;
     data.nextProjectId = 3;
 }

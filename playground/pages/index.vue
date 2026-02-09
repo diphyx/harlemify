@@ -35,6 +35,12 @@
                 <p>Concurrent, transformer, signal, bind, error handling</p>
                 <span class="badge">advanced + concurrent</span>
             </NuxtLink>
+
+            <NuxtLink to="/composables" class="home-card">
+                <h2>Composables</h2>
+                <p><code>useStoreAction</code>, <code>useStoreModel</code>, <code>useStoreView</code></p>
+                <span class="badge">composables</span>
+            </NuxtLink>
         </div>
 
         <footer class="footer">
