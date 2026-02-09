@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { z, ZodObject } from "zod";
 
 import { shape } from "../src/runtime/core/layers/shape";
-import { resolveShape } from "../src/runtime/core/utils/shape";
+import { resolveShape, resolveAliasInbound, resolveAliasOutbound } from "../src/runtime/core/utils/shape";
 
 describe("shape", () => {
     it("creates a zod object schema from factory callback", () => {
@@ -161,6 +161,123 @@ describe("resolveShape", () => {
         const meta = resolveShape(schema);
 
         expect(meta.defaults).toEqual({});
+    });
+
+    it("extracts aliases from field meta", () => {
+        const schema = shape((factory) => ({
+            id: factory.number().meta({ identifier: true }),
+            first_name: factory.string().meta({ alias: "first-name" }),
+            last_name: factory.string().meta({ alias: "last-name" }),
+        }));
+
+        const meta = resolveShape(schema);
+
+        expect(meta.aliases).toEqual({
+            first_name: "first-name",
+            last_name: "last-name",
+        });
+    });
+
+    it("returns empty aliases when no aliases exist", () => {
+        const schema = shape((factory) => ({
+            id: factory.number(),
+            name: factory.string(),
+        }));
+
+        const meta = resolveShape(schema);
+
+        expect(meta.aliases).toEqual({});
+    });
+
+    it("extracts aliases alongside identifier", () => {
+        const schema = shape((factory) => ({
+            user_id: factory.number().meta({ identifier: true, alias: "userId" }),
+            first_name: factory.string().meta({ alias: "firstName" }),
+        }));
+
+        const meta = resolveShape(schema);
+
+        expect(meta.identifier).toBe("user_id");
+        expect(meta.aliases).toEqual({
+            user_id: "userId",
+            first_name: "firstName",
+        });
+    });
+});
+
+describe("resolveAliasInbound", () => {
+    const aliases = { first_name: "first-name", last_name: "last-name" };
+
+    it("remaps alias keys to shape keys for an object", () => {
+        const data = { id: 1, "first-name": "John", "last-name": "Doe" };
+
+        const result = resolveAliasInbound(data, aliases);
+
+        expect(result).toEqual({ id: 1, first_name: "John", last_name: "Doe" });
+    });
+
+    it("remaps alias keys for an array of objects", () => {
+        const data = [
+            { id: 1, "first-name": "John" },
+            { id: 2, "first-name": "Jane" },
+        ];
+
+        const result = resolveAliasInbound(data, aliases);
+
+        expect(result).toEqual([
+            { id: 1, first_name: "John" },
+            { id: 2, first_name: "Jane" },
+        ]);
+    });
+
+    it("returns non-object data as-is", () => {
+        expect(resolveAliasInbound("hello", aliases)).toBe("hello");
+        expect(resolveAliasInbound(42, aliases)).toBe(42);
+        expect(resolveAliasInbound(null, aliases)).toBeNull();
+    });
+
+    it("returns data as-is when aliases is empty", () => {
+        const data = { "first-name": "John" };
+
+        expect(resolveAliasInbound(data, {})).toBe(data);
+    });
+});
+
+describe("resolveAliasOutbound", () => {
+    const aliases = { first_name: "first-name", last_name: "last-name" };
+
+    it("remaps shape keys to alias keys for an object", () => {
+        const data = { id: 1, first_name: "John", last_name: "Doe" };
+
+        const result = resolveAliasOutbound(data, aliases);
+
+        expect(result).toEqual({ id: 1, "first-name": "John", "last-name": "Doe" });
+    });
+
+    it("remaps shape keys for an array of objects", () => {
+        const data = [
+            { id: 1, first_name: "John" },
+            { id: 2, first_name: "Jane" },
+        ];
+
+        const result = resolveAliasOutbound(data, aliases);
+
+        expect(result).toEqual([
+            { id: 1, "first-name": "John" },
+            { id: 2, "first-name": "Jane" },
+        ]);
+    });
+
+    it("returns non-object data as-is", () => {
+        expect(resolveAliasOutbound("hello", aliases)).toBe("hello");
+        expect(resolveAliasOutbound(42, aliases)).toBe(42);
+        expect(resolveAliasOutbound(null, aliases)).toBeNull();
+    });
+
+    it("returns data as-is when aliases is empty", () => {
+        const data = { first_name: "John" };
+
+        expect(resolveAliasOutbound(data, {})).toBe(data);
     });
 });
 

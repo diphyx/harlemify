@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { useIsolatedActionStatus, useIsolatedActionError } from "../src/runtime/composables/action";
 import { ActionStatus } from "../src/runtime/core/types/action";
-import { ActionApiError } from "../src/runtime/core/utils/action";
+import { ActionApiError } from "../src/runtime/core/utils/error";
 
 describe("useIsolatedActionStatus", () => {
     it("returns ref with IDLE status", () => {

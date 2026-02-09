@@ -4,7 +4,8 @@ import { createStore } from "@harlem/core";
 import { shape } from "../src/runtime/core/layers/shape";
 import { createModelFactory } from "../src/runtime/core/layers/model";
 import { createActionFactory } from "../src/runtime/core/layers/action";
-import { createAction, ActionApiError } from "../src/runtime/core/utils/action";
+import { createAction } from "../src/runtime/core/utils/action";
+import { ActionApiError } from "../src/runtime/core/utils/error";
 import { createStoreState, createStoreModel, createStoreView } from "../src/runtime/core/utils/store";
 import { createViewFactory } from "../src/runtime/core/layers/view";
 import {
@@ -922,6 +923,200 @@ describe("createAction", () => {
                     method: ActionApiMethod.GET,
                 }),
             );
+        });
+    });
+
+    describe("alias", () => {
+        const AliasedShape = shape((factory) => ({
+            id: factory.number().meta({ identifier: true }),
+            first_name: factory.string().meta({ alias: "first-name" }),
+            last_name: factory.string().meta({ alias: "last-name" }),
+            email: factory.string(),
+        }));
+
+        function aliasSetup(
+            partial: Partial<ActionDefinition<ModelDefinitions, ViewDefinitions<ModelDefinitions>>> = {},
+        ) {
+            let key = "test";
+
+            const modelDefs = {
+                user: modelFactory.one(AliasedShape),
+                users: modelFactory.many(AliasedShape),
+            };
+
+            const viewDefs = {
+                user: viewFactory.from("user"),
+            };
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-alias-" + Math.random(), state);
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.setKey(k);
+            }
+            for (const [k, def] of Object.entries(viewDefs)) {
+                def.setKey(k);
+            }
+
+            const model = createStoreModel(modelDefs, source);
+            const view = createStoreView(viewDefs, source);
+
+            const definition = {
+                get key() {
+                    return key;
+                },
+                setKey(value: string) {
+                    key = value;
+                },
+                ...partial,
+            } as ActionDefinition<ModelDefinitions, ViewDefinitions<ModelDefinitions>>;
+
+            const action = createAction(definition, model, view);
+
+            return {
+                action,
+                source,
+                model,
+            };
+        }
+
+        it("inbound: remaps alias keys in response before commit", async () => {
+            mockFetch.mockResolvedValue({
+                id: 1,
+                "first-name": "John",
+                "last-name": "Doe",
+                email: "john@test.com",
+            });
+
+            const { action, source } = aliasSetup({
+                request: {
+                    url: "/users/1",
+                    method: ActionApiMethod.GET,
+                },
+                commit: {
+                    model: "user",
+                    mode: ModelOneMode.SET,
+                },
+            });
+
+            await action();
+
+            expect(source.state.user).toEqual({
+                id: 1,
+                first_name: "John",
+                last_name: "Doe",
+                email: "john@test.com",
+            });
+        });
+
+        it("inbound: remaps alias keys for array response", async () => {
+            mockFetch.mockResolvedValue([
+                { id: 1, "first-name": "John", "last-name": "Doe", email: "john@test.com" },
+                { id: 2, "first-name": "Jane", "last-name": "Smith", email: "jane@test.com" },
+            ]);
+
+            const { action, source } = aliasSetup({
+                request: {
+                    url: "/users",
+                    method: ActionApiMethod.GET,
+                },
+                commit: {
+                    model: "users",
+                    mode: ModelManyMode.SET,
+                },
+            });
+
+            await action();
+
+            expect(source.state.users).toEqual([
+                { id: 1, first_name: "John", last_name: "Doe", email: "john@test.com" },
+                { id: 2, first_name: "Jane", last_name: "Smith", email: "jane@test.com" },
+            ]);
+        });
+
+        it("outbound: remaps shape keys to alias keys in request body", async () => {
+            mockFetch.mockResolvedValue({ id: 1 });
+
+            const { action } = aliasSetup({
+                request: {
+                    url: "/users",
+                    method: ActionApiMethod.POST,
+                },
+                commit: {
+                    model: "user",
+                    mode: ModelOneMode.SET,
+                },
+            });
+
+            await action({
+                body: { first_name: "John", last_name: "Doe", email: "john@test.com" },
+            });
+
+            expect(mockFetch).toHaveBeenCalledWith(
+                "/users",
+                expect.objectContaining({
+                    body: {
+                        "first-name": "John",
+                        "last-name": "Doe",
+                        email: "john@test.com",
+                    },
+                }),
+            );
+        });
+
+        it("no-op when action has no commit", async () => {
+            mockFetch.mockResolvedValue({
+                id: 1,
+                "first-name": "John",
+            });
+
+            const { action } = aliasSetup({
+                request: {
+                    url: "/users/1",
+                    method: ActionApiMethod.GET,
+                },
+            });
+
+            const result = await action();
+
+            expect((result as Record<string, unknown>)["first-name"]).toBe("John");
+        });
+
+        it("works with user response transformer", async () => {
+            mockFetch.mockResolvedValue({
+                data: {
+                    id: 1,
+                    "first-name": "John",
+                    "last-name": "Doe",
+                    email: "john@test.com",
+                },
+            });
+
+            const { action, source } = aliasSetup({
+                request: {
+                    url: "/users/1",
+                    method: ActionApiMethod.GET,
+                },
+                commit: {
+                    model: "user",
+                    mode: ModelOneMode.SET,
+                },
+            });
+
+            await action({
+                transformer: {
+                    response: (data: unknown) => {
+                        return (data as Record<string, unknown>).data;
+                    },
+                },
+            });
+
+            expect(source.state.user).toEqual({
+                id: 1,
+                first_name: "John",
+                last_name: "Doe",
+                email: "john@test.com",
+            });
         });
     });
 });
