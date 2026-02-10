@@ -3,6 +3,8 @@ import type { Store as SourceStore, BaseState } from "@harlem/core";
 import type { ModelDefinitions } from "../types/model";
 import { type ViewDefinition, type ViewCall, ViewClone } from "../types/view";
 
+// Resolve Clone
+
 function resolveClonedValue<MD extends ModelDefinitions>(definition: ViewDefinition<MD>, value: unknown): unknown {
     if (!definition.options?.clone || value === null || value === undefined) {
         return value;
@@ -23,9 +25,13 @@ function resolveClonedValue<MD extends ModelDefinitions>(definition: ViewDefinit
     return value;
 }
 
+// Resolve Models
+
 function resolveModels<MD extends ModelDefinitions>(definition: ViewDefinition<MD>): readonly (keyof MD)[] {
     return "model" in definition ? definition.model : definition.models;
 }
+
+// Create View
 
 export function createView<MD extends ModelDefinitions, R = unknown>(
     definition: ViewDefinition<MD>,

@@ -18,6 +18,8 @@ import {
     ModelManyMode,
 } from "../types/model";
 
+// Resolve Identifier
+
 function resolveIdentifier<S extends Shape>(
     definition: ModelOneDefinition<S> | ModelManyDefinition<S>,
     shape: ShapeResolved,
@@ -28,6 +30,8 @@ function resolveIdentifier<S extends Shape>(
 
     return shape.identifier ?? "id";
 }
+
+// Create One Commit
 
 function createOneCommit<S extends Shape>(
     definition: ModelOneDefinition<S>,
@@ -100,6 +104,8 @@ function createOneCommit<S extends Shape>(
         patch,
     };
 }
+
+// Create Many Commit
 
 function createManyCommit<S extends Shape>(
     definition: ModelManyDefinition<S>,
@@ -262,9 +268,13 @@ function createManyCommit<S extends Shape>(
     };
 }
 
+// Type Guards
+
 function isOneDefinition<S extends Shape>(definition: ModelDefinition<S>): definition is ModelOneDefinition<S> {
     return definition.kind === ModelKind.OBJECT;
 }
+
+// Resolve Commit
 
 function resolveCommit<S extends Shape>(
     definition: ModelDefinition<S>,
@@ -277,6 +287,8 @@ function resolveCommit<S extends Shape>(
 
     return createManyCommit(definition, shape, source);
 }
+
+// Create Model
 
 export function createModel<S extends Shape>(
     definition: ModelDefinition<S>,

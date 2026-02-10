@@ -1,3 +1,30 @@
+import type { BaseDefinition } from "../types/base";
+
+// Base Definition
+
+export function wrapBaseDefinition<T extends Omit<BaseDefinition, "key" | "setKey">>(
+    definition: T,
+): T & BaseDefinition {
+    let key = "";
+
+    return Object.defineProperties(definition, {
+        key: {
+            get() {
+                return key;
+            },
+            enumerable: true,
+            configurable: true,
+        },
+        setKey: {
+            value(value: string) {
+                key = value;
+            },
+            enumerable: true,
+            configurable: true,
+        },
+    }) as T & BaseDefinition;
+}
+
 // String
 
 export function trimStart(value: string, char: string): string {

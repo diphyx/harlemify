@@ -9,9 +9,13 @@ import {
     type ActionApiDefinition,
     type ActionCall,
     type ActionCallOptions,
+    type ActionCallBaseOptions,
+    type ActionApiCallOptions,
+    type ActionHandlerCallOptions,
     type ActionDefinition,
     type ActionHandlerDefinition,
     type ActionResolvedApi,
+    type ActionResolvedHandler,
     ActionApiMethod,
     ActionStatus,
     ActionConcurrent,
@@ -42,7 +46,7 @@ function resolveValue<V, T>(value: unknown, view: V, fallback?: T): T {
 function resolveApiUrl<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
     definition: ActionApiDefinition<MD, VD>,
     view: StoreView<MD, VD>,
-    options?: ActionCallOptions,
+    options?: ActionApiCallOptions,
 ): string {
     const endpoint = trimEnd(definition.request.endpoint ?? "", "/");
     let path = resolveValue<StoreView<MD, VD>, string>(definition.request.url, view);
@@ -63,7 +67,7 @@ function resolveApiUrl<MD extends ModelDefinitions, VD extends ViewDefinitions<M
 function resolveApiHeaders<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
     definition: ActionApiDefinition<MD, VD>,
     view: StoreView<MD, VD>,
-    options?: ActionCallOptions,
+    options?: ActionApiCallOptions,
 ): Record<string, string> {
     const initial = resolveValue(definition.request.headers, view, {});
     const custom = options?.headers ?? {};
@@ -74,7 +78,7 @@ function resolveApiHeaders<MD extends ModelDefinitions, VD extends ViewDefinitio
 function resolveApiQuery<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
     definition: ActionApiDefinition<MD, VD>,
     view: StoreView<MD, VD>,
-    options?: ActionCallOptions,
+    options?: ActionApiCallOptions,
 ): Record<string, unknown> {
     const initial = resolveValue(definition.request.query, view, {});
     const custom = options?.query ?? {};
@@ -86,7 +90,7 @@ function resolveApiBody<MD extends ModelDefinitions, VD extends ViewDefinitions<
     definition: ActionApiDefinition<MD, VD>,
     view: StoreView<MD, VD>,
     target: ModelCall<Shape> | undefined,
-    options?: ActionCallOptions,
+    options?: ActionApiCallOptions,
 ): Record<string, unknown> | BodyInit | null | undefined {
     if (definition.request.method === ActionApiMethod.GET || definition.request.method === ActionApiMethod.HEAD) {
         return undefined;
@@ -117,7 +121,7 @@ function resolveApiMethod<MD extends ModelDefinitions, VD extends ViewDefinition
 function resolveApiTimeout<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
     definition: ActionApiDefinition<MD, VD>,
     view: StoreView<MD, VD>,
-    options?: ActionCallOptions,
+    options?: ActionApiCallOptions,
 ): number | undefined {
     if (options?.timeout) {
         return options.timeout;
@@ -130,7 +134,7 @@ function resolveApiTimeout<MD extends ModelDefinitions, VD extends ViewDefinitio
     return undefined;
 }
 
-function resolveApiSignal(options?: ActionCallOptions, abortController?: AbortController): AbortSignal {
+function resolveApiSignal(options?: ActionApiCallOptions, abortController?: AbortController): AbortSignal {
     if (options?.signal) {
         return options.signal;
     }
@@ -138,9 +142,26 @@ function resolveApiSignal(options?: ActionCallOptions, abortController?: AbortCo
     return abortController!.signal;
 }
 
+// Resolve Handler
+
+function resolveHandlerPayload<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
+    definition: ActionHandlerDefinition<MD, VD, unknown>,
+    options?: ActionHandlerCallOptions,
+): unknown | undefined {
+    if (options?.payload !== undefined) {
+        return options.payload;
+    }
+
+    if (definition.options?.payload !== undefined) {
+        return definition.options.payload;
+    }
+
+    return undefined;
+}
+
 // Resolve Commit
 
-function resolveCommitTarget<MD extends ModelDefinitions>(
+function resolveApiCommitTarget<MD extends ModelDefinitions>(
     commit: ActionApiCommit<MD> | undefined,
     model: StoreModel<MD>,
 ): ModelCall<Shape> | undefined {
@@ -151,9 +172,9 @@ function resolveCommitTarget<MD extends ModelDefinitions>(
     return undefined;
 }
 
-function resolveCommitMode<MD extends ModelDefinitions>(
+function resolveApiCommitMode<MD extends ModelDefinitions>(
     commit: ActionApiCommit<MD> | undefined,
-    options?: ActionCallOptions,
+    options?: ActionApiCallOptions,
 ): (ModelOneMode | ModelManyMode) | undefined {
     if (commit) {
         if (options?.commit?.mode) {
@@ -166,7 +187,7 @@ function resolveCommitMode<MD extends ModelDefinitions>(
     return undefined;
 }
 
-function resolveCommitValue<MD extends ModelDefinitions>(commit: ActionApiCommit<MD>, data: unknown): unknown {
+function resolveApiCommitValue<MD extends ModelDefinitions>(commit: ActionApiCommit<MD>, data: unknown): unknown {
     if (typeof commit.value === "function") {
         return commit.value(data);
     }
@@ -179,14 +200,20 @@ function resolveCommitValue<MD extends ModelDefinitions>(commit: ActionApiCommit
 function isApiDefinition<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
     definition: ActionDefinition<MD, VD>,
 ): definition is ActionApiDefinition<MD, VD> {
-    return "request" in definition;
+    return !("callback" in definition);
+}
+
+function isHandlerDefinition<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
+    definition: ActionDefinition<MD, VD>,
+): definition is ActionHandlerDefinition<MD, VD, unknown> {
+    return "callback" in definition;
 }
 
 // Resolve Concurrent
 
 function resolveConcurrent<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
     definition: ActionDefinition<MD, VD>,
-    options?: ActionCallOptions,
+    options?: ActionCallBaseOptions,
 ): ActionConcurrent {
     if (options?.concurrent) {
         return options.concurrent;
@@ -194,6 +221,10 @@ function resolveConcurrent<MD extends ModelDefinitions, VD extends ViewDefinitio
 
     if (isApiDefinition(definition) && definition.request.concurrent) {
         return definition.request.concurrent;
+    }
+
+    if (isHandlerDefinition(definition) && definition.options?.concurrent) {
+        return definition.options.concurrent;
     }
 
     return ActionConcurrent.BLOCK;
@@ -204,7 +235,7 @@ function resolveConcurrent<MD extends ModelDefinitions, VD extends ViewDefinitio
 async function executeApi<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>, R>(
     definition: ActionApiDefinition<MD, VD>,
     api: ActionResolvedApi,
-    options?: ActionCallOptions,
+    options?: ActionApiCallOptions,
 ): Promise<R> {
     try {
         definition.logger?.debug("Action API request", {
@@ -253,19 +284,17 @@ async function executeApi<MD extends ModelDefinitions, VD extends ViewDefinition
 // Execute Handler
 
 async function executeHandler<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>, R>(
-    definition: ActionHandlerDefinition<MD, VD, R>,
-    model: StoreModel<MD>,
-    view: StoreView<MD, VD>,
+    definition: ActionHandlerDefinition<MD, VD, unknown>,
+    handler: ActionResolvedHandler<MD, VD>,
 ): Promise<R> {
     try {
         definition.logger?.debug("Action handler phase", {
             action: definition.key,
         });
 
-        return await definition.callback({
-            model,
-            view,
-        });
+        const data = await definition.callback(handler);
+
+        return data as R;
     } catch (error: unknown) {
         if (isError(error, ActionApiError, ActionHandlerError)) {
             throw error;
@@ -311,7 +340,7 @@ function executeCommit<MD extends ModelDefinitions, VD extends ViewDefinitions<M
             data = resolveAliasInbound(data, target.aliases());
         }
 
-        const value = resolveCommitValue(definition.commit, data);
+        const value = resolveApiCommitValue(definition.commit, data);
 
         target.commit(mode, value, definition.commit.options);
     } catch (error: unknown) {
@@ -389,11 +418,11 @@ export function createAction<MD extends ModelDefinitions, VD extends ViewDefinit
 
         currentController = (async () => {
             try {
-                let data: R;
+                let data: R = undefined as R;
 
                 if (isApiDefinition(definition)) {
-                    const target = resolveCommitTarget(definition.commit, model);
-                    const mode = resolveCommitMode(definition.commit, options);
+                    const target = resolveApiCommitTarget(definition.commit, model);
+                    const mode = resolveApiCommitMode(definition.commit, options);
 
                     const url = resolveApiUrl(definition, view, options);
                     const method = resolveApiMethod(definition, view);
@@ -418,8 +447,14 @@ export function createAction<MD extends ModelDefinitions, VD extends ViewDefinit
                     );
 
                     executeCommit(definition, target, mode, data);
-                } else {
-                    data = await executeHandler(definition as ActionHandlerDefinition<MD, VD, R>, model, view);
+                } else if (isHandlerDefinition(definition)) {
+                    const payload = resolveHandlerPayload(definition, options);
+
+                    data = await executeHandler<MD, VD, R>(definition, {
+                        model,
+                        view,
+                        payload,
+                    });
                 }
 
                 activeStatus.value = ActionStatus.SUCCESS;
