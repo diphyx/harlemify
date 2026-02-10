@@ -1,7 +1,13 @@
 import type { ComputedRef, DeepReadonly, MaybeRefOrGetter, Ref } from "vue";
 
 import type { BaseDefinition } from "./base";
-import type { ModelDefinitions, ModelOneCommitOptions, ModelManyCommitOptions, StoreModel } from "./model";
+import type {
+    ModelDefinitions,
+    ModelDefinitionInfer,
+    ModelOneCommitOptions,
+    ModelManyCommitOptions,
+    StoreModel,
+} from "./model";
 import { ModelOneMode, ModelManyMode } from "./model";
 import type { ViewDefinitions, StoreView } from "./view";
 
@@ -69,8 +75,8 @@ export type ActionApiRequestShortcut<MD extends ModelDefinitions, VD extends Vie
 
 // Api Commit
 
-export interface ActionApiCommit<MD extends ModelDefinitions> {
-    model: keyof MD;
+export interface ActionApiCommit<MD extends ModelDefinitions, K extends keyof MD = keyof MD> {
+    model: K;
     mode: ModelOneMode | ModelManyMode;
     value?: (data: unknown) => unknown;
     options?: ModelOneCommitOptions | ModelManyCommitOptions;
@@ -81,9 +87,10 @@ export interface ActionApiCommit<MD extends ModelDefinitions> {
 export interface ActionApiDefinition<
     MD extends ModelDefinitions,
     VD extends ViewDefinitions<MD>,
+    K extends keyof MD = keyof MD,
 > extends BaseDefinition {
     request: ActionApiRequest<MD, VD>;
-    commit?: ActionApiCommit<MD>;
+    commit?: ActionApiCommit<MD, K>;
 }
 
 // Handler Options
@@ -126,13 +133,41 @@ export type ActionDefinitions<MD extends ModelDefinitions, VD extends ViewDefini
 // Factory
 
 export interface ActionApiFactory<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>> {
-    (request: ActionApiRequest<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
-    get(request: ActionApiRequestShortcut<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
-    head(request: ActionApiRequestShortcut<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
-    post(request: ActionApiRequestShortcut<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
-    put(request: ActionApiRequestShortcut<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
-    patch(request: ActionApiRequestShortcut<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
-    delete(request: ActionApiRequestShortcut<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD>;
+    <K extends keyof MD>(
+        request: ActionApiRequest<MD, VD>,
+        commit: ActionApiCommit<MD, K>,
+    ): ActionApiDefinition<MD, VD, K>;
+    (request: ActionApiRequest<MD, VD>): ActionApiDefinition<MD, VD>;
+    get<K extends keyof MD>(
+        request: ActionApiRequestShortcut<MD, VD>,
+        commit: ActionApiCommit<MD, K>,
+    ): ActionApiDefinition<MD, VD, K>;
+    get(request: ActionApiRequestShortcut<MD, VD>): ActionApiDefinition<MD, VD>;
+    head<K extends keyof MD>(
+        request: ActionApiRequestShortcut<MD, VD>,
+        commit: ActionApiCommit<MD, K>,
+    ): ActionApiDefinition<MD, VD, K>;
+    head(request: ActionApiRequestShortcut<MD, VD>): ActionApiDefinition<MD, VD>;
+    post<K extends keyof MD>(
+        request: ActionApiRequestShortcut<MD, VD>,
+        commit: ActionApiCommit<MD, K>,
+    ): ActionApiDefinition<MD, VD, K>;
+    post(request: ActionApiRequestShortcut<MD, VD>): ActionApiDefinition<MD, VD>;
+    put<K extends keyof MD>(
+        request: ActionApiRequestShortcut<MD, VD>,
+        commit: ActionApiCommit<MD, K>,
+    ): ActionApiDefinition<MD, VD, K>;
+    put(request: ActionApiRequestShortcut<MD, VD>): ActionApiDefinition<MD, VD>;
+    patch<K extends keyof MD>(
+        request: ActionApiRequestShortcut<MD, VD>,
+        commit: ActionApiCommit<MD, K>,
+    ): ActionApiDefinition<MD, VD, K>;
+    patch(request: ActionApiRequestShortcut<MD, VD>): ActionApiDefinition<MD, VD>;
+    delete<K extends keyof MD>(
+        request: ActionApiRequestShortcut<MD, VD>,
+        commit: ActionApiCommit<MD, K>,
+    ): ActionApiDefinition<MD, VD, K>;
+    delete(request: ActionApiRequestShortcut<MD, VD>): ActionApiDefinition<MD, VD>;
 }
 
 export interface ActionHandlerFactory<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>> {
@@ -235,8 +270,10 @@ export type StoreAction<
     VD extends ViewDefinitions<MD>,
     AD extends ActionDefinitions<MD, VD>,
 > = {
-    [K in keyof AD]: AD[K] extends ActionApiDefinition<MD, VD>
-        ? ActionApiCall
+    [K in keyof AD]: AD[K] extends ActionApiDefinition<MD, VD, infer MK>
+        ? MK extends keyof MD
+            ? ActionApiCall<ModelDefinitionInfer<MD, MK>>
+            : ActionApiCall
         : AD[K] extends ActionHandlerDefinition<MD, VD, infer P, infer R>
           ? ActionHandlerCall<P, R>
           : never;
