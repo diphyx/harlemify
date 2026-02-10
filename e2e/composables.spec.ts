@@ -27,6 +27,33 @@ test.describe("composables page", () => {
         await expect(page.getByTestId("todo-1")).toContainText("Done");
     });
 
+    test("toggle passes todo as payload without selecting first", async ({ page }) => {
+        await expect(page.getByTestId("view-data-value")).toHaveText("null");
+        await page.getByTestId("todo-1").getByTestId("toggle-todo").click();
+        await expect(page.getByTestId("todo-1")).toContainText("Done");
+        await expect(page.getByTestId("view-data-title")).toHaveText("Buy groceries");
+    });
+
+    test("rename with call-time payload overrides title", async ({ page }) => {
+        await page.getByTestId("todo-1").getByTestId("select-todo").click();
+        await page.getByTestId("todo-1").getByTestId("rename-todo").click();
+        await expect(page.getByTestId("todo-1").getByTestId("todo-title")).toHaveText("Buy groceries (edited)");
+    });
+
+    test("rename with default payload uses definition-level value", async ({ page }) => {
+        await page.getByTestId("todo-2").getByTestId("select-todo").click();
+        await page.getByTestId("todo-2").getByTestId("rename-default").click();
+        await expect(page.getByTestId("todo-2").getByTestId("todo-title")).toHaveText("Untitled");
+    });
+
+    test("rename call-time payload overrides definition default", async ({ page }) => {
+        await page.getByTestId("todo-3").getByTestId("select-todo").click();
+        await page.getByTestId("todo-3").getByTestId("rename-todo").click();
+        await expect(page.getByTestId("todo-3").getByTestId("todo-title")).toHaveText("Deploy app (edited)");
+        await page.getByTestId("todo-3").getByTestId("rename-default").click();
+        await expect(page.getByTestId("todo-3").getByTestId("todo-title")).toHaveText("Untitled");
+    });
+
     test("deletes a todo", async ({ page }) => {
         await page.getByTestId("todo-3").getByTestId("delete-todo").click();
         await expect(page.getByTestId("todo-count")).toHaveText("2 todos");
@@ -250,6 +277,8 @@ test.describe("composables page", () => {
         await expect(page.getByTestId("feature-info")).toContainText("useStoreAction");
         await expect(page.getByTestId("feature-info")).toContainText("useStoreModel");
         await expect(page.getByTestId("feature-info")).toContainText("useStoreView");
+        await expect(page.getByTestId("feature-info")).toContainText("Definition-level default payload");
+        await expect(page.getByTestId("feature-info")).toContainText("Call-time payload override");
     });
 
     test("back link navigates to home", async ({ page }) => {
