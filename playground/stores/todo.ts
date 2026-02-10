@@ -60,19 +60,16 @@ export const todoStore = createStore({
                 },
                 { model: "list", mode: ModelManyMode.REMOVE },
             ),
-            toggle: handler(async ({ model, payload }) => {
-                const todo = payload as Todo | undefined;
-                if (!todo) return;
-                const updated = { ...todo, done: !todo.done };
+            toggle: handler<Todo>(async ({ model, payload }) => {
+                const updated = { ...payload, done: !payload.done };
                 model.current.set(updated);
                 model.list.patch(updated);
             }),
-            rename: handler(
+            rename: handler<string>(
                 async ({ model, view, payload }) => {
-                    const title = payload as string;
                     const todo = view.todo.value;
                     if (!todo) return;
-                    const updated = { ...todo, title };
+                    const updated = { ...todo, title: payload };
                     model.current.set(updated);
                     model.list.patch(updated);
                 },

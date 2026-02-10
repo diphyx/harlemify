@@ -116,10 +116,10 @@ export function createActionFactory<MD extends ModelDefinitions, VD extends View
         delete: apiDelete,
     });
 
-    function handler<R>(
-        callback: ActionHandlerCallback<MD, VD, R>,
-        options?: ActionHandlerOptions,
-    ): ActionHandlerDefinition<MD, VD, R> {
+    function handler<P = unknown, R = void>(
+        callback: ActionHandlerCallback<MD, VD, P, R>,
+        options?: ActionHandlerOptions<P>,
+    ): ActionHandlerDefinition<MD, VD, P, R> {
         return wrapBaseDefinition({
             callback,
             options: {

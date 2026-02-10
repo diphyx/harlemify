@@ -93,9 +93,9 @@ The callback receives a single context object with three properties:
 
 ```typescript
 handler(async ({ model, view, payload }) => {
-    // model  — StoreModel: typed access to all model mutations
-    // view   — StoreView: typed access to all view computed values
-    // payload — unknown: call-time or default input data
+    // model   — StoreModel: typed access to all model mutations
+    // view    — StoreView: typed access to all view computed values
+    // payload — typed call-time or default input data (see Payload section)
 });
 ```
 
@@ -122,7 +122,7 @@ handler(async ({ model, view }) => {
 
 ### Payload
 
-Handlers receive a `payload` in the callback context. Payload can be passed at call time and/or set as a default at definition time.
+Handlers receive a typed `payload` in the callback context. The generic signature is `handler<P, R>` where `P` is the payload type and `R` is the return type. Both default to `unknown` and `void` respectively, so you only need to specify what you use — `handler<Todo>(...)` is enough when you only need a typed payload. Payload can be passed at call time and/or set as a default at definition time.
 
 #### Call-time payload
 
@@ -131,9 +131,8 @@ Pass data directly when calling the action:
 ```typescript
 action({ handler }) {
     return {
-        toggle: handler(async ({ model, payload }) => {
-            const todo = payload as Todo;
-            model.current.set({ ...todo, done: !todo.done });
+        toggle: handler<Todo>(async ({ model, payload }) => {
+            model.current.set({ ...payload, done: !payload.done });
         }),
     };
 },
@@ -150,12 +149,11 @@ Set a default payload value that is used when no call-time payload is provided:
 ```typescript
 action({ handler }) {
     return {
-        rename: handler(
+        rename: handler<string>(
             async ({ model, view, payload }) => {
-                const title = payload as string;
                 const current = view.item.value;
                 if (!current) return;
-                model.current.set({ ...current, title });
+                model.current.set({ ...current, title: payload });
             },
             { payload: "Untitled" },
         ),

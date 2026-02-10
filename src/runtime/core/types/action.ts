@@ -83,33 +83,35 @@ export interface ActionApiDefinition<
 
 // Handler Options
 
-export interface ActionHandlerOptions {
-    payload?: unknown;
+export interface ActionHandlerOptions<P = unknown> {
+    payload?: P;
     concurrent?: ActionConcurrent;
 }
 
 // Handler Definition
 
-export type ActionHandlerCallback<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>, R = void> = (context: {
-    model: StoreModel<MD>;
-    view: StoreView<MD, VD>;
-    payload: unknown;
-}) => Promise<R>;
+export type ActionHandlerCallback<
+    MD extends ModelDefinitions,
+    VD extends ViewDefinitions<MD>,
+    P = unknown,
+    R = void,
+> = (context: { model: StoreModel<MD>; view: StoreView<MD, VD>; payload: P }) => Promise<R>;
 
 export interface ActionHandlerDefinition<
     MD extends ModelDefinitions,
     VD extends ViewDefinitions<MD>,
+    P = unknown,
     R = void,
 > extends BaseDefinition {
-    callback: ActionHandlerCallback<MD, VD, R>;
-    options?: ActionHandlerOptions;
+    callback: ActionHandlerCallback<MD, VD, P, R>;
+    options?: ActionHandlerOptions<P>;
 }
 
 // Action Definition
 
 export type ActionDefinition<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>> =
     | ActionApiDefinition<MD, VD>
-    | ActionHandlerDefinition<MD, VD, unknown>;
+    | ActionHandlerDefinition<MD, VD, any, any>;
 
 export type ActionDefinitions<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>> = Record<
     string,
@@ -129,7 +131,10 @@ export interface ActionApiFactory<MD extends ModelDefinitions, VD extends ViewDe
 }
 
 export interface ActionHandlerFactory<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>> {
-    <R>(callback: ActionHandlerCallback<MD, VD, R>, options?: ActionHandlerOptions): ActionHandlerDefinition<MD, VD, R>;
+    <P = unknown, R = void>(
+        callback: ActionHandlerCallback<MD, VD, P, R>,
+        options?: ActionHandlerOptions<P>,
+    ): ActionHandlerDefinition<MD, VD, P, R>;
 }
 
 export interface ActionFactory<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>> {
@@ -183,14 +188,14 @@ export interface ActionApiCallOptions extends ActionCallBaseOptions {
 
 // Handler Call Options
 
-export interface ActionResolvedHandler<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>> {
+export interface ActionResolvedHandler<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>, P = unknown> {
     model: StoreModel<MD>;
     view: StoreView<MD, VD>;
-    payload: unknown;
+    payload: P;
 }
 
-export interface ActionHandlerCallOptions extends ActionCallBaseOptions {
-    payload?: unknown;
+export interface ActionHandlerCallOptions<P = unknown> extends ActionCallBaseOptions {
+    payload?: P;
 }
 
 // Action Call Options
@@ -210,11 +215,11 @@ export interface ActionApiCall<T = void> extends ActionCallBase {
     (options?: ActionApiCallOptions): Promise<T>;
 }
 
-export interface ActionHandlerCall<T = void> extends ActionCallBase {
-    (options?: ActionHandlerCallOptions): Promise<T>;
+export interface ActionHandlerCall<P = unknown, T = void> extends ActionCallBase {
+    (options?: ActionHandlerCallOptions<P>): Promise<T>;
 }
 
-export type ActionCall<T = void> = ActionApiCall<T> | ActionHandlerCall<T>;
+export type ActionCall<T = void> = ActionApiCall<T> | ActionHandlerCall<any, T>;
 
 // Store Action
 
@@ -225,7 +230,7 @@ export type StoreAction<
 > = {
     [K in keyof AD]: AD[K] extends ActionApiDefinition<MD, VD>
         ? ActionApiCall
-        : AD[K] extends ActionHandlerDefinition<MD, VD, infer R>
-          ? ActionHandlerCall<R>
+        : AD[K] extends ActionHandlerDefinition<MD, VD, infer P, infer R>
+          ? ActionHandlerCall<P, R>
           : never;
 };
