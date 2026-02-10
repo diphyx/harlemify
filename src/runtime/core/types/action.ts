@@ -31,6 +31,11 @@ export enum ActionConcurrent {
     ALLOW = "allow",
 }
 
+export enum ActionType {
+    API = "api",
+    HANDLER = "handler",
+}
+
 export enum ActionApiMethod {
     GET = "GET",
     HEAD = "HEAD",
@@ -212,10 +217,12 @@ export interface ActionCallBase {
 }
 
 export interface ActionApiCall<T = void> extends ActionCallBase {
+    readonly actionType: ActionType.API;
     (options?: ActionApiCallOptions): Promise<T>;
 }
 
 export interface ActionHandlerCall<P = unknown, T = void> extends ActionCallBase {
+    readonly actionType: ActionType.HANDLER;
     (options?: ActionHandlerCallOptions<P>): Promise<T>;
 }
 

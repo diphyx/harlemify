@@ -17,6 +17,7 @@ import {
     type ActionResolvedApi,
     type ActionResolvedHandler,
     ActionApiMethod,
+    ActionType,
     ActionStatus,
     ActionConcurrent,
 } from "../types/action";
@@ -362,9 +363,11 @@ export function createAction<MD extends ModelDefinitions, VD extends ViewDefinit
     model: StoreModel<MD>,
     view: StoreView<MD, VD>,
 ): ActionCall<R> {
+    const actionType = isApiDefinition(definition) ? ActionType.API : ActionType.HANDLER;
+
     definition.logger?.debug("Registering action", {
         action: definition.key,
-        type: isApiDefinition(definition) ? "api" : "handler",
+        type: actionType,
     });
 
     let currentController: Promise<R> | null = null;
@@ -479,6 +482,7 @@ export function createAction<MD extends ModelDefinitions, VD extends ViewDefinit
     }
 
     const action = Object.assign(execute, {
+        actionType,
         get error() {
             return readonly(globalError) as Readonly<Ref<Error | null>>;
         },

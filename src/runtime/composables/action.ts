@@ -3,7 +3,11 @@ import { type ComputedRef, type Ref, ref, computed } from "vue";
 import {
     ActionStatus,
     type ActionCall,
+    type ActionApiCall,
+    type ActionHandlerCall,
     type ActionCallOptions,
+    type ActionApiCallOptions,
+    type ActionHandlerCallOptions,
     type ActionCallBaseOptions,
 } from "../core/types/action";
 
@@ -15,8 +19,8 @@ export interface UseStoreActionOptions {
 
 // Return
 
-export type UseStoreAction<T> = {
-    execute: (options?: ActionCallOptions) => Promise<T>;
+export type UseStoreAction<T, O = ActionCallOptions> = {
+    execute: (options?: Omit<O, "bind">) => Promise<T>;
     error: Readonly<Ref<Error | null>>;
     status: Readonly<Ref<ActionStatus>>;
     loading: ComputedRef<boolean>;
@@ -37,7 +41,18 @@ export function useStoreAction<
     A extends Record<string, ActionCall<any>>,
     K extends keyof A & string,
     T = Awaited<ReturnType<A[K]>>,
->(store: { action: A }, key: K, options?: UseStoreActionOptions): UseStoreAction<T> {
+>(
+    store: { action: A },
+    key: K,
+    options?: UseStoreActionOptions,
+): UseStoreAction<
+    T,
+    A[K] extends ActionHandlerCall<infer P, any>
+        ? ActionHandlerCallOptions<P>
+        : A[K] extends ActionApiCall<any>
+          ? ActionApiCallOptions
+          : ActionCallOptions
+> {
     const action = store.action[key] as unknown as ActionCall<T>;
     if (!action) {
         throw new Error(`Action "${key}" not found in store`);

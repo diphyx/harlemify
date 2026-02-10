@@ -15,7 +15,7 @@ export { ViewClone } from "./core/types/view";
 export type { ViewDefinitionOptions } from "./core/types/view";
 
 // Action
-export { ActionStatus, ActionConcurrent, ActionApiMethod } from "./core/types/action";
+export { ActionStatus, ActionConcurrent, ActionType, ActionApiMethod } from "./core/types/action";
 export type {
     ActionCall,
     ActionApiCall,
