@@ -6,6 +6,7 @@ import { createModelFactory } from "../src/runtime/core/layers/model";
 import { createViewFactory } from "../src/runtime/core/layers/view";
 import { createActionFactory } from "../src/runtime/core/layers/action";
 import { createAction } from "../src/runtime/core/utils/action";
+import { wrapBaseDefinition } from "../src/runtime/core/utils/base";
 import { ActionApiError } from "../src/runtime/core/utils/error";
 import { createStoreState, createStoreModel, createStoreView } from "../src/runtime/core/utils/store";
 import {
@@ -32,6 +33,48 @@ const UserShape = shape((factory) => {
 });
 
 type User = ShapeInfer<typeof UserShape>;
+
+// Base Definition
+
+describe("wrapBaseDefinition", () => {
+    it("adds key and setKey to object", () => {
+        const definition = wrapBaseDefinition({ logger: undefined, callback: async () => {} });
+
+        expect(definition.key).toBe("");
+        expect(definition.setKey).toBeTypeOf("function");
+    });
+
+    it("setKey updates key", () => {
+        const definition = wrapBaseDefinition({ logger: undefined, callback: async () => {} });
+
+        definition.setKey("test-key");
+
+        expect(definition.key).toBe("test-key");
+    });
+
+    it("preserves original properties", () => {
+        const callback = async () => "result";
+        const definition = wrapBaseDefinition({ logger: undefined, callback });
+
+        expect(definition.callback).toBe(callback);
+    });
+
+    it("key and setKey are enumerable", () => {
+        const definition = wrapBaseDefinition({ logger: undefined, callback: async () => {} });
+
+        const keys = Object.keys(definition);
+
+        expect(keys).toContain("key");
+        expect(keys).toContain("setKey");
+    });
+
+    it("returns the same object reference", () => {
+        const original = { logger: undefined, callback: async () => {} };
+        const wrapped = wrapBaseDefinition(original);
+
+        expect(wrapped).toBe(original);
+    });
+});
 
 // Factory
 
@@ -114,6 +157,43 @@ describe("createActionFactory", () => {
 
             expect(definition).toBeDefined();
             expect(definition.callback).toBeDefined();
+        });
+
+        it("returns definition with options", () => {
+            const definition = factory.handler(
+                async (_context) => {
+                    return "result";
+                },
+                {
+                    payload: { name: "default" },
+                    concurrent: ActionConcurrent.SKIP,
+                },
+            );
+
+            expect(definition.options?.payload).toEqual({ name: "default" });
+            expect(definition.options?.concurrent).toBe(ActionConcurrent.SKIP);
+        });
+
+        it("has key and setKey from wrapBaseDefinition", () => {
+            const definition = factory.handler(async (_context) => {});
+
+            expect(definition.key).toBe("");
+
+            definition.setKey("myHandler");
+
+            expect(definition.key).toBe("myHandler");
+        });
+    });
+
+    describe("api() base definition", () => {
+        it("has key and setKey from wrapBaseDefinition", () => {
+            const definition = factory.api.get({ url: "/users" });
+
+            expect(definition.key).toBe("");
+
+            definition.setKey("fetchUsers");
+
+            expect(definition.key).toBe("fetchUsers");
         });
     });
 });
@@ -242,6 +322,133 @@ describe("createAction", () => {
 
             expect(action.status.value).toBe(ActionStatus.IDLE);
             expect(action.error.value).toBeNull();
+        });
+
+        it("receives payload from call options", async () => {
+            const { action } = setup({
+                callback: async ({ payload }) => {
+                    return payload;
+                },
+            });
+
+            const result = await action({ payload: { name: "Alice" } });
+
+            expect(result).toEqual({ name: "Alice" });
+        });
+
+        it("payload is undefined when not provided", async () => {
+            const { action } = setup({
+                callback: async ({ payload }) => {
+                    return payload;
+                },
+            });
+
+            const result = await action();
+
+            expect(result).toBeUndefined();
+        });
+
+        it("resolves definition-level payload from options", async () => {
+            const { action } = setup({
+                callback: async ({ payload }) => {
+                    return payload;
+                },
+                options: {
+                    payload: { name: "Default" },
+                },
+            });
+
+            const result = await action();
+
+            expect(result).toEqual({ name: "Default" });
+        });
+
+        it("call-time payload overrides definition-level payload", async () => {
+            const { action } = setup({
+                callback: async ({ payload }) => {
+                    return payload;
+                },
+                options: {
+                    payload: { name: "Default" },
+                },
+            });
+
+            const result = await action({ payload: { name: "Override" } });
+
+            expect(result).toEqual({ name: "Override" });
+        });
+
+        it("receives model in context", async () => {
+            const { action, model } = setup({
+                callback: async ({ model: m }) => {
+                    return m;
+                },
+            });
+
+            const result = await action();
+
+            expect(result).toBe(model);
+        });
+
+        it("receives view in context", async () => {
+            const { action } = setup({
+                callback: async ({ view: v }) => {
+                    return v;
+                },
+            });
+
+            const result = await action();
+
+            expect(result).toBeDefined();
+        });
+
+        it("handler concurrent uses definition-level option", async () => {
+            const { action } = setup({
+                callback: async () => {
+                    await new Promise((resolve) => {
+                        return setTimeout(resolve, 50);
+                    });
+
+                    return "first";
+                },
+                options: {
+                    concurrent: ActionConcurrent.SKIP,
+                },
+            });
+
+            const first = action();
+            const second = action();
+
+            const [r1, r2] = await Promise.all([first, second]);
+
+            expect(r1).toBe("first");
+            expect(r2).toBe("first");
+        });
+
+        it("call-time concurrent overrides handler definition-level option", async () => {
+            let callCount = 0;
+            const { action } = setup({
+                callback: async () => {
+                    callCount++;
+                    const current = callCount;
+                    await new Promise((resolve) => {
+                        return setTimeout(resolve, 50);
+                    });
+
+                    return "result-" + current;
+                },
+                options: {
+                    concurrent: ActionConcurrent.BLOCK,
+                },
+            });
+
+            const first = action();
+            const second = action({ concurrent: ActionConcurrent.ALLOW });
+
+            const [r1, r2] = await Promise.all([first, second]);
+
+            expect(r1).toBe("result-1");
+            expect(r2).toBe("result-2");
         });
     });
 

@@ -39,11 +39,11 @@ function setup() {
         },
         action: (a) => {
             return {
-                list: a.handler(async () => {
+                list: a.handler(async (_context) => {
                     return "list-result";
                 }),
                 get: a.api.get({ url: "/users/1" }, { model: "user", mode: ModelOneMode.SET }),
-                fail: a.handler(async () => {
+                fail: a.handler(async (_context) => {
                     throw new Error("fail");
                 }),
             };

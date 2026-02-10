@@ -67,6 +67,10 @@ describe("createStore", () => {
                     handleOnly: a.handler(async (_context) => {
                         return "handled";
                     }),
+
+                    mutateUser: a.handler(async ({ model }) => {
+                        model.user.set({ id: 1, name: "FromHandler", email: "handler@test.com" });
+                    }),
                 };
             },
         });
@@ -337,6 +341,14 @@ describe("createStore", () => {
 
             expect(result).toBe("handled");
             expect(store.action.handleOnly.status.value).toBe(ActionStatus.SUCCESS);
+        });
+
+        it("handler can mutate model from context", async () => {
+            const store = setup();
+
+            await store.action.mutateUser();
+
+            expect(store.view.user.value).toEqual({ id: 1, name: "FromHandler", email: "handler@test.com" });
         });
 
         it("failed action sets error status", async () => {
