@@ -105,4 +105,14 @@ test.describe("users page", () => {
         await expect(page.getByTestId("input-name")).toHaveValue("");
         await expect(page.getByTestId("input-email")).toHaveValue("");
     });
+
+    test("silent add adds user without pre hook", async ({ page }) => {
+        await page.getByTestId("silent-add-user").click();
+        await expect(page.getByTestId("user-count")).toHaveText("4 users");
+    });
+
+    test("clear all uses silent reset", async ({ page }) => {
+        await page.getByTestId("clear-all-users").click();
+        await expect(page.getByTestId("user-count")).toHaveText("0 users");
+    });
 });

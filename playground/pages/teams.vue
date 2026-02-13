@@ -98,8 +98,8 @@ function resetAll() {
                         </li>
                     </ul>
                     <div class="add-member-form">
-                        <input v-model="newMemberName" placeholder="Name" class="input-sm" >
-                        <input v-model="newMemberRole" placeholder="Role" class="input-sm" >
+                        <input v-model="newMemberName" placeholder="Name" class="input-sm" />
+                        <input v-model="newMemberRole" placeholder="Role" class="input-sm" />
                         <button class="btn btn-sm" @click="addMemberToTeam(name)">Add</button>
                     </div>
                 </div>
@@ -155,6 +155,8 @@ function resetAll() {
                 <li><code>model.groups.add(key, value)</code> — Add a key entry</li>
                 <li><code>model.groups.patch(value)</code> — Merge keys into record</li>
                 <li><code>model.groups.remove(key)</code> — Remove a key entry</li>
+                <li><code>pre / post</code> — Model hooks fired on every mutation</li>
+                <li><code>silent: ModelSilent.POST</code> — Skip post hook (used in removeTeam)</li>
             </ul>
         </div>
 
@@ -164,11 +166,11 @@ function resetAll() {
                 <form @submit.prevent="saveTeam">
                     <div class="form-group">
                         <label>Team Name</label>
-                        <input v-model="newTeamName" required data-testid="input-team-name" >
+                        <input v-model="newTeamName" required data-testid="input-team-name" />
                     </div>
                     <div v-for="(member, index) in newMembers" :key="index" class="form-group member-row">
-                        <input v-model="member.name" placeholder="Name" required >
-                        <input v-model="member.role" placeholder="Role" required >
+                        <input v-model="member.name" placeholder="Name" required />
+                        <input v-model="member.role" placeholder="Role" required />
                         <button
                             v-if="newMembers.length > 1"
                             type="button"

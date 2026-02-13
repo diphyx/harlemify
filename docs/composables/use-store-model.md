@@ -94,15 +94,37 @@ const searchModel = useStoreModel(userStore, "current", { debounce: 300 });
 | `debounce` | `number` | —       | Debounce delay in milliseconds    |
 | `throttle` | `number` | —       | Throttle interval in milliseconds |
 
+## Silent Option
+
+All mutation methods accept a `silent` option to skip pre/post hooks. This works transparently through `useStoreModel`:
+
+```typescript
+import { ModelSilent } from "@diphyx/harlemify";
+
+const { set, reset, patch } = useStoreModel(userStore, "current");
+
+set(value, { silent: true });           // Skip both hooks
+reset({ silent: ModelSilent.PRE });     // Skip only pre hook
+patch({ name: "Updated" }, { silent: ModelSilent.POST }); // Skip only post hook
+```
+
+```typescript
+const { add, remove, reset } = useStoreModel(userStore, "list");
+
+add(user, { silent: true });
+remove({ id: 1 }, { silent: ModelSilent.POST });
+reset({ silent: true });
+```
+
 ## Return Type
 
 ### One Model
 
 ```typescript
 type UseStoreModelOne = {
-    set: (value) => void;
+    set: (value, options?) => void;
     patch: (value, options?) => void;
-    reset: () => void;
+    reset: (options?) => void;
 };
 ```
 
@@ -110,9 +132,9 @@ type UseStoreModelOne = {
 
 ```typescript
 type UseStoreModelMany = {
-    set: (value) => void;
+    set: (value, options?) => void;
     patch: (value, options?) => void;
-    reset: () => void;
+    reset: (options?) => void;
     add: (value, options?) => void;
     remove: (value, options?) => void;
 };

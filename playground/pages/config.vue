@@ -38,6 +38,14 @@ async function resetConfig() {
         body: configShape.defaults({ theme: "dark", language: "en", notifications: true }),
     });
 }
+
+async function silentReset() {
+    await configStore.action.silentReset();
+}
+
+async function silentUpdate() {
+    await configStore.action.silentUpdate({ payload: { language: "fr" } });
+}
 </script>
 
 <template>
@@ -65,7 +73,7 @@ async function resetConfig() {
                     <strong>Language</strong>
                 </div>
                 <form class="config-input" @submit.prevent="updateLanguage">
-                    <input v-model="languageInput" type="text" data-testid="language-input" >
+                    <input v-model="languageInput" type="text" data-testid="language-input" />
                     <button type="submit" class="btn btn-sm" data-testid="update-language">Update</button>
                 </form>
             </div>
@@ -88,6 +96,22 @@ async function resetConfig() {
                     <span class="value">restore defaults</span>
                 </div>
                 <button class="btn btn-sm" data-testid="reset-config" @click="resetConfig">Reset</button>
+            </div>
+
+            <div class="config-item" data-testid="config-silent-reset">
+                <div>
+                    <strong>Silent Reset</strong>
+                    <span class="value">reset without hooks</span>
+                </div>
+                <button class="btn btn-sm" data-testid="silent-reset" @click="silentReset">Silent Reset</button>
+            </div>
+
+            <div class="config-item" data-testid="config-silent-update">
+                <div>
+                    <strong>Silent Update</strong>
+                    <span class="value">patch language to "fr" (skip post hook)</span>
+                </div>
+                <button class="btn btn-sm" data-testid="silent-update" @click="silentUpdate">Silent Update</button>
             </div>
 
             <div class="detail" data-testid="raw-data">
@@ -155,6 +179,9 @@ async function resetConfig() {
                     <li><code>action.get.error</code> - Reactive error state</li>
                     <li><code>view.theme</code> / <code>view.language</code> - Derived computed views</li>
                     <li><code>shape.defaults(overrides)</code> - Auto-generate defaults with overrides for reset</li>
+                    <li><code>pre / post</code> - Model hooks fired on every mutation</li>
+                    <li><code>silent: true</code> - Skip both pre and post hooks</li>
+                    <li><code>silent: ModelSilent.POST</code> - Skip only post hook</li>
                 </ul>
             </div>
         </div>

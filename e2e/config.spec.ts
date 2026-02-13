@@ -48,4 +48,14 @@ test.describe("config page", () => {
         await expect(page.getByTestId("theme-value")).toHaveText("dark");
         await expect(page.getByTestId("notifications-value")).toHaveText("on");
     });
+
+    test("silent reset clears config without hooks", async ({ page }) => {
+        await page.getByTestId("silent-reset").click();
+        await expect(page.getByTestId("no-data")).toBeVisible();
+    });
+
+    test("silent update patches language without post hook", async ({ page }) => {
+        await page.getByTestId("silent-update").click();
+        await expect(page.getByTestId("raw-data")).toContainText('"language": "fr"');
+    });
 });

@@ -1,4 +1,4 @@
-import { createStore, shape, ModelOneMode, type ShapeInfer } from "../../src/runtime";
+import { createStore, shape, ModelOneMode, ModelSilent, type ShapeInfer } from "../../src/runtime";
 
 export const configShape = shape((factory) => {
     return {
@@ -14,7 +14,14 @@ export const configStore = createStore({
     name: "config",
     model({ one }) {
         return {
-            config: one(configShape),
+            config: one(configShape, {
+                pre() {
+                    console.log("[config] pre hook");
+                },
+                post() {
+                    console.log("[config] post hook");
+                },
+            }),
         };
     },
     view({ from }) {
@@ -31,11 +38,17 @@ export const configStore = createStore({
             }),
         };
     },
-    action({ api }) {
+    action({ api, handler }) {
         return {
             get: api.get({ url: "/config" }, { model: "config", mode: ModelOneMode.SET }),
             update: api.patch({ url: "/config" }, { model: "config", mode: ModelOneMode.PATCH }),
             replace: api.put({ url: "/config" }, { model: "config", mode: ModelOneMode.SET }),
+            silentReset: handler(async ({ model }) => {
+                model.config.reset({ silent: true });
+            }),
+            silentUpdate: handler<Partial<Config>>(async ({ model, payload }) => {
+                model.config.patch(payload, { silent: ModelSilent.POST });
+            }),
         };
     },
 });

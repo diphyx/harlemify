@@ -70,6 +70,12 @@ async function patchByEmailDemo() {
     });
 }
 
+async function silentAddUser() {
+    await userStore.action.silentAdd({
+        payload: { id: Date.now(), name: "Silent User", email: "silent@test.com" },
+    });
+}
+
 function resetListAction() {
     userStore.action.list.reset();
 }
@@ -100,6 +106,7 @@ function resetListAction() {
             >
                 Patch by Email
             </button>
+            <button class="btn btn-sm" data-testid="silent-add-user" @click="silentAddUser">Silent Add</button>
             <button class="btn btn-sm" data-testid="reset-list-action" @click="resetListAction">Reset Action</button>
         </div>
 
@@ -215,6 +222,9 @@ function resetListAction() {
                 <li><code>commit(..., { by: "email" })</code> - Custom identifier field for patch</li>
                 <li><code>action.list.reset()</code> - Reset action state to idle</li>
                 <li><code>shape.defaults()</code> - Auto-generate zero-value form data from shape</li>
+                <li><code>pre / post</code> - Model hooks fired on every mutation</li>
+                <li><code>silent: true</code> - Skip both hooks (used in clear)</li>
+                <li><code>silent: ModelSilent.PRE</code> - Skip only pre hook (used in silentAdd)</li>
             </ul>
         </div>
 
@@ -224,11 +234,11 @@ function resetListAction() {
                 <form @submit.prevent="save">
                     <div class="form-group">
                         <label>Name</label>
-                        <input v-model="form.name" required data-testid="input-name" >
+                        <input v-model="form.name" required data-testid="input-name" />
                     </div>
                     <div class="form-group">
                         <label>Email</label>
-                        <input v-model="form.email" type="email" required data-testid="input-email" >
+                        <input v-model="form.email" type="email" required data-testid="input-email" />
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn" data-testid="cancel-modal" @click="showModal = false">

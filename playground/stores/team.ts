@@ -1,4 +1,4 @@
-import { createStore, shape, ModelManyKind, ModelManyMode, type ShapeInfer } from "../../src/runtime";
+import { createStore, shape, ModelManyKind, ModelManyMode, ModelSilent, type ShapeInfer } from "../../src/runtime";
 
 export const teamMemberShape = shape((factory) => {
     return {
@@ -16,7 +16,15 @@ export const teamStore = createStore({
     name: "teams",
     model({ many }) {
         return {
-            groups: many(teamMemberShape, { kind: ModelManyKind.RECORD }),
+            groups: many(teamMemberShape, {
+                kind: ModelManyKind.RECORD,
+                pre() {
+                    console.log("[teams] pre hook");
+                },
+                post() {
+                    console.log("[teams] post hook");
+                },
+            }),
         };
     },
     view({ from }) {
@@ -45,7 +53,7 @@ export const teamStore = createStore({
             }),
             removeTeam: handler<string>(async ({ model, payload }) => {
                 await $fetch(`/api/teams/${payload}`, { method: "DELETE" });
-                model.groups.remove(payload);
+                model.groups.remove(payload, { silent: ModelSilent.POST });
             }),
             patchTeam: handler<{ name: string; members: TeamMember[] }>(async ({ model, payload }) => {
                 await $fetch(`/api/teams/${payload.name}`, {

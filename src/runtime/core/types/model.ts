@@ -33,6 +33,11 @@ export enum ModelManyMode {
     ADD = "add",
 }
 
+export enum ModelSilent {
+    PRE = "pre",
+    POST = "post",
+}
+
 // Identifier
 
 export type ModelDefaultIdentifier<S extends Shape> = "id" extends keyof S ? "id" : keyof S;
@@ -44,6 +49,8 @@ export type AtLeastOne<S extends Shape> = { [K in keyof S]: Pick<S, K> }[keyof S
 export interface ModelOneDefinitionOptions<S extends Shape> {
     identifier?: keyof S;
     default?: S;
+    pre?: () => void;
+    post?: () => void;
 }
 
 export type ModelManyDefinitionOptions<
@@ -53,6 +60,8 @@ export type ModelManyDefinitionOptions<
 > = {
     kind?: T;
     default?: [T] extends [ModelManyKind.LIST] ? S[] : Record<string, S[]>;
+    pre?: () => void;
+    post?: () => void;
 } & ([T] extends [ModelManyKind.LIST] ? { identifier?: I } : {});
 
 // Definitions
@@ -110,6 +119,7 @@ export interface ModelFactory {
 
 export interface ModelOneCommitOptions {
     deep?: boolean;
+    silent?: true | ModelSilent;
 }
 
 export interface ModelManyCommitOptions {
@@ -117,30 +127,34 @@ export interface ModelManyCommitOptions {
     prepend?: boolean;
     unique?: boolean;
     deep?: boolean;
+    silent?: true | ModelSilent;
 }
 
 // Commit
 
 export interface ModelOneCommit<S extends Shape> {
-    set: (value: S) => void;
-    reset: () => void;
+    set: (value: S, options?: ModelOneCommitOptions) => void;
+    reset: (options?: ModelOneCommitOptions) => void;
     patch: (value: Partial<S>, options?: ModelOneCommitOptions) => void;
 }
 
 export interface ModelManyListCommit<S extends Shape, I extends keyof S = ModelDefaultIdentifier<S>> {
-    set: (value: S[]) => void;
-    reset: () => void;
+    set: (value: S[], options?: ModelManyCommitOptions) => void;
+    reset: (options?: ModelManyCommitOptions) => void;
     patch: (value: Partial<S> | Partial<S>[], options?: ModelManyCommitOptions) => void;
-    remove: (value: Pick<S, I> | Pick<S, I>[] | AtLeastOne<S> | AtLeastOne<S>[]) => void;
+    remove: (
+        value: Pick<S, I> | Pick<S, I>[] | AtLeastOne<S> | AtLeastOne<S>[],
+        options?: ModelManyCommitOptions,
+    ) => void;
     add: (value: S | S[], options?: ModelManyCommitOptions) => void;
 }
 
 export interface ModelManyRecordCommit<S extends Shape> {
-    set: (value: Record<string, S[]>) => void;
-    reset: () => void;
+    set: (value: Record<string, S[]>, options?: ModelOneCommitOptions) => void;
+    reset: (options?: ModelOneCommitOptions) => void;
     patch: (value: Record<string, S[]>, options?: ModelOneCommitOptions) => void;
-    remove: (key: string) => void;
-    add: (key: string, value: S[]) => void;
+    remove: (key: string, options?: ModelOneCommitOptions) => void;
+    add: (key: string, value: S[], options?: ModelOneCommitOptions) => void;
 }
 
 export type ModelManyCommit<

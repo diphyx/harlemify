@@ -60,5 +60,7 @@ test.describe("teams page", () => {
         const info = page.getByTestId("feature-info");
         await expect(info).toBeVisible();
         await expect(info).toContainText('many(shape, { kind: "record" })');
+        await expect(info).toContainText("pre / post");
+        await expect(info).toContainText("silent: ModelSilent.POST");
     });
 });

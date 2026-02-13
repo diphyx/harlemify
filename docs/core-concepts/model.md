@@ -100,6 +100,79 @@ store.model.grouped.remove("team-a");
 | `add`    | Add a key with its array value                                   |
 | `remove` | Remove a key from the record                                     |
 
+## Pre/Post Hooks
+
+You can attach `pre` and `post` hooks to any model. They fire before and after every mutation (set, reset, patch, add, remove):
+
+```typescript
+model({ one, many }) {
+    return {
+        session: one(sessionShape, {
+            pre() {
+                console.log("before mutation");
+            },
+            post() {
+                console.log("after mutation");
+            },
+        }),
+        users: many(userShape, {
+            pre() {
+                console.log("before mutation");
+            },
+            post() {
+                console.log("after mutation");
+            },
+        }),
+    };
+},
+```
+
+Hooks are optional.
+
+> **Note:** Hooks are safe and cannot control the flow of the mutation. A `pre` hook is simply called before the mutation, not a guard that can prevent it. Even if a hook throws, the error is caught and logged, and the mutation proceeds normally.
+
+## Silent Option
+
+Use `silent` to skip hooks on specific mutations. This is useful when you want to avoid side effects like cookie sync, analytics, or logging for certain operations.
+
+```typescript
+import { ModelSilent } from "@diphyx/harlemify";
+```
+
+| Value                | Effect                 |
+| -------------------- | ---------------------- |
+| `silent: true`       | Skip both pre and post |
+| `silent: ModelSilent.PRE`  | Skip only pre          |
+| `silent: ModelSilent.POST` | Skip only post         |
+
+### One Model
+
+```typescript
+store.model.session.set(value, { silent: true });
+store.model.session.reset({ silent: ModelSilent.POST });
+store.model.session.patch({ name: "Updated" }, { silent: ModelSilent.PRE });
+```
+
+### Many List
+
+```typescript
+store.model.users.set(users, { silent: true });
+store.model.users.reset({ silent: true });
+store.model.users.add(user, { silent: ModelSilent.PRE });
+store.model.users.remove({ id: 1 }, { silent: ModelSilent.POST });
+store.model.users.patch({ id: 1, name: "Updated" }, { silent: true });
+```
+
+### Many Record
+
+```typescript
+store.model.grouped.set(data, { silent: true });
+store.model.grouped.reset({ silent: true });
+store.model.grouped.add("team-a", users, { silent: ModelSilent.POST });
+store.model.grouped.remove("team-a", { silent: ModelSilent.PRE });
+store.model.grouped.patch({ "team-a": updated }, { silent: true });
+```
+
 ## Next Steps
 
 - [View](view.md) - Create computed properties from model state

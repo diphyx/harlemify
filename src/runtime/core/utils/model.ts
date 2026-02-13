@@ -19,7 +19,45 @@ import {
     ModelManyKind,
     ModelOneMode,
     ModelManyMode,
+    ModelSilent,
 } from "../types/model";
+
+// Hooks Helper
+
+function callHook<S extends Shape>(
+    definition: ModelDefinition<S>,
+    hook: ModelSilent,
+    silent?: true | ModelSilent,
+): void {
+    if (silent === true || silent === hook) {
+        return;
+    }
+
+    try {
+        definition.options?.[hook]?.();
+    } catch (error) {
+        definition.logger?.error(`Model ${hook} hook error`, {
+            model: definition.key,
+            error,
+        });
+    }
+}
+
+function wrapOperation<S extends Shape>(
+    definition: ModelDefinition<S>,
+    mutation: string,
+    operation: () => void,
+    silent?: true | ModelSilent,
+): void {
+    definition.logger?.debug("Model mutation", {
+        model: definition.key,
+        mutation,
+    });
+
+    callHook(definition, ModelSilent.PRE, silent);
+    operation();
+    callHook(definition, ModelSilent.POST, silent);
+}
 
 // Resolve Identifier
 
@@ -71,40 +109,16 @@ function createOneCommit<S extends Shape>(
         },
     );
 
-    function set(value: S) {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "set",
-        });
-
-        setOperation(value);
-    }
-
-    function reset() {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "reset",
-        });
-
-        resetOperation();
-    }
-
-    function patch(value: Partial<S>, options?: ModelOneCommitOptions) {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "patch",
-        });
-
-        patchOperation({
-            value,
-            options,
-        });
-    }
-
     return {
-        set,
-        reset,
-        patch,
+        set(value: S, options?: ModelOneCommitOptions) {
+            wrapOperation(definition, "set", () => setOperation(value), options?.silent);
+        },
+        reset(options?: ModelOneCommitOptions) {
+            wrapOperation(definition, "reset", () => resetOperation(), options?.silent);
+        },
+        patch(value: Partial<S>, options?: ModelOneCommitOptions) {
+            wrapOperation(definition, "patch", () => patchOperation({ value, options }), options?.silent);
+        },
     };
 }
 
@@ -207,63 +221,22 @@ function createManyListCommit<S extends Shape>(
         },
     );
 
-    function set(value: S[]) {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "set",
-        });
-
-        setOperation(value);
-    }
-
-    function reset() {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "reset",
-        });
-
-        resetOperation();
-    }
-
-    function patch(value: Partial<S> | Partial<S>[], options?: ModelManyCommitOptions) {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "patch",
-        });
-
-        patchOperation({
-            value,
-            options,
-        });
-    }
-
-    function remove(value: Partial<S> | Partial<S>[]) {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "remove",
-        });
-
-        removeOperation(value);
-    }
-
-    function add(value: S | S[], options?: ModelManyCommitOptions) {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "add",
-        });
-
-        addOperation({
-            value,
-            options,
-        });
-    }
-
     return {
-        set,
-        reset,
-        patch,
-        remove,
-        add,
+        set(value: S[], options?: ModelManyCommitOptions) {
+            wrapOperation(definition, "set", () => setOperation(value), options?.silent);
+        },
+        reset(options?: ModelManyCommitOptions) {
+            wrapOperation(definition, "reset", () => resetOperation(), options?.silent);
+        },
+        patch(value: Partial<S> | Partial<S>[], options?: ModelManyCommitOptions) {
+            wrapOperation(definition, "patch", () => patchOperation({ value, options }), options?.silent);
+        },
+        remove(value: Partial<S> | Partial<S>[], options?: ModelManyCommitOptions) {
+            wrapOperation(definition, "remove", () => removeOperation(value), options?.silent);
+        },
+        add(value: S | S[], options?: ModelManyCommitOptions) {
+            wrapOperation(definition, "add", () => addOperation({ value, options }), options?.silent);
+        },
     } as ModelManyListCommit<S, any>;
 }
 
@@ -324,57 +297,22 @@ function createManyRecordCommit<S extends Shape>(
         },
     );
 
-    function set(value: Record<string, S[]>) {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "set",
-        });
-
-        setOperation(value);
-    }
-
-    function reset() {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "reset",
-        });
-
-        resetOperation();
-    }
-
-    function patch(value: Record<string, S[]>, options?: ModelOneCommitOptions) {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "patch",
-        });
-
-        patchOperation({ value, options });
-    }
-
-    function remove(key: string) {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "remove",
-        });
-
-        removeOperation(key);
-    }
-
-    function add(key: string, value: S[]) {
-        definition.logger?.debug("Model mutation", {
-            model: definition.key,
-            mutation: "add",
-        });
-
-        addOperation({ key, value });
-    }
-
     return {
-        set,
-        reset,
-        patch,
-        remove,
-        add,
+        set(value: Record<string, S[]>, options?: ModelOneCommitOptions) {
+            wrapOperation(definition, "set", () => setOperation(value), options?.silent);
+        },
+        reset(options?: ModelOneCommitOptions) {
+            wrapOperation(definition, "reset", () => resetOperation(), options?.silent);
+        },
+        patch(value: Record<string, S[]>, options?: ModelOneCommitOptions) {
+            wrapOperation(definition, "patch", () => patchOperation({ value, options }), options?.silent);
+        },
+        remove(key: string, options?: ModelOneCommitOptions) {
+            wrapOperation(definition, "remove", () => removeOperation(key), options?.silent);
+        },
+        add(key: string, value: S[], options?: ModelOneCommitOptions) {
+            wrapOperation(definition, "add", () => addOperation({ key, value }), options?.silent);
+        },
     } as ModelManyRecordCommit<S>;
 }
 
@@ -434,7 +372,7 @@ export function createModel<S extends Shape>(
             switch (mode) {
                 case ModelOneMode.RESET:
                 case ModelManyMode.RESET: {
-                    handler();
+                    handler(options);
 
                     break;
                 }
