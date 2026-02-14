@@ -10,6 +10,15 @@ export const configShape = shape((factory) => {
 
 export type Config = ShapeInfer<typeof configShape>;
 
+export const metaShape = shape((factory) => {
+    return {
+        createdAt: factory.number(),
+        source: factory.string(),
+    };
+});
+
+export type Meta = ShapeInfer<typeof metaShape>;
+
 export const configStore = createStore({
     name: "config",
     lazy: true,
@@ -28,11 +37,18 @@ export const configStore = createStore({
                     console.log("[config] post hook");
                 },
             }),
+            meta: one(metaShape, {
+                default: () => ({
+                    createdAt: Date.now(),
+                    source: import.meta.server ? "server" : "client",
+                }),
+            }),
         };
     },
     view({ from }) {
         return {
             config: from("config"),
+            meta: from("meta"),
             theme: from("config", (model) => {
                 return model?.theme ?? "dark";
             }),
@@ -51,6 +67,7 @@ export const configStore = createStore({
             replace: api.put({ url: "/config" }, { model: "config", mode: ModelOneMode.SET }),
             defaultReset: handler(async ({ model }) => {
                 model.config.reset();
+                model.meta.reset();
             }),
             pureReset: handler(async ({ model }) => {
                 model.config.reset({ pure: true });

@@ -141,6 +141,11 @@ async function silentUpdate() {
                 <pre>{{ JSON.stringify(configStore.view.config.value, null, 2) }}</pre>
             </div>
 
+            <div class="detail" data-testid="meta-data">
+                <h3>Meta (function default)</h3>
+                <pre>{{ JSON.stringify(configStore.view.meta.value, null, 2) }}</pre>
+            </div>
+
             <!-- Action Status -->
             <div class="monitor-status" data-testid="action-status">
                 <h3>Action Status</h3>
