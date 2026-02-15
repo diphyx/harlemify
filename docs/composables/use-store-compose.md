@@ -10,8 +10,8 @@ const { execute, active } = useStoreCompose(dashboardStore, "loadAll");
 
 ```vue
 <template>
-    <button @click="execute()" :disabled="active.value">
-        {{ active.value ? "Loading..." : "Load All" }}
+    <button @click="execute()" :disabled="active">
+        {{ active ? "Loading..." : "Load All" }}
     </button>
 </template>
 ```
@@ -52,15 +52,15 @@ async function handleAdd() {
 
 <template>
     <div>
-        <button @click="loadAll.execute()" :disabled="loadAll.active.value">
-            {{ loadAll.active.value ? "Loading..." : "Load All" }}
+        <button @click="loadAll.execute()" :disabled="loadAll.active">
+            {{ loadAll.active ? "Loading..." : "Load All" }}
         </button>
         <button @click="resetAll.execute()">Reset</button>
 
         <form @submit.prevent="handleAdd">
             <input v-model="name" placeholder="Name" />
             <input v-model="email" placeholder="Email" />
-            <button type="submit" :disabled="quickAdd.active.value">Add</button>
+            <button type="submit" :disabled="quickAdd.active">Add</button>
         </form>
     </div>
 </template>

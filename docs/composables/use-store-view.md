@@ -1,6 +1,6 @@
 # useStoreView
 
-Returns reactive view data as a `ComputedRef` with a `track` method for watching changes.
+Returns reactive view data as a `ComputedRef` and a `track` method for watching changes.
 
 ## Basic Usage
 
@@ -12,7 +12,7 @@ data.value.name; // string
 data.value.email; // string
 ```
 
-In templates, Vue auto-unwraps the `ComputedRef`:
+In templates, Vue auto-unwraps the `ComputedRef`, so `.value` is not needed:
 
 ```vue
 <template>

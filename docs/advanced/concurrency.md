@@ -167,8 +167,8 @@ Use `action.loading` to disable buttons during pending state:
 
 ```vue
 <template>
-    <button @click="store.action.create()" :disabled="store.action.create.loading.value">
-        {{ store.action.create.loading.value ? "Creating..." : "Create" }}
+    <button @click="store.action.create()" :disabled="store.action.create.loading">
+        {{ store.action.create.loading ? "Creating..." : "Create" }}
     </button>
 </template>
 ```

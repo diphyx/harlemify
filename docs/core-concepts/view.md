@@ -80,7 +80,7 @@ View resolver callbacks receive state as a Vue `readonly()` proxy. Mutating meth
 | `ViewClone.DEEP`    | Full deep clone via JSON serialization |
 
 ```typescript
-import { ViewClone } from "@diphyx/harlemify";
+import { ViewClone } from "@diphyx/harlemify/runtime";
 
 view({ from, merge }) {
     return {

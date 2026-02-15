@@ -178,7 +178,7 @@ Hooks are optional and safe — they cannot control the flow of the mutation. A 
 Use `silent` to skip hooks on specific mutations. This is useful when you want to avoid side effects like cookie sync, analytics, or logging for certain operations:
 
 ```typescript
-import { ModelSilent } from "@diphyx/harlemify";
+import { ModelSilent } from "@diphyx/harlemify/runtime";
 ```
 
 | Value                      | Effect                 |
