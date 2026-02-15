@@ -21,21 +21,13 @@ const { set, add, remove } = useStoreModel(store, "list");
 
 ## [useStoreView](use-store-view.md)
 
-Reactive view data with proxy access and change tracking.
+Reactive view data as a `ComputedRef` with change tracking.
 
 ```typescript
 const { data, track } = useStoreView(store, "user");
 
-data.value; // User
-data.name; // Proxy access without .value
-```
-
-Pass `proxy: false` to get a standard `ComputedRef` instead of the proxy:
-
-```typescript
-const { data } = useStoreView(store, "user", { proxy: false });
-
 data.value; // User — standard ComputedRef
+data.value.name; // string
 ```
 
 ## [useStoreCompose](use-store-compose.md)

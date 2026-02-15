@@ -49,13 +49,7 @@ export type { UseStoreActionOptions, UseStoreAction } from "./composables/action
 export { useStoreModel } from "./composables/model";
 export type { UseStoreModelOptions, UseStoreModel } from "./composables/model";
 export { useStoreView } from "./composables/view";
-export type {
-    UseStoreViewOptions,
-    UseStoreViewProxy,
-    UseStoreViewComputed,
-    UseStoreViewData,
-    UseStoreViewTrackOptions,
-} from "./composables/view";
+export type { UseStoreView, UseStoreViewTrackOptions } from "./composables/view";
 
 // Config
 export type { RuntimeConfig } from "./config";
