@@ -5,9 +5,6 @@ Wraps a store action with reactive `status`, `loading`, `error`, and `reset`. Su
 ## Basic Usage
 
 ```typescript
-import { useStoreAction } from "@diphyx/harlemify";
-import { userStore } from "~/stores/user";
-
 const { execute, status, loading, error, reset } = useStoreAction(userStore, "list");
 ```
 
@@ -32,7 +29,7 @@ const toggleAction = useStoreAction(todoStore, "toggle");
 await toggleAction.execute({ payload: todo });
 
 const renameAction = useStoreAction(todoStore, "rename");
-await renameAction.execute();                      // uses definition default
+await renameAction.execute(); // uses definition default
 await renameAction.execute({ payload: "Custom" }); // overrides default
 ```
 
@@ -57,9 +54,6 @@ This is useful when the same action is triggered from multiple UI contexts and e
 
 ```vue
 <script setup lang="ts">
-import { useStoreAction } from "@diphyx/harlemify";
-import { userStore } from "~/stores/user";
-
 const headerAction = useStoreAction(userStore, "list", { isolated: true });
 const sidebarAction = useStoreAction(userStore, "list", { isolated: true });
 </script>
@@ -112,5 +106,5 @@ type UseStoreAction<T> = {
 
 ## Next Steps
 
-- [useStoreModel](use-store-model.md) - Reactive model mutations
-- [useStoreView](use-store-view.md) - Reactive view data and tracking
+- [useStoreModel](use-store-model.md) — Reactive model mutations
+- [useStoreView](use-store-view.md) — Reactive view data and tracking

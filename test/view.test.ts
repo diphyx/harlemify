@@ -34,8 +34,8 @@ describe("createViewFactory", () => {
     });
 
     it("from() with resolver", () => {
-        const resolver = (user: User | null) => {
-            return user?.name ?? "unknown";
+        const resolver = (user: User) => {
+            return user.name;
         };
 
         const definition = viewFactory.from("user", resolver);
@@ -61,10 +61,10 @@ describe("createViewFactory", () => {
     });
 
     it("merge() creates multi-source definition", () => {
-        const resolver = (user: User | null, users: User[]) => {
+        const resolver = (user: User, users: User[]) => {
             return {
                 current: user,
-                total: users?.length ?? 0,
+                total: users.length,
             };
         };
 
@@ -75,7 +75,7 @@ describe("createViewFactory", () => {
     });
 
     it("merge() with options stores clone option", () => {
-        const resolver = (user: User | null, users: User[]) => ({ user, users });
+        const resolver = (user: User, users: User[]) => ({ user, users });
 
         const definition = viewFactory.merge(["user", "users"], resolver, { clone: ViewClone.SHALLOW });
 
@@ -118,7 +118,7 @@ describe("createView", () => {
         const user = createView(definition, source);
 
         expect(user).toBeDefined();
-        expect(user.value).toBeNull();
+        expect(user.value).toEqual({ id: 0, name: "", email: "" });
     });
 
     it("view reflects state changes", () => {
@@ -141,13 +141,13 @@ describe("createView", () => {
     it("view with resolver transforms data", () => {
         const { source, model, viewFactory } = setup();
 
-        const definition = viewFactory.from("user", (user: User | null) => {
-            return user?.name ?? "unknown";
+        const definition = viewFactory.from("user", (user: User) => {
+            return user.name;
         });
         definition.key = "userName";
         const userName = createView(definition, source);
 
-        expect(userName.value).toBe("unknown");
+        expect(userName.value).toBe("");
 
         model.user.set({
             id: 1,
@@ -161,17 +161,17 @@ describe("createView", () => {
     it("merge view combines multiple sources", () => {
         const { source, model, viewFactory } = setup();
 
-        const definition = viewFactory.merge(["user", "users"], (user: User | null, users: User[]) => {
+        const definition = viewFactory.merge(["user", "users"], (user: User, users: User[]) => {
             return {
-                current: user?.name ?? "none",
-                total: users?.length ?? 0,
+                current: user.name,
+                total: users.length,
             };
         });
         definition.key = "summary";
         const summary = createView(definition, source);
 
         expect(summary.value).toEqual({
-            current: "none",
+            current: "",
             total: 0,
         });
 
@@ -240,10 +240,8 @@ describe("createView", () => {
 
         const definition = viewFactory.from(
             "user",
-            (user: User | null) => {
-                if (user) {
-                    user.name = "Modified";
-                }
+            (user: User) => {
+                user.name = "Modified";
                 return user;
             },
             { clone: ViewClone.DEEP },
@@ -271,9 +269,9 @@ describe("createView", () => {
 
         const definition = viewFactory.merge(
             ["user", "users"],
-            (user: User | null, users: User[]) => {
+            (user: User, users: User[]) => {
                 return {
-                    current: user?.name ?? "none",
+                    current: user.name,
                     sorted: users.sort((a, b) => a.id - b.id).map((u) => u.name),
                 };
             },

@@ -8,7 +8,7 @@ export default defineEventHandler((event) => {
     const record: Record<string, (typeof data.teams)[string]> = {};
 
     for (const key of Object.keys(data.teams)) {
-        if (key !== name) {
+        if (key !== name && data.teams[key]) {
             record[key] = data.teams[key];
         }
     }

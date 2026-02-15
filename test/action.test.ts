@@ -376,6 +376,19 @@ describe("createAction", () => {
             expect(result).toEqual({ name: "Override" });
         });
 
+        it("executes synchronous callback", async () => {
+            const { action } = setup({
+                callback: () => {
+                    return "sync-result";
+                },
+            });
+
+            const result = await action();
+
+            expect(result).toBe("sync-result");
+            expect(action.status.value).toBe(ActionStatus.SUCCESS);
+        });
+
         it("receives model in context", async () => {
             const { action, model } = setup({
                 callback: async ({ model: m }) => {

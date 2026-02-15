@@ -2,7 +2,7 @@
 
 Control what happens when an action is called while it's already pending.
 
-## Concurrency Strategies
+## Strategies
 
 | Strategy                  | Behavior                                    |
 | ------------------------- | ------------------------------------------- |
@@ -14,8 +14,6 @@ Control what happens when an action is called while it's already pending.
 ## Setting Concurrency
 
 ### At Definition Time
-
-Set a default concurrency strategy in the action definition:
 
 **API actions** — via the request config:
 
@@ -50,7 +48,7 @@ action({ handler }) {
 
 ### At Call Time
 
-Override the concurrency strategy per call (works for both API and handler actions):
+Override the strategy per call (works for both API and handler actions):
 
 ```typescript
 await store.action.search({
@@ -78,7 +76,7 @@ export default defineNuxtConfig({
 });
 ```
 
-Priority order: call-time > definition > module config.
+Priority order: **call-time > definition > module config**.
 
 ## Use Cases
 
@@ -109,7 +107,6 @@ try {
 Return the existing promise. Good for data fetching where duplicate calls aren't harmful:
 
 ```typescript
-// Both calls get the same result
 const promise1 = store.action.list({ concurrent: ActionConcurrent.SKIP });
 const promise2 = store.action.list({ concurrent: ActionConcurrent.SKIP });
 // promise1 === promise2
@@ -150,13 +147,9 @@ await store.action.log({ concurrent: ActionConcurrent.ALLOW });
 // Both execute independently
 ```
 
-> For manual cancellation with `AbortSignal`, see [Request Cancellation](cancellation.md).
-
 ## Error Handling
 
 ```typescript
-import { ActionConcurrent } from "@diphyx/harlemify";
-
 try {
     await store.action.create();
 } catch (error) {
@@ -179,3 +172,8 @@ Use `action.loading` to disable buttons during pending state:
     </button>
 </template>
 ```
+
+## Next Steps
+
+- [Cancellation](cancellation.md) — Manual cancellation with AbortSignal
+- [Isolated Status](isolated-status.md) — Independent status tracking per context

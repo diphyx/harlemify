@@ -2,7 +2,12 @@ import { describe, it, expect } from "vitest";
 import { z, ZodObject } from "zod";
 
 import { shape } from "../src/runtime/core/layers/shape";
-import { resolveShape, resolveAliasInbound, resolveAliasOutbound } from "../src/runtime/core/utils/shape";
+import {
+    resolveShapeAliases,
+    resolveShapeIdentifier,
+    resolveAliasInbound,
+    resolveAliasOutbound,
+} from "../src/runtime/core/utils/shape";
 
 // Shape
 
@@ -30,143 +35,7 @@ describe("shape", () => {
 
 // Resolve
 
-describe("resolveShape", () => {
-    it("extracts fields from schema", () => {
-        const schema = shape((factory) => {
-            return {
-                id: factory.number(),
-                name: factory.string(),
-                email: factory.string(),
-            };
-        });
-
-        const meta = resolveShape(schema);
-
-        expect(meta.fields).toEqual(["id", "name", "email"]);
-    });
-
-    it("returns undefined when no id or _id field exists", () => {
-        const schema = shape((factory) => {
-            return {
-                uid: factory.string(),
-                name: factory.string(),
-            };
-        });
-
-        const meta = resolveShape(schema);
-
-        expect(meta.identifier).toBeUndefined();
-    });
-
-    it("falls back to id field", () => {
-        const schema = shape((factory) => {
-            return {
-                id: factory.number(),
-                name: factory.string(),
-            };
-        });
-
-        const meta = resolveShape(schema);
-
-        expect(meta.identifier).toBe("id");
-    });
-
-    it("falls back to _id field", () => {
-        const schema = shape((factory) => {
-            return {
-                _id: factory.string(),
-                name: factory.string(),
-            };
-        });
-
-        const meta = resolveShape(schema);
-
-        expect(meta.identifier).toBe("_id");
-    });
-
-    it("prefers id over _id", () => {
-        const schema = shape((factory) => {
-            return {
-                id: factory.number(),
-                _id: factory.string(),
-                name: factory.string(),
-            };
-        });
-
-        const meta = resolveShape(schema);
-
-        expect(meta.identifier).toBe("id");
-    });
-
-    it("returns undefined identifier when no id field exists", () => {
-        const schema = shape((factory) => {
-            return {
-                name: factory.string(),
-                email: factory.string(),
-            };
-        });
-
-        const meta = resolveShape(schema);
-
-        expect(meta.identifier).toBeUndefined();
-    });
-
-    it("id field used even when other fields have meta", () => {
-        const schema = shape((factory) => {
-            return {
-                id: factory.number(),
-                slug: factory.string(),
-            };
-        });
-
-        const meta = resolveShape(schema);
-
-        expect(meta.identifier).toBe("id");
-    });
-
-    it("extracts static default values", () => {
-        const schema = shape((factory) => {
-            return {
-                id: factory.number(),
-                name: factory.string().default("unnamed"),
-                active: factory.boolean().default(true),
-            };
-        });
-
-        const meta = resolveShape(schema);
-
-        expect(meta.defaults).toEqual({
-            name: "unnamed",
-            active: true,
-        });
-    });
-
-    it("extracts function default values", () => {
-        const schema = shape((factory) => {
-            return {
-                id: factory.number(),
-                tags: factory.array(factory.string()).default(() => ["default"]),
-            };
-        });
-
-        const meta = resolveShape(schema);
-
-        expect(meta.defaults.tags).toEqual(["default"]);
-    });
-
-    it("returns empty defaults when no defaults exist", () => {
-        const schema = shape((factory) => {
-            return {
-                id: factory.number(),
-                name: factory.string(),
-            };
-        });
-
-        const meta = resolveShape(schema);
-
-        expect(meta.defaults).toEqual({});
-    });
-
+describe("resolveShapeAliases", () => {
     it("extracts aliases from field meta", () => {
         const schema = shape((factory) => ({
             id: factory.number().meta({ identifier: true }),
@@ -174,38 +43,95 @@ describe("resolveShape", () => {
             last_name: factory.string().meta({ alias: "last-name" }),
         }));
 
-        const meta = resolveShape(schema);
+        const aliases = resolveShapeAliases(schema);
 
-        expect(meta.aliases).toEqual({
+        expect(aliases).toEqual({
             first_name: "first-name",
             last_name: "last-name",
         });
     });
 
-    it("returns empty aliases when no aliases exist", () => {
+    it("returns empty object when no aliases exist", () => {
         const schema = shape((factory) => ({
             id: factory.number(),
             name: factory.string(),
         }));
 
-        const meta = resolveShape(schema);
+        const aliases = resolveShapeAliases(schema);
 
-        expect(meta.aliases).toEqual({});
+        expect(aliases).toEqual({});
     });
 
-    it("extracts aliases alongside identifier", () => {
+    it("extracts multiple aliases", () => {
         const schema = shape((factory) => ({
             user_id: factory.number().meta({ identifier: true, alias: "userId" }),
             first_name: factory.string().meta({ alias: "firstName" }),
         }));
 
-        const meta = resolveShape(schema);
+        const aliases = resolveShapeAliases(schema);
 
-        expect(meta.identifier).toBe("user_id");
-        expect(meta.aliases).toEqual({
+        expect(aliases).toEqual({
             user_id: "userId",
             first_name: "firstName",
         });
+    });
+});
+
+// Resolve Shape Identifier
+
+describe("resolveShapeIdentifier", () => {
+    it("returns meta identifier field", () => {
+        const schema = shape((factory) => ({
+            uid: factory.number().meta({ identifier: true }),
+            name: factory.string(),
+        }));
+
+        expect(resolveShapeIdentifier(schema)).toBe("uid");
+    });
+
+    it("falls back to 'id' when no meta identifier", () => {
+        const schema = shape((factory) => ({
+            id: factory.number(),
+            name: factory.string(),
+        }));
+
+        expect(resolveShapeIdentifier(schema)).toBe("id");
+    });
+
+    it("falls back to 'id' when no matching fields", () => {
+        const schema = shape((factory) => ({
+            name: factory.string(),
+            email: factory.string(),
+        }));
+
+        expect(resolveShapeIdentifier(schema)).toBe("id");
+    });
+
+    it("override takes priority over meta identifier", () => {
+        const schema = shape((factory) => ({
+            uid: factory.number().meta({ identifier: true }),
+            name: factory.string(),
+        }));
+
+        expect(resolveShapeIdentifier(schema, "name")).toBe("name");
+    });
+
+    it("first defined override wins", () => {
+        const schema = shape((factory) => ({
+            name: factory.string(),
+            email: factory.string(),
+        }));
+
+        expect(resolveShapeIdentifier(schema, undefined, "email")).toBe("email");
+    });
+
+    it("skips undefined overrides", () => {
+        const schema = shape((factory) => ({
+            uid: factory.number().meta({ identifier: true }),
+            name: factory.string(),
+        }));
+
+        expect(resolveShapeIdentifier(schema, undefined, undefined)).toBe("uid");
     });
 });
 

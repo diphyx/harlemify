@@ -1,4 +1,4 @@
-import { type ComputedRef, type WatchStopHandle, computed, watch } from "vue";
+import { type ComputedRef, type WatchStopHandle, watch } from "vue";
 
 import type { ViewCall } from "../core/types/view";
 import { debounce, throttle, toReactiveProxy } from "../core/utils/base";
@@ -12,9 +12,8 @@ export interface UseStoreViewTrackOptions {
     throttle?: number;
 }
 
-export interface UseStoreViewOptions<T> {
+export interface UseStoreViewOptions {
     proxy?: boolean;
-    default?: T;
 }
 
 // Return
@@ -35,21 +34,6 @@ export type UseStoreViewComputed<T> = {
 
 // Helpers
 
-function resolveDefault<T>(view: ComputedRef<T>, defaultValue?: T): ComputedRef<T> {
-    if (defaultValue === undefined) {
-        return view;
-    }
-
-    return computed(() => {
-        const value = view.value;
-        if (value == null) {
-            return defaultValue as T;
-        }
-
-        return value;
-    });
-}
-
 function resolveData<T>(source: ComputedRef<T>, proxy?: boolean): UseStoreViewData<T> | ComputedRef<T> {
     if (proxy !== false) {
         return toReactiveProxy(source) as UseStoreViewData<T>;
@@ -64,24 +48,24 @@ export function useStoreView<
     V extends Record<string, ViewCall>,
     K extends keyof V & string,
     T = V[K] extends ComputedRef<infer R> ? R : unknown,
->(store: { view: V }, key: K, options: UseStoreViewOptions<T> & { proxy: false }): UseStoreViewComputed<T>;
+>(store: { view: V }, key: K, options: UseStoreViewOptions & { proxy: false }): UseStoreViewComputed<T>;
 
 export function useStoreView<
     V extends Record<string, ViewCall>,
     K extends keyof V & string,
     T = V[K] extends ComputedRef<infer R> ? R : unknown,
->(store: { view: V }, key: K, options?: UseStoreViewOptions<T>): UseStoreViewProxy<T>;
+>(store: { view: V }, key: K, options?: UseStoreViewOptions): UseStoreViewProxy<T>;
 
 export function useStoreView<
     V extends Record<string, ViewCall>,
     K extends keyof V & string,
     T = V[K] extends ComputedRef<infer R> ? R : unknown,
->(store: { view: V }, key: K, options?: UseStoreViewOptions<T>): UseStoreViewProxy<T> | UseStoreViewComputed<T> {
+>(store: { view: V }, key: K, options?: UseStoreViewOptions): UseStoreViewProxy<T> | UseStoreViewComputed<T> {
     if (!store.view[key]) {
         throw new Error(`View "${key}" not found in store`);
     }
 
-    const source = resolveDefault(store.view[key], options?.default);
+    const source = store.view[key];
     const data = resolveData(source, options?.proxy);
 
     function resolveCallback<C extends (...args: unknown[]) => void>(

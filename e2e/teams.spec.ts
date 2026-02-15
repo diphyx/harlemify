@@ -25,8 +25,8 @@ test.describe("teams page", () => {
     test("adds a new team", async ({ page }) => {
         await page.getByTestId("add-team").click();
         await page.getByTestId("input-team-name").fill("devops");
-        await page.getByTestId("team-modal").locator("input[placeholder='Name']").first().fill("Frank");
-        await page.getByTestId("team-modal").locator("input[placeholder='Role']").first().fill("engineer");
+        await page.getByTestId("team-form").locator("input[placeholder='Name']").first().fill("Frank");
+        await page.getByTestId("team-form").locator("input[placeholder='Role']").first().fill("engineer");
         await page.getByTestId("save-team").click();
         await expect(page.getByTestId("team-count")).toContainText("4 teams");
         await expect(page.getByTestId("team-devops")).toBeVisible();
@@ -53,12 +53,14 @@ test.describe("teams page", () => {
     });
 
     test("action status shows success after load", async ({ page }) => {
-        await expect(page.getByTestId("status-load").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-load").locator(".action-chip-state")).toHaveText("success");
     });
 
     test("displays feature info", async ({ page }) => {
         const info = page.getByTestId("feature-info");
         await expect(info).toBeVisible();
         await expect(info).toContainText('many(shape, { kind: "record" })');
+        await expect(info).toContainText("pre / post");
+        await expect(info).toContainText("silent: ModelSilent.POST");
     });
 });

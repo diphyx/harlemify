@@ -1,4 +1,12 @@
-import { createStore, shape, ModelOneMode, ModelManyMode, ViewClone, type ShapeInfer } from "../../src/runtime";
+import {
+    createStore,
+    shape,
+    ModelOneMode,
+    ModelManyMode,
+    ModelSilent,
+    ViewClone,
+    type ShapeInfer,
+} from "../../src/runtime";
 
 export const userShape = shape((factory) => {
     return {
@@ -17,7 +25,14 @@ export const userStore = createStore({
     model({ one, many }) {
         return {
             current: one(userShape),
-            list: many(userShape),
+            list: many(userShape, {
+                pre() {
+                    console.log("[users] pre hook");
+                },
+                post() {
+                    console.log("[users] post hook");
+                },
+            }),
         };
     },
     view({ from, merge }) {
@@ -36,7 +51,7 @@ export const userStore = createStore({
             ),
             summary: merge(["current", "list"], (current, list) => {
                 return {
-                    selected: current?.name ?? null,
+                    selected: current.name,
                     total: list.length,
                     emails: list.map((u) => u.email),
                 };
@@ -48,7 +63,7 @@ export const userStore = createStore({
             get: api.get(
                 {
                     url(view) {
-                        return `/users/${view.user.value?.id}`;
+                        return `/users/${view.user.value.id}`;
                     },
                 },
                 { model: "current", mode: ModelOneMode.SET },
@@ -58,7 +73,7 @@ export const userStore = createStore({
             update: api.patch(
                 {
                     url(view) {
-                        return `/users/${view.user.value?.id}`;
+                        return `/users/${view.user.value.id}`;
                     },
                 },
                 { model: "list", mode: ModelManyMode.PATCH },
@@ -66,13 +81,16 @@ export const userStore = createStore({
             delete: api.delete(
                 {
                     url(view) {
-                        return `/users/${view.user.value?.id}`;
+                        return `/users/${view.user.value.id}`;
                     },
                 },
                 { model: "list", mode: ModelManyMode.REMOVE },
             ),
             clear: handler(async ({ model }) => {
-                model.list.reset();
+                model.list.reset({ silent: true });
+            }),
+            silentAdd: handler<User>(async ({ model, payload }) => {
+                model.list.add(payload, { silent: ModelSilent.PRE });
             }),
             addUnique: api.post(
                 { url: "/users" },
@@ -81,7 +99,7 @@ export const userStore = createStore({
             patchByEmail: api.patch(
                 {
                     url(view) {
-                        return `/users/${view.user.value?.id}`;
+                        return `/users/${view.user.value.id}`;
                     },
                 },
                 { model: "list", mode: ModelManyMode.PATCH, options: { by: "email" } },

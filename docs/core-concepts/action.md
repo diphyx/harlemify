@@ -1,6 +1,6 @@
 # Action
 
-Actions define async operations. The action factory provides two entry points: `api` and `handler`.
+Actions define async operations. The action factory provides two entry points: `api` for HTTP requests and `handler` for custom logic.
 
 ```typescript
 action({ api, handler }) {
@@ -11,14 +11,14 @@ action({ api, handler }) {
 },
 ```
 
-## When to Use API vs Handler
+## API vs Handler
 
-| Use `api` when... | Use `handler` when... |
-| --- | --- |
-| Making a standard JSON HTTP request | Running custom async logic |
-| Auto-committing the response to a single model | Mutating multiple models in one call |
-| Using built-in alias mapping | Making non-JSON requests (blobs, streams) |
-| Using request/response transformers | Combining API calls with local state updates |
+| Use `api` when...                       | Use `handler` when...                        |
+| --------------------------------------- | -------------------------------------------- |
+| Making a standard JSON HTTP request     | Running custom async logic                   |
+| Auto-committing the response to a model | Mutating multiple models in one call         |
+| Using built-in alias mapping            | Making non-JSON requests (blobs, streams)    |
+| Using request/response transformers     | Combining API calls with local state updates |
 
 ## API Actions
 
@@ -28,7 +28,7 @@ Make HTTP requests and optionally commit the response to a model:
 api.get({ url: "/users" }, { model: "list", mode: ModelManyMode.SET });
 ```
 
-The first argument is the request, the second (optional) is the commit config.
+The first argument is the request config, the second (optional) is the commit config.
 
 ### HTTP Methods
 
@@ -41,9 +41,9 @@ api.patch({ url: "/users/1" });
 api.delete({ url: "/users/1" });
 ```
 
-> **Note:** `GET` and `HEAD` requests always have their `body` set to `undefined`, even if a body is provided at definition or call time.
+> `GET` and `HEAD` requests always have their `body` set to `undefined`, even if a body is provided at definition or call time.
 
-> **Note:** API actions use `$fetch` with `responseType: "json"` and are designed for JSON APIs. For non-JSON responses (blobs, streams, text, etc.), use a [handler action](#handler-actions) with a direct `$fetch` call instead.
+> API actions use `$fetch` with `responseType: "json"` and are designed for JSON APIs. For non-JSON responses (blobs, streams, text), use a [handler action](#handler-actions) with a direct `$fetch` call instead.
 
 ### Dynamic URLs
 
@@ -53,7 +53,7 @@ Use a function to resolve URLs from view state:
 api.get(
     {
         url(view) {
-            return `/users/${view.user.value?.id}`;
+            return `/users/${view.user.value.id}`;
         },
     },
     { model: "current", mode: ModelOneMode.SET },
@@ -78,24 +78,55 @@ The second argument defines how to commit the response:
 
 ```typescript
 {
-    model: "list",                          // Target model key
-    mode: ModelManyMode.ADD,                // Commit mode
-    value: (data) => data.items,            // Optional: transform before commit
-    options: { unique: true, prepend: true }, // Optional: mutation options
+    model: "list",                             // Target model key
+    mode: ModelManyMode.ADD,                   // Commit mode
+    value: (data) => data.items,               // Optional: transform before commit
+    options: { unique: true, prepend: true },  // Optional: mutation options
 }
 ```
+
+### Alias Mapping
+
+When a shape defines field aliases via `.meta({ alias })`, key remapping is applied automatically — no transformers needed.
+
+```typescript
+const contactShape = shape((factory) => ({
+    id: factory.number().meta({ identifier: true }),
+    first_name: factory.string().meta({ alias: "first-name" }),
+    last_name: factory.string().meta({ alias: "last-name" }),
+    email: factory.email(),
+}));
+```
+
+For actions with a `commit` config pointing to a model that uses an aliased shape:
+
+- **Outbound:** Request body keys are remapped from shape keys to alias keys. `{ first_name: "John" }` becomes `{ "first-name": "John" }`.
+- **Inbound:** Response keys are remapped from alias keys to shape keys. `{ "first-name": "John" }` becomes `{ first_name: "John" }`.
+
+**Ordering with transformers:**
+
+- **Outbound:** `resolveBody()` → alias remap → `transformer.request`
+- **Inbound:** `$fetch` → `transformer.response` → alias remap → commit
+
+User transformers see alias keys outbound and original API keys inbound. The store always uses shape keys.
+
+**When aliases are skipped:**
+
+- Actions without a `commit` config (no model to resolve aliases from)
+- Models whose shape has no aliases defined
+- Non-object body types (`FormData`, `Blob`, etc.)
 
 ## Handler Actions
 
 Custom async logic with direct access to model, view, and payload. Use handlers when you need to mutate multiple models, transform data locally, or make non-JSON HTTP requests.
 
-The callback receives a single context object with three properties:
+The callback receives a context object with three properties:
 
 ```typescript
 handler(async ({ model, view, payload }) => {
     // model   — StoreModel: typed access to all model mutations
     // view    — StoreView: typed access to all view computed values
-    // payload — typed call-time or default input data (see Payload section)
+    // payload — typed call-time or default input data
 });
 ```
 
@@ -113,7 +144,7 @@ Handlers can commit to multiple models in a single call:
 
 ```typescript
 handler(async ({ model, view }) => {
-    const result = await $fetch(`/projects/${view.project.value?.id}/toggle`, { method: "PUT" });
+    const result = await $fetch(`/projects/${view.project.value.id}/toggle`, { method: "PUT" });
     model.current.patch(result);
     model.list.patch(result);
     return result;
@@ -122,11 +153,9 @@ handler(async ({ model, view }) => {
 
 ### Payload
 
-Handlers receive a typed `payload` in the callback context. The generic signature is `handler<P, R>` where `P` is the payload type and `R` is the return type. Both default to `unknown` and `void` respectively, so you only need to specify what you use — `handler<Todo>(...)` is enough when you only need a typed payload. Payload can be passed at call time and/or set as a default at definition time.
+Handlers receive a typed `payload` in the callback context. The generic signature is `handler<P, R>` where `P` is the payload type and `R` is the return type. Both default to `unknown` and `void` respectively, so you only need to specify what you use — `handler<Todo>(...)` is enough when you only need a typed payload.
 
-#### Call-time payload
-
-Pass data directly when calling the action:
+**Call-time payload:**
 
 ```typescript
 action({ handler }) {
@@ -142,9 +171,7 @@ action({ handler }) {
 await store.action.toggle({ payload: todo });
 ```
 
-#### Definition-level default payload
-
-Set a default payload value that is used when no call-time payload is provided:
+**Definition-level default payload:**
 
 ```typescript
 action({ handler }) {
@@ -152,7 +179,6 @@ action({ handler }) {
         rename: handler<string>(
             async ({ model, view, payload }) => {
                 const current = view.item.value;
-                if (!current) return;
                 model.current.set({ ...current, title: payload });
             },
             { payload: "Untitled" },
@@ -162,18 +188,11 @@ action({ handler }) {
 ```
 
 ```typescript
-await store.action.rename();                      // payload is "Untitled"
+await store.action.rename(); // payload is "Untitled"
 await store.action.rename({ payload: "My Title" }); // payload is "My Title"
 ```
 
-> **Note:** Call-time payload always overrides the definition-level default. When neither is provided, `payload` is `undefined`.
-
-## Execution Lifecycle
-
-Every action call defers via `nextTick()` before executing. This ensures Vue's reactivity system has processed any pending state changes before the action runs.
-
-- For API actions, the lifecycle is: **nextTick → concurrency check → resolve API → request → commit → done**.
-- For handler actions: **nextTick → concurrency check → callback → done**.
+> Call-time payload always overrides the definition-level default. When neither is provided, `payload` is `undefined`.
 
 ## Calling Actions
 
@@ -191,7 +210,7 @@ await store.action.fetch({
 });
 ```
 
-> **Option priority:** Call-time options override definition-time values, which override module config, which override built-in defaults. For example, `headers` passed at call time are merged on top of definition headers and config headers via `defu`.
+> **Option priority:** Call-time options override definition-time values, which override module config, which override built-in defaults. Headers are merged via `defu`.
 
 ### Transformer
 
@@ -217,6 +236,13 @@ await store.action.fetch({ bind: { status } });
 
 See [Isolated Status](../advanced/isolated-status.md) for details.
 
+## Execution Lifecycle
+
+Every action call defers via `nextTick()` before executing. This ensures Vue's reactivity system has processed any pending state changes before the action runs.
+
+- **API actions:** nextTick → concurrency check → resolve API → request → commit → done
+- **Handler actions:** nextTick → concurrency check → callback → done
+
 ## Action Properties
 
 Every action has built-in reactive metadata:
@@ -228,7 +254,7 @@ store.action.fetch.error; // Readonly<Ref<Error | null>>
 store.action.fetch.reset(); // Reset to idle
 ```
 
-> **Note:** `status` and `error` persist after execution. Call `reset()` to clear them back to their initial values (`IDLE`, `null`).
+> `status` and `error` persist after execution. Call `reset()` to clear them back to their initial values (`IDLE`, `null`).
 
 ### Template Usage
 
@@ -241,41 +267,6 @@ store.action.fetch.reset(); // Reset to idle
     </ul>
 </template>
 ```
-
-## Alias Mapping
-
-When a shape defines field aliases via `.meta({ alias })`, key remapping is applied automatically during action execution — no transformers needed.
-
-```typescript
-const contactShape = shape((factory) => ({
-    id: factory.number().meta({ identifier: true }),
-    first_name: factory.string().meta({ alias: "first-name" }),
-    last_name: factory.string().meta({ alias: "last-name" }),
-    email: factory.email(),
-}));
-```
-
-### How it works
-
-For actions with a `commit` config pointing to a model that uses an aliased shape:
-
-- **Outbound:** Request body keys are remapped from shape keys to alias keys before sending. `{ first_name: "John" }` becomes `{ "first-name": "John" }`.
-- **Inbound:** Response keys are remapped from alias keys to shape keys before committing to the store. `{ "first-name": "John" }` becomes `{ first_name: "John" }`.
-
-### Ordering with transformers
-
-Alias remapping respects the transformer pipeline:
-
-- **Outbound:** `resolveBody()` → alias remap → `transformer.request`
-- **Inbound:** `$fetch` → `transformer.response` → alias remap → commit
-
-This means user transformers see alias keys outbound and original API keys inbound, while the store always uses shape keys.
-
-### When aliases are skipped
-
-- Actions without a `commit` config (no model to resolve aliases from)
-- Models whose shape has no aliases defined
-- Non-object body types (`FormData`, `Blob`, etc.)
 
 ## Error Types
 
@@ -298,5 +289,6 @@ try {
 
 ## Next Steps
 
-- [Concurrency](../advanced/concurrency.md) - Control concurrent action execution
-- [Cancellation](../advanced/cancellation.md) - Cancel in-flight requests
+- [Compose](compose.md) — Orchestrate multiple actions and model mutations
+- [Concurrency](../advanced/concurrency.md) — Control concurrent action execution
+- [Cancellation](../advanced/cancellation.md) — Cancel in-flight requests

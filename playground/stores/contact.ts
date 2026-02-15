@@ -36,7 +36,7 @@ export const contactStore = createStore({
             get: api.get(
                 {
                     url(view) {
-                        return `/contacts/${view.contact.value?.id}`;
+                        return `/contacts/${view.contact.value.id}`;
                     },
                 },
                 { model: "current", mode: ModelOneMode.SET },
@@ -45,7 +45,7 @@ export const contactStore = createStore({
             update: api.patch(
                 {
                     url(view) {
-                        return `/contacts/${view.contact.value?.id}`;
+                        return `/contacts/${view.contact.value.id}`;
                     },
                 },
                 { model: "list", mode: ModelManyMode.PATCH },
@@ -53,7 +53,7 @@ export const contactStore = createStore({
             delete: api.delete(
                 {
                     url(view) {
-                        return `/contacts/${view.contact.value?.id}`;
+                        return `/contacts/${view.contact.value.id}`;
                     },
                 },
                 { model: "list", mode: ModelManyMode.REMOVE },

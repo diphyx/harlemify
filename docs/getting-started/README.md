@@ -40,20 +40,22 @@ export default defineNuxtConfig({
 | `action.timeout`    | `number`                  | Request timeout in milliseconds                      |
 | `action.concurrent` | `ActionConcurrent`        | Default concurrency strategy for all actions         |
 | `model.identifier`  | `string`                  | Default identifier field for array mutations         |
+| `view.clone`        | `ViewClone`               | Default clone strategy for all views                 |
 | `logger`            | `number`                  | Consola log level (`-999` = silent, `999` = verbose) |
 
 ## Auto-Imports
 
-Harlemify automatically imports `createStore` and the composables in your Nuxt project:
+Harlemify automatically imports the following in your Nuxt project:
 
 - `createStore`
 - `useStoreAction`
 - `useStoreModel`
 - `useStoreView`
+- `useStoreCompose`
 - `useIsolatedActionStatus`
 - `useIsolatedActionError`
 
-You still need to manually import types and enums:
+Types and enums must be imported manually:
 
 ```typescript
 import { shape, ModelOneMode, ModelManyMode, type ShapeInfer } from "@diphyx/harlemify";

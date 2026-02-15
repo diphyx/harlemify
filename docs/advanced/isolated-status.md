@@ -16,8 +16,6 @@ store.action.fetch.loading.value; // Shared across all callers
 Use `useIsolatedActionStatus` and `useIsolatedActionError` to create independent tracking refs, then pass them via the `bind` option:
 
 ```typescript
-import { useIsolatedActionStatus, useIsolatedActionError } from "@diphyx/harlemify";
-
 const status = useIsolatedActionStatus();
 const error = useIsolatedActionError();
 
@@ -38,9 +36,7 @@ Show separate loading indicators for the same action called from different UI se
 
 ```vue
 <script setup lang="ts">
-import { useIsolatedActionStatus } from "@diphyx/harlemify";
 import { ActionStatus } from "@diphyx/harlemify";
-import { userStore } from "~/stores/user";
 
 const { action } = userStore;
 
@@ -77,9 +73,6 @@ Track errors separately for different call contexts:
 
 ```vue
 <script setup lang="ts">
-import { useIsolatedActionStatus, useIsolatedActionError } from "@diphyx/harlemify";
-import { userStore } from "~/stores/user";
-
 const { action } = userStore;
 
 const createStatus = useIsolatedActionStatus();
@@ -106,7 +99,7 @@ async function handleCreate(userData: unknown) {
 </template>
 ```
 
-## API
+## API Reference
 
 ### useIsolatedActionStatus
 
@@ -137,4 +130,9 @@ interface ActionCallBindOptions {
 
 When `bind` is provided, the action updates the bound refs instead of the global ones. The global `action.status` and `action.error` remain unchanged.
 
-> **Tip:** [`useStoreAction`](../composables/use-store-action.md) with `{ isolated: true }` wraps this pattern into a single composable call — use it when you want isolated tracking with less boilerplate.
+> [`useStoreAction`](../composables/use-store-action.md) with `{ isolated: true }` wraps this pattern into a single composable call — use it when you want isolated tracking with less boilerplate.
+
+## Next Steps
+
+- [useStoreAction](../composables/use-store-action.md) — Composable with built-in isolated mode
+- [Concurrency](concurrency.md) — Control concurrent action execution

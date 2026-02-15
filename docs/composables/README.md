@@ -1,6 +1,6 @@
 # Composables
 
-Vue composables for working with store actions, models, and views in components.
+Vue composables for working with store layers in components. Each composable wraps a specific store layer with reactive state and convenience methods.
 
 ## [useStoreAction](use-store-action.md)
 
@@ -12,7 +12,7 @@ const { execute, status, loading, error, reset } = useStoreAction(store, "list")
 
 ## [useStoreModel](use-store-model.md)
 
-Typed mutation methods for one and many models, with optional debounce and throttle.
+Typed mutation methods for `one` and `many` models, with optional debounce and throttle.
 
 ```typescript
 const { set, patch, reset } = useStoreModel(store, "current");
@@ -26,7 +26,7 @@ Reactive view data with proxy access and change tracking.
 ```typescript
 const { data, track } = useStoreView(store, "user");
 
-data.value; // User | null
+data.value; // User
 data.name; // Proxy access without .value
 ```
 
@@ -35,7 +35,18 @@ Pass `proxy: false` to get a standard `ComputedRef` instead of the proxy:
 ```typescript
 const { data } = useStoreView(store, "user", { proxy: false });
 
-data.value; // User | null — standard ComputedRef
+data.value; // User — standard ComputedRef
+```
+
+## [useStoreCompose](use-store-compose.md)
+
+Reactive compose execution with `active` tracking and typed arguments.
+
+```typescript
+const { execute, active } = useStoreCompose(store, "loadAll");
+
+const quickAdd = useStoreCompose(store, "quickAdd");
+await quickAdd.execute("John", "john@example.com"); // typed args
 ```
 
 ## Destructuring
@@ -47,7 +58,7 @@ Use standard JS destructuring to rename and avoid conflicts:
 const { set: setCurrent } = useStoreModel(store, "current");
 const { set: setList } = useStoreModel(store, "list");
 
-// Non-destructured — use generic via dot access
+// Non-destructured — use via dot access
 const currentModel = useStoreModel(store, "current");
 const listModel = useStoreModel(store, "list");
 currentModel.set(value);

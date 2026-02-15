@@ -1,4 +1,4 @@
-# Debug Logging
+# Logging
 
 Harlemify provides per-store debug logging via [Consola](https://github.com/unjs/consola) to help troubleshoot store operations.
 
@@ -39,28 +39,23 @@ Each store creates a tagged logger with the format `harlemify:{storeName}`. The 
 [harlemify:users] Store created           (info)
 ```
 
-### Model Registration
+### Model
 
 ```
 [harlemify:users] Model registered        (debug)  { model: "current", kind: "object" }
 [harlemify:users] Model registered        (debug)  { model: "list", kind: "array" }
-```
-
-### Model Mutations
-
-```
 [harlemify:users] Model mutation          (debug)  { model: "current", mutation: "set" }
 [harlemify:users] Model mutation          (debug)  { model: "list", mutation: "add" }
 ```
 
-### View Registration
+### View
 
 ```
 [harlemify:users] View registered         (debug)  { view: "user", sources: ["current"] }
 [harlemify:users] View registered         (debug)  { view: "summary", sources: ["current", "list"] }
 ```
 
-### Action Execution
+### Action
 
 ```
 [harlemify:users] Action API request      (debug)  { action: "list", method: "GET", url: "/users" }
@@ -70,7 +65,7 @@ Each store creates a tagged logger with the format `harlemify:{storeName}`. The 
 [harlemify:users] Action success          (debug)  { action: "list" }
 ```
 
-### Action Errors
+### Errors
 
 ```
 [harlemify:users] Action API error        (error)  { action: "list", error: "Server Error" }
@@ -100,4 +95,9 @@ export default defineNuxtConfig({
 
 ## Filtering Stores
 
-Since each store has a unique tag (e.g., `harlemify:users`, `harlemify:projects`), you can use browser console filtering to focus on specific stores.
+Since each store has a unique tag (e.g. `harlemify:users`, `harlemify:projects`), you can use browser console filtering to focus on specific stores.
+
+## Next Steps
+
+- [Concurrency](concurrency.md) — Control concurrent action execution
+- [Lazy Store](lazy-store.md) — Deferred store initialization

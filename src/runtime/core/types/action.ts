@@ -107,7 +107,7 @@ export type ActionHandlerCallback<
     VD extends ViewDefinitions<MD>,
     P = unknown,
     R = void,
-> = (context: { model: StoreModel<MD>; view: StoreView<MD, VD>; payload: P }) => Promise<R>;
+> = (context: { model: StoreModel<MD>; view: StoreView<MD, VD>; payload: P }) => Promise<R> | R;
 
 export interface ActionHandlerDefinition<
     MD extends ModelDefinitions,

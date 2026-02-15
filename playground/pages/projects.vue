@@ -2,44 +2,29 @@
 import { ActionConcurrent, useIsolatedActionStatus, useIsolatedActionError } from "../../src/runtime";
 import { projectStore, projectShape, type Project, type ProjectMilestone } from "../stores/project";
 
-// Form state
-const showCreateModal = ref(false);
+const showForm = ref(false);
 const form = ref(projectShape.defaults());
-
-// Export result (action without memory)
 const exportResult = ref<any>(null);
 
-// Concurrent demo
 const concurrentMode = ref<"BLOCK" | "SKIP" | "CANCEL" | "ALLOW">("BLOCK");
 const concurrentResult = ref<any>(null);
 const concurrentError = ref<string | null>(null);
-
-// Transformer demo
 const transformedResult = ref<any>(null);
-
-// Signal demo
 const activeAbortController = ref<AbortController | null>(null);
 const signalResult = ref<any>(null);
 const signalAborted = ref(false);
-
-// Bind demo
 const isolatedStatus = useIsolatedActionStatus();
 const isolatedError = useIsolatedActionError();
-
-// Error demo
 const errorResult = ref<Error | null>(null);
 
 onMounted(() => projectStore.action.list());
 
 async function handleCreate() {
     await projectStore.action.create({
-        body: {
-            name: form.value.name,
-            description: form.value.description,
-        },
+        body: { name: form.value.name, description: form.value.description },
     });
     form.value = projectShape.defaults();
-    showCreateModal.value = false;
+    showForm.value = false;
 }
 
 async function handleSelect(p: Project) {
@@ -57,34 +42,28 @@ async function handleDelete(p: Project) {
 }
 
 async function handleCheck() {
-    if (!projectStore.view.project.value) return;
     await projectStore.action.check({
         params: { id: String(projectStore.view.project.value.id) },
     });
 }
 
 async function handleToggle() {
-    if (!projectStore.view.project.value) return;
     await projectStore.action.toggle();
 }
 
 async function loadMilestones() {
-    if (!projectStore.view.project.value) return;
     await projectStore.action.milestones();
 }
 
 async function loadMeta() {
-    if (!projectStore.view.project.value) return;
     await projectStore.action.meta();
 }
 
 async function loadOptions() {
-    if (!projectStore.view.project.value) return;
     await projectStore.action.options();
 }
 
 async function handleExport(format: "json" | "csv" = "json") {
-    if (!projectStore.view.project.value) return;
     exportResult.value = await projectStore.action.export({
         query: { format, includeStats: true },
         headers: { "X-Export-Request": "playground-demo" },
@@ -96,11 +75,8 @@ function clearSelection() {
     exportResult.value = null;
 }
 
-// Concurrent demo
 async function handleSlowExport() {
-    if (!projectStore.view.project.value) return;
     concurrentError.value = null;
-
     try {
         concurrentResult.value = await projectStore.action.slowExport({
             query: { delay: 2000 },
@@ -112,10 +88,7 @@ async function handleSlowExport() {
     }
 }
 
-// Transformer demo
 async function handleTransformedExport() {
-    if (!projectStore.view.project.value) return;
-
     transformedResult.value = await projectStore.action.export({
         query: { format: "json", includeStats: true },
         transformer: {
@@ -134,13 +107,9 @@ async function handleTransformedExport() {
     });
 }
 
-// Signal demo
 async function handleCancellableExport() {
-    if (!projectStore.view.project.value) return;
     signalAborted.value = false;
-
     activeAbortController.value = new AbortController();
-
     try {
         signalResult.value = await projectStore.action.slowExport({
             query: { delay: 3000 },
@@ -158,24 +127,17 @@ function cancelExport() {
     activeAbortController.value?.abort();
 }
 
-// Bind demo
 async function handleBoundExport() {
-    if (!projectStore.view.project.value) return;
-
     try {
         await projectStore.action.export({
             query: { format: "json" },
-            bind: {
-                status: isolatedStatus,
-                error: isolatedError,
-            },
+            bind: { status: isolatedStatus, error: isolatedError },
         });
     } catch {
-        // Error is captured in isolatedError ref
+        // captured in isolatedError
     }
 }
 
-// Error demo
 async function handleTriggerError() {
     errorResult.value = null;
     try {
@@ -189,22 +151,29 @@ async function handleTriggerError() {
 </script>
 
 <template>
-    <div class="container">
-        <NuxtLink to="/" class="back" data-testid="back-link">← Back</NuxtLink>
-
-        <div class="page-title">
-            <h1>Projects</h1>
-            <p>
-                Advanced store with <code>handle + commit</code> chains, <code>concurrent</code>,
-                <code>transformer</code>, <code>signal</code>, <code>bind</code>
-            </p>
-        </div>
+    <PageLayout title="Projects">
+        <template #subtitle>
+            Advanced store with <code>handle + commit</code>, <code>concurrent</code>, <code>transformer</code>,
+            <code>signal</code>, <code>bind</code>
+        </template>
 
         <div class="toolbar">
             <h2 data-testid="project-count">{{ projectStore.view.count.value }} projects</h2>
-            <button class="btn btn-primary" data-testid="add-project" @click="showCreateModal = true">
-                Add Project
-            </button>
+            <button class="btn btn-primary" data-testid="add-project" @click="showForm = !showForm">Add Project</button>
+        </div>
+
+        <div v-if="showForm" class="inline-form" data-testid="project-form">
+            <h3>Create Project</h3>
+            <form @submit.prevent="handleCreate">
+                <div class="form-row">
+                    <input v-model="form.name" placeholder="Project name" required data-testid="input-name" >
+                    <input v-model="form.description" placeholder="Description" data-testid="input-description" >
+                    <button type="submit" class="btn btn-sm btn-primary" data-testid="save-project">Create</button>
+                    <button type="button" class="btn btn-sm" data-testid="cancel-form" @click="showForm = false">
+                        Cancel
+                    </button>
+                </div>
+            </form>
         </div>
 
         <div v-if="projectStore.action.list.loading.value" class="loading" data-testid="loading">Loading...</div>
@@ -214,7 +183,7 @@ async function handleTriggerError() {
                 v-for="p in projectStore.view.projects.value"
                 :key="p.id"
                 class="card"
-                :class="{ 'card-selected': projectStore.view.project.value?.id === p.id }"
+                :class="{ 'card-selected': projectStore.view.project.value.id === p.id }"
                 :data-testid="`project-${p.id}`"
             >
                 <div class="card-body">
@@ -239,69 +208,46 @@ async function handleTriggerError() {
             </div>
         </div>
 
-        <!-- Selected Project Detail -->
-        <div v-if="projectStore.view.project.value" class="detail" data-testid="project-detail">
-            <div class="detail-header">
-                <h3>Selected: {{ projectStore.view.project.value.name }}</h3>
-                <button class="btn btn-sm" data-testid="clear-selection" @click="clearSelection">Clear</button>
-            </div>
+        <!-- Selected project actions -->
+        <div v-if="projectStore.view.project.value.id" class="section" data-testid="project-detail">
+            <h2>
+                {{ projectStore.view.project.value.name }}
+                <button
+                    class="btn btn-sm"
+                    data-testid="clear-selection"
+                    style="margin-left: 8px"
+                    @click="clearSelection"
+                >
+                    Clear
+                </button>
+            </h2>
 
-            <!-- Actions -->
-            <div class="action-buttons" data-testid="action-buttons">
+            <div class="action-row" data-testid="action-buttons">
                 <button class="btn btn-sm" data-testid="check-project" @click="handleCheck">
-                    Check <code>api.head()</code>
+                    Check <code>head()</code>
                 </button>
                 <button class="btn btn-sm" data-testid="toggle-active" @click="handleToggle">
                     {{ projectStore.view.isActive.value ? "Deactivate" : "Activate" }}
                 </button>
-                <button class="btn btn-sm" data-testid="load-milestones" @click="loadMilestones">
-                    Load Milestones <code>handle + commit</code>
-                </button>
-                <button class="btn btn-sm" data-testid="load-meta" @click="loadMeta">
-                    Load Meta <code>handle + commit</code>
-                </button>
-                <button class="btn btn-sm" data-testid="load-options" @click="loadOptions">
-                    Load Options <code>deep patch</code>
-                </button>
-                <button class="btn btn-sm" data-testid="export-json" @click="handleExport('json')">
-                    Export JSON <code>query</code>
-                </button>
-                <button class="btn btn-sm" data-testid="export-csv" @click="handleExport('csv')">
-                    Export CSV <code>headers</code>
-                </button>
-            </div>
-
-            <!-- Sorted Milestones (clone: "deep") -->
-            <div class="state-section" data-testid="cloned-sorted-milestones">
-                <h4>Sorted Milestones (view.sortedMilestones, clone: "deep")</h4>
-                <pre>{{ JSON.stringify(projectStore.view.sortedMilestones.value, null, 2) }}</pre>
-            </div>
-
-            <!-- Raw State -->
-            <div class="state-section" data-testid="project-state">
-                <h4>project (view.project)</h4>
-                <pre>{{ JSON.stringify(projectStore.view.project.value, null, 2) }}</pre>
-            </div>
-
-            <!-- Export Result (action without memory) -->
-            <div v-if="exportResult" class="state-section export-result" data-testid="export-result">
-                <h4>Export Result (returned data, not stored in model)</h4>
-                <pre>{{ JSON.stringify(exportResult, null, 2) }}</pre>
+                <button class="btn btn-sm" data-testid="load-milestones" @click="loadMilestones">Milestones</button>
+                <button class="btn btn-sm" data-testid="load-meta" @click="loadMeta">Meta</button>
+                <button class="btn btn-sm" data-testid="load-options" @click="loadOptions">Options</button>
+                <button class="btn btn-sm" data-testid="export-json" @click="handleExport('json')">Export JSON</button>
+                <button class="btn btn-sm" data-testid="export-csv" @click="handleExport('csv')">Export CSV</button>
             </div>
 
             <!-- Advanced Features -->
-            <div class="advanced-features" data-testid="advanced-features">
-                <h3>Advanced Features</h3>
+            <div class="section" data-testid="advanced-features">
+                <h2>Advanced Features</h2>
 
-                <!-- Concurrent Demo -->
-                <div class="feature-demo" data-testid="concurrent-demo">
-                    <h4>ActionConcurrent Modes</h4>
-                    <div class="demo-controls">
+                <div class="demo-box" data-testid="concurrent-demo">
+                    <h4>Concurrent Modes</h4>
+                    <div class="demo-row">
                         <select v-model="concurrentMode" data-testid="concurrent-select">
-                            <option value="BLOCK">BLOCK (throw error)</option>
-                            <option value="SKIP">SKIP (return pending)</option>
-                            <option value="CANCEL">CANCEL (abort previous)</option>
-                            <option value="ALLOW">ALLOW (run parallel)</option>
+                            <option value="BLOCK">BLOCK</option>
+                            <option value="SKIP">SKIP</option>
+                            <option value="CANCEL">CANCEL</option>
+                            <option value="ALLOW">ALLOW</option>
                         </select>
                         <button class="btn btn-sm" data-testid="slow-export" @click="handleSlowExport">
                             Slow Export (2s)
@@ -315,9 +261,8 @@ async function handleTriggerError() {
                     }}</pre>
                 </div>
 
-                <!-- Transformer Demo -->
-                <div class="feature-demo" data-testid="transformer-demo">
-                    <h4>Call-time Transformer</h4>
+                <div class="demo-box" data-testid="transformer-demo">
+                    <h4>Transformer</h4>
                     <button class="btn btn-sm" data-testid="transformed-export" @click="handleTransformedExport">
                         Export with Transformer
                     </button>
@@ -326,12 +271,11 @@ async function handleTriggerError() {
                     }}</pre>
                 </div>
 
-                <!-- Signal Demo -->
-                <div class="feature-demo" data-testid="signal-demo">
-                    <h4>Call-time Signal (AbortController)</h4>
-                    <div class="demo-controls">
+                <div class="demo-box" data-testid="signal-demo">
+                    <h4>Signal (AbortController)</h4>
+                    <div class="demo-row">
                         <button class="btn btn-sm" data-testid="cancellable-export" @click="handleCancellableExport">
-                            Start Slow Export (3s)
+                            Start (3s)
                         </button>
                         <button
                             class="btn btn-sm btn-danger"
@@ -348,124 +292,71 @@ async function handleTriggerError() {
                     }}</pre>
                 </div>
 
-                <!-- Bind Demo -->
-                <div class="feature-demo" data-testid="bind-demo">
-                    <h4>Call-time Bind (Isolated Status/Error)</h4>
-                    <div class="demo-controls">
+                <div class="demo-box" data-testid="bind-demo">
+                    <h4>Bind (Isolated Status)</h4>
+                    <div class="demo-row">
                         <button class="btn btn-sm" data-testid="bound-export" @click="handleBoundExport">
                             Export with Bind
                         </button>
-                        <span class="monitor-state" data-testid="bound-status"> isolated: {{ isolatedStatus }} </span>
+                        <span class="status-text" data-testid="bound-status">{{ isolatedStatus }}</span>
                     </div>
-                    <div v-if="isolatedError" class="error-box" data-testid="bound-error">
-                        {{ isolatedError }}
-                    </div>
+                    <div v-if="isolatedError" class="error-box" data-testid="bound-error">{{ isolatedError }}</div>
                 </div>
 
-                <!-- Error Demo -->
-                <div class="feature-demo" data-testid="error-demo">
+                <div class="demo-box" data-testid="error-demo">
                     <h4>Error Handling</h4>
-                    <div class="demo-controls">
+                    <div class="demo-row">
                         <button class="btn btn-sm btn-danger" data-testid="trigger-error" @click="handleTriggerError">
-                            Trigger Server Error
+                            Trigger Error
                         </button>
-                        <span class="monitor-state" data-testid="error-action-status">
-                            {{ projectStore.action.triggerError.status.value }}
-                        </span>
+                        <span class="status-text" data-testid="error-action-status">{{
+                            projectStore.action.triggerError.status.value
+                        }}</span>
                     </div>
                     <div v-if="errorResult" class="error-box" data-testid="error-result">
-                        <p>
-                            <strong>{{ errorResult.name }}</strong
-                            >: {{ errorResult.message }}
-                        </p>
+                        <strong>{{ errorResult.name }}</strong
+                        >: {{ errorResult.message }}
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Action Status -->
-        <div class="monitor-status" data-testid="action-status">
-            <h3>Action Status</h3>
-            <div class="monitor-grid">
-                <div class="monitor-item" data-testid="status-get">
-                    <span class="monitor-label">get</span>
-                    <span class="monitor-state" :data-status="projectStore.action.get.status.value">{{
-                        projectStore.action.get.status.value
-                    }}</span>
-                </div>
-                <div class="monitor-item" data-testid="status-list">
-                    <span class="monitor-label">list</span>
-                    <span class="monitor-state" :data-status="projectStore.action.list.status.value">{{
-                        projectStore.action.list.status.value
-                    }}</span>
-                </div>
-                <div class="monitor-item" data-testid="status-create">
-                    <span class="monitor-label">create</span>
-                    <span class="monitor-state" :data-status="projectStore.action.create.status.value">{{
-                        projectStore.action.create.status.value
-                    }}</span>
-                </div>
-                <div class="monitor-item" data-testid="status-delete">
-                    <span class="monitor-label">delete</span>
-                    <span class="monitor-state" :data-status="projectStore.action.delete.status.value">{{
-                        projectStore.action.delete.status.value
-                    }}</span>
-                </div>
-                <div class="monitor-item" data-testid="status-toggle">
-                    <span class="monitor-label">toggle</span>
-                    <span class="monitor-state" :data-status="projectStore.action.toggle.status.value">{{
-                        projectStore.action.toggle.status.value
-                    }}</span>
-                </div>
-                <div class="monitor-item" data-testid="status-check">
-                    <span class="monitor-label">check</span>
-                    <span class="monitor-state" :data-status="projectStore.action.check.status.value">{{
-                        projectStore.action.check.status.value
-                    }}</span>
-                </div>
-                <div class="monitor-item" data-testid="status-milestones">
-                    <span class="monitor-label">milestones</span>
-                    <span class="monitor-state" :data-status="projectStore.action.milestones.status.value">{{
-                        projectStore.action.milestones.status.value
-                    }}</span>
-                </div>
-                <div class="monitor-item" data-testid="status-meta">
-                    <span class="monitor-label">meta</span>
-                    <span class="monitor-state" :data-status="projectStore.action.meta.status.value">{{
-                        projectStore.action.meta.status.value
-                    }}</span>
-                </div>
-                <div class="monitor-item" data-testid="status-options">
-                    <span class="monitor-label">options</span>
-                    <span class="monitor-state" :data-status="projectStore.action.options.status.value">{{
-                        projectStore.action.options.status.value
-                    }}</span>
-                </div>
-                <div class="monitor-item" data-testid="status-export">
-                    <span class="monitor-label">export</span>
-                    <span class="monitor-state" :data-status="projectStore.action.export.status.value">{{
-                        projectStore.action.export.status.value
-                    }}</span>
-                </div>
-                <div class="monitor-item" data-testid="status-slowExport">
-                    <span class="monitor-label">slowExport</span>
-                    <span class="monitor-state" :data-status="projectStore.action.slowExport.status.value">{{
-                        projectStore.action.slowExport.status.value
-                    }}</span>
-                </div>
-                <div class="monitor-item" data-testid="status-triggerError">
-                    <span class="monitor-label">triggerError</span>
-                    <span class="monitor-state" :data-status="projectStore.action.triggerError.status.value">{{
-                        projectStore.action.triggerError.status.value
-                    }}</span>
-                </div>
+        <template #aside>
+            <div v-if="projectStore.view.project.value.id" class="aside-panel" data-testid="project-state">
+                <div class="aside-panel-title">view.project</div>
+                <pre class="aside-pre">{{ JSON.stringify(projectStore.view.project.value, null, 2) }}</pre>
             </div>
-        </div>
 
-        <!-- Feature Info -->
-        <div class="feature-info" data-testid="feature-info">
-            <h3>Features Demonstrated</h3>
-            <ul>
+            <div v-if="projectStore.view.project.value.id" class="aside-panel" data-testid="cloned-sorted-milestones">
+                <div class="aside-panel-title">view.sortedMilestones (clone: deep)</div>
+                <pre class="aside-pre">{{ JSON.stringify(projectStore.view.sortedMilestones.value, null, 2) }}</pre>
+            </div>
+
+            <div v-if="exportResult" class="aside-panel" data-testid="export-result">
+                <div class="aside-panel-title">Export Result (no model)</div>
+                <pre class="aside-pre">{{ JSON.stringify(exportResult, null, 2) }}</pre>
+            </div>
+
+            <ActionStatus
+                :actions="{
+                    get: projectStore.action.get,
+                    list: projectStore.action.list,
+                    create: projectStore.action.create,
+                    delete: projectStore.action.delete,
+                    toggle: projectStore.action.toggle,
+                    check: projectStore.action.check,
+                    milestones: projectStore.action.milestones,
+                    meta: projectStore.action.meta,
+                    options: projectStore.action.options,
+                    export: projectStore.action.export,
+                    slowExport: projectStore.action.slowExport,
+                    triggerError: projectStore.action.triggerError,
+                }"
+            />
+        </template>
+
+        <template #footer>
+            <FeatureInfo>
                 <li><code>api.get().handle().commit()</code> - Full action chain</li>
                 <li>
                     <code>handle(async (&#123; api, commit, view &#125;) => ...)</code> - Custom handle with nested
@@ -475,259 +366,140 @@ async function handleTriggerError() {
                     <code>commit("current", ActionOneMode.PATCH, &#123; milestones &#125;)</code> - Nested field update
                 </li>
                 <li><code>commit(..., &#123; deep: true &#125;)</code> - Deep merge for nested objects</li>
-                <li><code>ActionManyMode.ADD, &#123; prepend: true &#125;</code> - New projects prepend to list</li>
-                <li><strong>Action without memory</strong> - Export returns data without committing to model</li>
+                <li><code>ActionManyMode.ADD, &#123; prepend: true &#125;</code> - Prepend to list</li>
+                <li><strong>Action without memory</strong> - Export returns data without committing</li>
                 <li><code>action(&#123; query, headers &#125;)</code> - Call-time payload options</li>
-                <li><code>ActionConcurrent.BLOCK/SKIP/CANCEL/ALLOW</code> - Concurrent action control modes</li>
-                <li><code>action(&#123; transformer: fn &#125;)</code> - Transform response at call-time</li>
-                <li><code>action(&#123; signal: abortController.signal &#125;)</code> - Cancellable requests</li>
-                <li>
-                    <code>action(&#123; bind: &#123; status, error &#125; &#125;)</code> - Isolated status/error
-                    tracking
-                </li>
-                <li>
-                    <code>useIsolatedActionStatus()</code> / <code>useIsolatedActionError()</code> - Composables for
-                    bind
-                </li>
-                <li><code>action.error</code> - Reactive error state with typed ActionError</li>
-                <li><code>shape.defaults()</code> - Auto-generate zero-value form data from shape</li>
-            </ul>
-        </div>
-
-        <!-- Create Modal -->
-        <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
-            <div class="modal" data-testid="project-modal">
-                <h2>Create Project</h2>
-                <form @submit.prevent="handleCreate">
-                    <div class="form-group">
-                        <label>Name</label>
-                        <input v-model="form.name" required placeholder="Project name" data-testid="input-name" >
-                    </div>
-                    <div class="form-group">
-                        <label>Description</label>
-                        <input v-model="form.description" placeholder="Description" data-testid="input-description" >
-                    </div>
-                    <div class="modal-actions">
-                        <button type="button" class="btn" data-testid="cancel-modal" @click="showCreateModal = false">
-                            Cancel
-                        </button>
-                        <button type="submit" class="btn btn-primary" data-testid="save-project">Create</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+                <li><code>ActionConcurrent.BLOCK/SKIP/CANCEL/ALLOW</code> - Concurrent control</li>
+                <li><code>action(&#123; transformer &#125;)</code> - Transform response at call-time</li>
+                <li><code>action(&#123; signal &#125;)</code> - Cancellable requests</li>
+                <li><code>action(&#123; bind &#125;)</code> - Isolated status/error tracking</li>
+                <li><code>useIsolatedActionStatus/Error()</code> - Composables for bind</li>
+                <li><code>action.error</code> - Reactive error state</li>
+            </FeatureInfo>
+        </template>
+    </PageLayout>
 </template>
 
 <style scoped>
 .card-selected {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px var(--primary);
+    border-color: var(--blue);
+    box-shadow:
+        0 0 0 1px var(--blue-dim),
+        var(--shadow-md);
 }
 
 .meta-info {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     margin-top: 8px;
 }
 
 .status-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    color: white;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
 }
 
 .status-badge.active {
-    background-color: #22c55e;
+    background: var(--green-dim);
+    color: var(--green);
 }
 
 .status-badge.inactive {
-    background-color: #6b7280;
+    background: var(--bg-inset);
+    color: var(--text-4);
 }
 
 .milestone-count {
-    color: var(--text-muted);
-    font-size: 12px;
+    color: var(--text-4);
+    font-size: 0.72rem;
 }
 
-.detail-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-
-.action-buttons {
+.action-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     margin-bottom: 16px;
 }
 
-.action-buttons code {
-    font-size: 10px;
-    opacity: 0.7;
+.action-row code {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    opacity: 0.5;
 }
 
-.state-section {
-    margin-top: 16px;
-}
-
-.state-section h4 {
-    margin-bottom: 8px;
-    font-size: 14px;
-    color: var(--text-muted);
-}
-
-.export-result {
-    background: var(--bg-tertiary);
-    padding: 12px;
-    border-radius: 8px;
-}
-
-.advanced-features {
-    margin-top: 24px;
-}
-
-.advanced-features > h3 {
-    margin-bottom: 16px;
-}
-
-.feature-demo {
-    margin-top: 16px;
-    padding: 16px;
-    background: var(--bg-tertiary);
-    border-radius: 8px;
-}
-
-.feature-demo h4 {
-    margin-bottom: 12px;
-    font-size: 14px;
-}
-
-.demo-controls {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.demo-controls select {
-    padding: 6px 8px;
-    border-radius: 4px;
+.demo-box {
+    margin-top: 8px;
+    padding: 14px;
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+}
+
+.demo-box h4 {
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.demo-box pre {
+    margin-top: 8px;
+    background: var(--bg);
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-2);
+    line-height: 1.6;
+    overflow-x: auto;
+}
+
+.demo-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.demo-row select {
+    padding: 5px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
     color: var(--text);
-    font-size: 13px;
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.demo-row select:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px var(--blue-dim);
+}
+
+.status-text {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-3);
 }
 
 .error-box {
     margin-top: 8px;
     padding: 8px 12px;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 6px;
-    color: #ef4444;
-    font-size: 13px;
-}
-
-.feature-info {
-    margin-top: 32px;
-    padding: 16px;
-    background: var(--bg-secondary);
+    background: var(--red-dim);
+    border: 1px solid rgba(240, 101, 114, 0.15);
     border-radius: 8px;
-}
-
-.feature-info h3 {
-    margin-bottom: 12px;
-}
-
-.feature-info ul {
-    margin: 0;
-    padding-left: 20px;
-}
-
-.feature-info li {
-    margin-bottom: 8px;
-}
-
-.feature-info code {
-    background: var(--bg-tertiary);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 13px;
-}
-
-.monitor-status {
-    margin-top: 32px;
-    padding: 16px;
-    background: var(--bg-secondary);
-    border-radius: 8px;
-}
-
-.monitor-status h3 {
-    margin-bottom: 12px;
-}
-
-.monitor-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-}
-
-.monitor-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 12px;
-    background: var(--bg-tertiary);
-    border-radius: 6px;
-}
-
-.monitor-label {
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.monitor-state {
-    font-family: monospace;
-    font-size: 13px;
-    color: var(--text-muted);
-}
-
-.monitor-flags {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-
-.flag {
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-weight: 500;
-}
-
-.flag[data-flag="idle"] {
-    background: #6b7280;
-    color: white;
-}
-
-.flag[data-flag="pending"] {
-    background: #f59e0b;
-    color: white;
-}
-
-.flag[data-flag="success"] {
-    background: #10b981;
-    color: white;
-}
-
-.flag[data-flag="failed"] {
-    background: #ef4444;
-    color: white;
+    color: var(--red);
+    font-size: 0.78rem;
 }
 </style>

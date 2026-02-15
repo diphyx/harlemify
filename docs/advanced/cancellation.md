@@ -1,6 +1,6 @@
-# Request Cancellation
+# Cancellation
 
-Cancel in-flight requests using AbortSignal.
+Cancel in-flight requests using `AbortSignal`.
 
 ## Basic Usage
 
@@ -29,9 +29,6 @@ try {
 
 ```vue
 <script setup lang="ts">
-import { onUnmounted } from "vue";
-import { userStore } from "~/stores/user";
-
 const { action } = userStore;
 const controller = new AbortController();
 
@@ -74,9 +71,6 @@ async function search(query: string) {
 
 ```vue
 <script setup lang="ts">
-import { ref, watch } from "vue";
-import { userStore } from "~/stores/user";
-
 const { view, action } = userStore;
 
 const query = ref("");
@@ -158,3 +152,8 @@ async function fetchWithTimeout(timeout: number) {
 
 await fetchWithTimeout(5000);
 ```
+
+## Next Steps
+
+- [Concurrency](concurrency.md) — Automatic concurrency strategies
+- [Isolated Status](isolated-status.md) — Independent status tracking per context

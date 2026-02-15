@@ -6,7 +6,7 @@ import { type ViewDefinition, type ViewCall, ViewClone } from "../types/view";
 // Resolve Clone
 
 function resolveClonedValue<MD extends ModelDefinitions>(definition: ViewDefinition<MD>, value: unknown): unknown {
-    if (!definition.options?.clone || value === null || value === undefined) {
+    if (!definition.options?.clone) {
         return value;
     }
 

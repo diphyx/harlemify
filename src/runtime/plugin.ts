@@ -1,30 +1,12 @@
 import { createVuePlugin } from "@harlem/core";
-import { createServerSSRPlugin, createClientSSRPlugin, getBridgingScript } from "@harlem/plugin-ssr";
+import { defineNuxtPlugin } from "#imports";
 
-import { defineNuxtPlugin, useHead } from "#imports";
+import { createServerSideRenderingPlugin } from "./plugins/ssr";
 
 export default defineNuxtPlugin((nuxtApp) => {
-    const plugins = [];
-
-    if (import.meta.server) {
-        plugins.push(createServerSSRPlugin());
-    }
-
-    if (import.meta.client && window["__harlemState"]) {
-        plugins.push(createClientSSRPlugin());
-    }
-
     const harlem = createVuePlugin({
-        plugins,
+        plugins: [createServerSideRenderingPlugin(nuxtApp)],
     });
 
     nuxtApp.vueApp.use(harlem);
-
-    useHead({
-        script: [
-            {
-                innerHTML: getBridgingScript(),
-            },
-        ],
-    });
 });

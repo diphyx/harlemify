@@ -13,13 +13,6 @@ export type ShapeCall<T extends ShapeRawDefinition> = z.ZodObject<T> & {
 
 // Interfaces
 
-export interface ShapeResolved<T extends ShapeDefinition = ShapeDefinition> {
-    identifier?: keyof T["shape"] & string;
-    defaults: Record<string, unknown>;
-    fields: (keyof T["shape"] & string)[];
-    aliases: Record<string, string>;
-}
-
 export interface ShapeFieldDefinition {
     meta?: { identifier?: boolean; alias?: string };
     defaultValue?: unknown;

@@ -81,13 +81,13 @@ test.describe("users page", () => {
     });
 
     test("reset action resets list status", async ({ page }) => {
-        await expect(page.getByTestId("status-list").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-list").locator(".action-chip-state")).toHaveText("success");
         await page.getByTestId("reset-list-action").click();
-        await expect(page.getByTestId("status-list").locator(".monitor-state")).toHaveText("idle");
+        await expect(page.getByTestId("status-list").locator(".action-chip-state")).toHaveText("idle");
     });
 
     test("action status shows success after list", async ({ page }) => {
-        await expect(page.getByTestId("status-list").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-list").locator(".action-chip-state")).toHaveText("success");
     });
 
     test("create modal opens with shape defaults (empty form)", async ({ page }) => {
@@ -104,5 +104,15 @@ test.describe("users page", () => {
         await page.getByTestId("add-user").click();
         await expect(page.getByTestId("input-name")).toHaveValue("");
         await expect(page.getByTestId("input-email")).toHaveValue("");
+    });
+
+    test("silent add adds user without pre hook", async ({ page }) => {
+        await page.getByTestId("silent-add-user").click();
+        await expect(page.getByTestId("user-count")).toHaveText("4 users");
+    });
+
+    test("clear all uses silent reset", async ({ page }) => {
+        await page.getByTestId("clear-all-users").click();
+        await expect(page.getByTestId("user-count")).toHaveText("0 users");
     });
 });

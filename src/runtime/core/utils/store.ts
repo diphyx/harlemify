@@ -4,13 +4,7 @@ import { createModel } from "./model";
 import { createView } from "./view";
 import { createAction } from "./action";
 
-import {
-    type ModelDefinitions,
-    type ModelDefinitionsInfer,
-    type StoreModel,
-    ModelType,
-    ModelManyKind,
-} from "../types/model";
+import type { ModelDefinitions, ModelDefinitionsInfer, StoreModel } from "../types/model";
 import type { ViewDefinition, ViewDefinitions, StoreView } from "../types/view";
 import type { ActionDefinition, ActionDefinitions, StoreAction } from "../types/action";
 
@@ -18,13 +12,8 @@ import type { ActionDefinition, ActionDefinitions, StoreAction } from "../types/
 
 export function createStoreState<MD extends ModelDefinitions>(modelDefinitions: MD): ModelDefinitionsInfer<MD> {
     const output = {} as ModelDefinitionsInfer<MD>;
-    for (const [key, { options, type }] of Object.entries(modelDefinitions)) {
-        if (type === ModelType.ONE) {
-            (output as Record<string, unknown>)[key] = options?.default ?? null;
-        } else {
-            const manyDefault = options?.kind === ModelManyKind.RECORD ? {} : [];
-            (output as Record<string, unknown>)[key] = options?.default ?? manyDefault;
-        }
+    for (const [key, definition] of Object.entries(modelDefinitions)) {
+        (output as Record<string, unknown>)[key] = definition.default();
     }
 
     return output;

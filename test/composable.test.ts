@@ -7,6 +7,7 @@ import { ModelOneMode } from "../src/runtime/core/types/model";
 import { ActionStatus } from "../src/runtime/core/types/action";
 import { ActionApiError } from "../src/runtime/core/utils/error";
 import { useStoreAction, useIsolatedActionStatus, useIsolatedActionError } from "../src/runtime/composables/action";
+import { useStoreCompose } from "../src/runtime/composables/compose";
 import { useStoreModel } from "../src/runtime/composables/model";
 import { useStoreView } from "../src/runtime/composables/view";
 
@@ -34,7 +35,7 @@ function setup() {
             return {
                 user: v.from("user"),
                 users: v.from("users"),
-                userName: v.from("user", (user) => user?.name ?? null),
+                userName: v.from("user", (user) => user.name),
             };
         },
         action: (a) => {
@@ -294,7 +295,7 @@ describe("useStoreModel", () => {
             set({ id: 1, name: "Alice" });
             reset();
 
-            expect(store.view.user.value).toBeNull();
+            expect(store.view.user.value).toEqual({ id: 0, name: "" });
         });
     });
 
@@ -368,7 +369,7 @@ describe("useStoreModel", () => {
             set({ id: 2, name: "Bob" });
 
             // Not yet applied
-            expect(store.view.user.value).toBeNull();
+            expect(store.view.user.value).toEqual({ id: 0, name: "" });
 
             vi.advanceTimersByTime(100);
 
@@ -419,7 +420,7 @@ describe("useStoreView", () => {
             const store = setup();
             const { data } = useStoreView(store, "user");
 
-            expect(data.value).toBeNull();
+            expect(data.value).toEqual({ id: 0, name: "" });
         });
 
         it("data.value reflects model changes", () => {
@@ -441,11 +442,11 @@ describe("useStoreView", () => {
             expect((data as any).id).toBe(1);
         });
 
-        it("data returns undefined for properties when view is null", () => {
+        it("data returns shape default for properties on initial state", () => {
             const store = setup();
             const { data } = useStoreView(store, "user");
 
-            expect((data as any).name).toBeUndefined();
+            expect((data as any).name).toBe("");
         });
 
         it("has operator works", () => {
@@ -460,44 +461,12 @@ describe("useStoreView", () => {
         });
     });
 
-    describe("default option", () => {
-        it("data.value returns default when view is null", () => {
-            const store = setup();
-            const { data } = useStoreView(store, "user", {
-                default: { id: 0, name: "Guest" },
-            });
-
-            expect(data.value).toEqual({ id: 0, name: "Guest" });
-        });
-
-        it("data proxies default properties when view is null", () => {
-            const store = setup();
-            const { data } = useStoreView(store, "user", {
-                default: { id: 0, name: "Guest" },
-            });
-
-            expect((data as any).name).toBe("Guest");
-        });
-
-        it("data.value returns actual value when view is not null", () => {
-            const store = setup();
-            const { data } = useStoreView(store, "user", {
-                default: { id: 0, name: "Guest" },
-            });
-
-            store.model.user.set({ id: 1, name: "Alice" });
-
-            expect(data.value).toEqual({ id: 1, name: "Alice" });
-            expect((data as any).name).toBe("Alice");
-        });
-    });
-
     describe("proxy: false", () => {
         it("data is a ComputedRef", () => {
             const store = setup();
             const { data } = useStoreView(store, "user", { proxy: false });
 
-            expect(data.value).toBeNull();
+            expect(data.value).toEqual({ id: 0, name: "" });
         });
 
         it("data.value reflects model changes", () => {
@@ -517,22 +486,6 @@ describe("useStoreView", () => {
 
             expect((data as any).name).toBeUndefined();
         });
-
-        it("data.value returns default when view is null", () => {
-            const store = setup();
-            const { data } = useStoreView(store, "user", { proxy: false, default: { id: 0, name: "Guest" } });
-
-            expect(data.value).toEqual({ id: 0, name: "Guest" });
-        });
-
-        it("data.value returns actual value over default", () => {
-            const store = setup();
-            const { data } = useStoreView(store, "user", { proxy: false, default: { id: 0, name: "Guest" } });
-
-            store.model.user.set({ id: 1, name: "Alice" });
-
-            expect(data.value).toEqual({ id: 1, name: "Alice" });
-        });
     });
 
     describe("track", () => {
@@ -545,7 +498,7 @@ describe("useStoreView", () => {
 
             await nextTick();
 
-            expect(cb).toHaveBeenCalledWith(null);
+            expect(cb).toHaveBeenCalledWith({ id: 0, name: "" });
         });
 
         it("fires callback on value change", async () => {
@@ -595,20 +548,6 @@ describe("useStoreView", () => {
             expect(cb).not.toHaveBeenCalled();
         });
 
-        it("track resolves default when value is null", async () => {
-            const store = setup();
-            const cb = vi.fn();
-            const { track } = useStoreView(store, "user", {
-                default: { id: 0, name: "Guest" },
-            });
-
-            track(cb, { immediate: true });
-
-            await nextTick();
-
-            expect(cb).toHaveBeenCalledWith({ id: 0, name: "Guest" });
-        });
-
         it("debounces track callback", async () => {
             vi.useFakeTimers();
             const store = setup();
@@ -628,5 +567,90 @@ describe("useStoreView", () => {
 
             vi.useRealTimers();
         });
+    });
+});
+
+// Compose
+
+describe("useStoreCompose", () => {
+    function composeSetup() {
+        return createStore({
+            name: "test-composable-compose-" + Math.random(),
+            model: (m) => {
+                return {
+                    user: m.one(UserShape),
+                };
+            },
+            view: (v) => {
+                return {
+                    user: v.from("user"),
+                };
+            },
+            action: (a) => {
+                return {
+                    setUser: a.handler(({ model }) => {
+                        model.user.set({ id: 1, name: "FromAction" });
+                    }),
+                };
+            },
+            compose: ({ action }) => {
+                return {
+                    refresh: async () => {
+                        await action.setUser();
+                    },
+                    fail: () => {
+                        throw new Error("compose-fail");
+                    },
+                };
+            },
+        });
+    }
+
+    it("throws if compose key not found", () => {
+        const store = composeSetup();
+
+        expect(() => useStoreCompose(store, "nonexistent" as any)).toThrow('Compose "nonexistent" not found in store');
+    });
+
+    it("returns execute and active", () => {
+        const store = composeSetup();
+        const { execute, active } = useStoreCompose(store, "refresh");
+
+        expect(execute).toBeTypeOf("function");
+        expect(active.value).toBe(false);
+    });
+
+    it("execute calls the compose action", async () => {
+        const store = composeSetup();
+        const { execute } = useStoreCompose(store, "refresh");
+
+        await execute();
+
+        expect(store.view.user.value).toEqual({ id: 1, name: "FromAction" });
+    });
+
+    it("active is false after completion", async () => {
+        const store = composeSetup();
+        const { execute, active } = useStoreCompose(store, "refresh");
+
+        await execute();
+
+        expect(active.value).toBe(false);
+    });
+
+    it("execute throws on failure", async () => {
+        const store = composeSetup();
+        const { execute } = useStoreCompose(store, "fail");
+
+        await expect(execute()).rejects.toThrow();
+    });
+
+    it("active is false after failure", async () => {
+        const store = composeSetup();
+        const { execute, active } = useStoreCompose(store, "fail");
+
+        await expect(execute()).rejects.toThrow();
+
+        expect(active.value).toBe(false);
     });
 });

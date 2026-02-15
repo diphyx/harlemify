@@ -47,28 +47,27 @@ export const projectStore = createStore({
                 return model.length;
             }),
             isActive: from("current", (model) => {
-                return model?.active ?? false;
+                return model.active;
             }),
             milestones: from("current", (model) => {
-                return model?.milestones ?? [];
+                return model.milestones;
             }),
             completedMilestones: from("current", (model) => {
-                return model?.milestones.filter(({ done }) => done).length ?? 0;
+                return model.milestones.filter(({ done }) => done).length;
             }),
             sortedMilestones: from(
                 "current",
                 (model) => {
-                    if (!model) return [];
                     model.milestones.sort((a, b) => a.name.localeCompare(b.name));
                     return model.milestones;
                 },
                 { clone: ViewClone.DEEP },
             ),
             meta: from("current", (model) => {
-                return model?.meta ?? null;
+                return model.meta;
             }),
             options: from("current", (model) => {
-                return model?.meta?.options ?? null;
+                return model.meta.options;
             }),
         };
     },
@@ -76,7 +75,7 @@ export const projectStore = createStore({
         const get = api.get(
             {
                 url(view) {
-                    return `/projects/${view.project.value?.id}`;
+                    return `/projects/${view.project.value.id}`;
                 },
             },
             { model: "current", mode: ModelOneMode.SET },
@@ -92,7 +91,7 @@ export const projectStore = createStore({
         const update = api.patch(
             {
                 url(view) {
-                    return `/projects/${view.project.value?.id}`;
+                    return `/projects/${view.project.value.id}`;
                 },
             },
             { model: "current", mode: ModelOneMode.PATCH },
@@ -101,14 +100,14 @@ export const projectStore = createStore({
         const remove = api.delete(
             {
                 url(view) {
-                    return `/projects/${view.project.value?.id}`;
+                    return `/projects/${view.project.value.id}`;
                 },
             },
             { model: "list", mode: ModelManyMode.REMOVE },
         );
 
         const toggle = handler(async ({ model, view }) => {
-            const result = await $fetch<Project>(`/api/projects/${view.project.value?.id}/toggle`, {
+            const result = await $fetch<Project>(`/api/projects/${view.project.value.id}/toggle`, {
                 method: "PUT",
             });
 
@@ -119,7 +118,7 @@ export const projectStore = createStore({
         });
 
         const milestones = handler(async ({ model, view }) => {
-            const result = await $fetch<ProjectMilestone[]>(`/api/projects/${view.project.value?.id}/milestones`);
+            const result = await $fetch<ProjectMilestone[]>(`/api/projects/${view.project.value.id}/milestones`);
 
             model.current.patch({ milestones: result });
             model.list.patch({ milestones: result });
@@ -128,7 +127,7 @@ export const projectStore = createStore({
         });
 
         const meta = handler(async ({ model, view }) => {
-            const result = await $fetch<ProjectMeta>(`/api/projects/${view.project.value?.id}/meta`);
+            const result = await $fetch<ProjectMeta>(`/api/projects/${view.project.value.id}/meta`);
 
             model.current.patch({ meta: result });
             model.list.patch({ meta: result });
@@ -137,11 +136,11 @@ export const projectStore = createStore({
         });
 
         const options = handler(async ({ model, view }) => {
-            const result = await $fetch<ProjectOptions>(`/api/projects/${view.project.value?.id}/options`);
+            const result = await $fetch<ProjectOptions>(`/api/projects/${view.project.value.id}/options`);
 
             const patch = {
                 meta: {
-                    ...view.meta.value!,
+                    ...view.meta.value,
                     options: result,
                 },
             };
@@ -154,13 +153,13 @@ export const projectStore = createStore({
 
         const exportData = api.get({
             url(view) {
-                return `/projects/${view.project.value?.id}/export`;
+                return `/projects/${view.project.value.id}/export`;
             },
         });
 
         const slowExport = api.get({
             url(view) {
-                return `/projects/${view.project.value?.id}/export-slow`;
+                return `/projects/${view.project.value.id}/export-slow`;
             },
         });
 

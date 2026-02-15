@@ -1,6 +1,5 @@
 // Config
 export interface Config {
-    id: number;
     theme: "light" | "dark";
     language: string;
     notifications: boolean;
@@ -72,7 +71,6 @@ export interface TeamMember {
 
 // Initial data
 const initialConfig: Config = {
-    id: 1,
     theme: "dark",
     language: "en",
     notifications: true,

@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createStore } from "@harlem/core";
 
 import { shape } from "../src/runtime/core/layers/shape";
 import { createModelFactory } from "../src/runtime/core/layers/model";
 import { createStoreState, createStoreModel } from "../src/runtime/core/utils/store";
-import { ModelType, ModelManyKind, ModelOneMode } from "../src/runtime/core/types/model";
+import { ModelType, ModelManyKind, ModelOneMode, ModelSilent } from "../src/runtime/core/types/model";
 import type { ShapeInfer } from "../src/runtime/core/types/shape";
 
 // Setup
@@ -29,22 +29,29 @@ describe("createModelFactory", () => {
 
         expect(definition.type).toBe(ModelType.ONE);
         expect(definition.shape).toBe(UserShape);
-        expect(definition.options).toEqual({ identifier: undefined });
+        expect(definition.default).toBeTypeOf("function");
     });
 
-    it("one() accepts options", () => {
+    it("one() accepts default option", () => {
         const defaultUser: User = {
             id: 1,
             name: "test",
             email: "test@test.com",
         };
         const definition = factory.one(UserShape, {
-            default: defaultUser,
-            identifier: "email",
+            default: () => defaultUser,
         });
 
-        expect(definition.options?.default).toEqual(defaultUser);
-        expect(definition.options?.identifier).toBe("email");
+        expect(definition.default()).toEqual(defaultUser);
+    });
+
+    it("one() accepts pre/post hooks", () => {
+        const pre = () => {};
+        const post = () => {};
+        const definition = factory.one(UserShape, { pre, post });
+
+        expect(definition.options?.pre).toBe(pre);
+        expect(definition.options?.post).toBe(post);
     });
 
     it("many() creates array definition", () => {
@@ -52,25 +59,36 @@ describe("createModelFactory", () => {
 
         expect(definition.type).toBe(ModelType.MANY);
         expect(definition.shape).toBe(UserShape);
-        expect(definition.options).toEqual({ identifier: undefined });
+        expect(definition.identifier).toBe("id");
+        expect(definition.kind).toBe(ModelManyKind.LIST);
+        expect(definition.default).toBeTypeOf("function");
     });
 
-    it("many() accepts options", () => {
+    it("many() accepts identifier option", () => {
         const definition = factory.many(UserShape, { identifier: "email" });
 
-        expect(definition.options?.identifier).toBe("email");
+        expect(definition.identifier).toBe("email");
+    });
+
+    it("many() accepts pre/post hooks", () => {
+        const pre = () => {};
+        const post = () => {};
+        const definition = factory.many(UserShape, { pre, post });
+
+        expect(definition.options?.pre).toBe(pre);
+        expect(definition.options?.post).toBe(post);
     });
 
     it("many() accepts kind option", () => {
         const definition = factory.many(UserShape, { kind: ModelManyKind.RECORD });
 
-        expect(definition.options?.kind).toBe("record");
+        expect(definition.kind).toBe(ModelManyKind.RECORD);
     });
 
-    it("many() defaults kind to undefined (list)", () => {
+    it("many() defaults kind to list", () => {
         const definition = factory.many(UserShape);
 
-        expect(definition.options?.kind).toBeUndefined();
+        expect(definition.kind).toBe(ModelManyKind.LIST);
     });
 });
 
@@ -79,14 +97,14 @@ describe("createModelFactory", () => {
 describe("createStoreState", () => {
     const factory = createModelFactory();
 
-    it("returns null for one-models", () => {
+    it("returns shape defaults for one-models", () => {
         const model = {
             user: factory.one(UserShape),
         };
 
         const state = createStoreState(model);
 
-        expect(state.user).toBeNull();
+        expect(state.user).toEqual({ id: 0, name: "", email: "" });
     });
 
     it("returns empty array for many-models", () => {
@@ -106,7 +124,7 @@ describe("createStoreState", () => {
             email: "default@test.com",
         };
         const model = {
-            user: factory.one(UserShape, { default: defaultUser }),
+            user: factory.one(UserShape, { default: () => defaultUser }),
         };
 
         const state = createStoreState(model);
@@ -123,12 +141,53 @@ describe("createStoreState", () => {
             },
         ];
         const model = {
-            users: factory.many(UserShape, { default: defaultUsers }),
+            users: factory.many(UserShape, { default: () => defaultUsers }),
         };
 
         const state = createStoreState(model);
 
         expect(state.users).toEqual(defaultUsers);
+    });
+
+    it("uses function default for one-model", () => {
+        const model = {
+            user: factory.one(UserShape, {
+                default: () => ({ id: 1, name: "fn-default", email: "fn@test.com" }),
+            }),
+        };
+
+        const state = createStoreState(model);
+
+        expect(state.user).toEqual({ id: 1, name: "fn-default", email: "fn@test.com" });
+    });
+
+    it("uses function default for many-model", () => {
+        const model = {
+            users: factory.many(UserShape, {
+                default: () => [{ id: 1, name: "fn-default", email: "fn@test.com" }],
+            }),
+        };
+
+        const state = createStoreState(model);
+
+        expect(state.users).toEqual([{ id: 1, name: "fn-default", email: "fn@test.com" }]);
+    });
+
+    it("uses function default for record many-model", () => {
+        const model = {
+            grouped: factory.many(UserShape, {
+                kind: ModelManyKind.RECORD,
+                default: () => ({
+                    "team-a": [{ id: 1, name: "fn-default", email: "fn@test.com" }],
+                }),
+            }),
+        };
+
+        const state = createStoreState(model);
+
+        expect(state.grouped).toEqual({
+            "team-a": [{ id: 1, name: "fn-default", email: "fn@test.com" }],
+        });
     });
 
     it("returns empty object for record many-models", () => {
@@ -141,6 +200,27 @@ describe("createStoreState", () => {
         expect(state.grouped).toEqual({});
     });
 
+    it("uses shape defaults for one-model without custom default", () => {
+        const model = {
+            user: factory.one(UserShape),
+        };
+
+        const state = createStoreState(model);
+
+        expect(state.user).toEqual({ id: 0, name: "", email: "" });
+    });
+
+    it("custom default takes priority over shape defaults", () => {
+        const customUser: User = { id: 42, name: "custom", email: "custom@test.com" };
+        const model = {
+            user: factory.one(UserShape, { default: () => customUser }),
+        };
+
+        const state = createStoreState(model);
+
+        expect(state.user).toEqual(customUser);
+    });
+
     it("handles mixed model types", () => {
         const model = {
             current: factory.one(UserShape),
@@ -149,7 +229,7 @@ describe("createStoreState", () => {
 
         const state = createStoreState(model);
 
-        expect(state.current).toBeNull();
+        expect(state.current).toEqual({ id: 0, name: "", email: "" });
         expect(state.list).toEqual([]);
     });
 });
@@ -192,7 +272,7 @@ describe("createStoreModel", () => {
             expect(source.state.user).toEqual(user);
         });
 
-        it("reset restores to null", () => {
+        it("reset restores to shape defaults", () => {
             const { source, model } = setup();
             model.user.set({
                 id: 1,
@@ -202,7 +282,7 @@ describe("createStoreModel", () => {
 
             model.user.reset();
 
-            expect(source.state.user).toBeNull();
+            expect(source.state.user).toEqual({ id: 0, name: "", email: "" });
         });
 
         it("patch merges shallow by default", () => {
@@ -258,12 +338,12 @@ describe("createStoreModel", () => {
             expect((source.state.settings as any).config.notifications).toBe(true);
         });
 
-        it("patch does nothing when value is null", () => {
+        it("patch merges into shape defaults when no set called", () => {
             const { source, model } = setup();
 
             model.user.patch({ name: "Bob" });
 
-            expect(source.state.user).toBeNull();
+            expect(source.state.user).toEqual({ id: 0, name: "Bob", email: "" });
         });
     });
 
@@ -860,7 +940,7 @@ describe("createStoreModel", () => {
             });
             model.user.commit(ModelOneMode.RESET);
 
-            expect(source.state.user).toBeNull();
+            expect(source.state.user).toEqual({ id: 0, name: "", email: "" });
         });
     });
 
@@ -998,7 +1078,7 @@ describe("createStoreModel", () => {
         it("add adds key to record", () => {
             const { source, model } = setup();
 
-            model.grouped.add("team-a", [{ id: 1, name: "Alice", email: "alice@test.com" }]);
+            model.grouped.add({ key: "team-a", value: [{ id: 1, name: "Alice", email: "alice@test.com" }] });
 
             expect((source.state.grouped as Record<string, User[]>)["team-a"]).toHaveLength(1);
         });
@@ -1009,7 +1089,7 @@ describe("createStoreModel", () => {
                 "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }],
             });
 
-            model.grouped.add("team-b", [{ id: 2, name: "Bob", email: "bob@test.com" }]);
+            model.grouped.add({ key: "team-b", value: [{ id: 2, name: "Bob", email: "bob@test.com" }] });
 
             expect(Object.keys(source.state.grouped as Record<string, User[]>)).toHaveLength(2);
         });
@@ -1039,7 +1119,7 @@ describe("createStoreModel", () => {
                 "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }],
             });
 
-            model.grouped.add("team-a", [{ id: 2, name: "Bob", email: "bob@test.com" }]);
+            model.grouped.add({ key: "team-a", value: [{ id: 2, name: "Bob", email: "bob@test.com" }] });
 
             expect((source.state.grouped as Record<string, User[]>)["team-a"]).toHaveLength(1);
             expect((source.state.grouped as Record<string, User[]>)["team-a"][0].name).toBe("Bob");
@@ -1060,9 +1140,9 @@ describe("createStoreModel", () => {
             const modelDefs = {
                 grouped: factory.many(UserShape, {
                     kind: ModelManyKind.RECORD,
-                    default: {
+                    default: () => ({
                         "team-a": [{ id: 1, name: "Default", email: "default@test.com" }],
-                    },
+                    }),
                 }),
             };
 
@@ -1088,9 +1168,9 @@ describe("createStoreModel", () => {
             const modelDefs = {
                 grouped: factory.many(UserShape, {
                     kind: ModelManyKind.RECORD,
-                    default: {
+                    default: () => ({
                         "team-a": [{ id: 1, name: "Default", email: "default@test.com" }],
-                    },
+                    }),
                 }),
             };
 
@@ -1102,6 +1182,684 @@ describe("createStoreModel", () => {
 
             expect((state.grouped as Record<string, User[]>)["team-a"]).toHaveLength(1);
             expect((state.grouped as Record<string, User[]>)["team-a"][0].name).toBe("Default");
+        });
+    });
+
+    describe("one pre/post hooks", () => {
+        function setup(hooks: { pre?: () => void; post?: () => void }) {
+            const modelDefs = {
+                user: factory.one(UserShape, hooks),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-one-hooks-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            return { source, model };
+        }
+
+        it("pre is called on set", () => {
+            const pre = vi.fn();
+            const { model } = setup({ pre });
+
+            model.user.set({ id: 1, name: "Alice", email: "alice@test.com" });
+
+            expect(pre).toHaveBeenCalledOnce();
+        });
+
+        it("post is called on set", () => {
+            const post = vi.fn();
+            const { model } = setup({ post });
+
+            model.user.set({ id: 1, name: "Alice", email: "alice@test.com" });
+
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("hooks fire on reset", () => {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const { model } = setup({ pre, post });
+            model.user.set({ id: 1, name: "Alice", email: "alice@test.com" });
+            pre.mockClear();
+            post.mockClear();
+
+            model.user.reset();
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("hooks fire on patch", () => {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const { model } = setup({ pre, post });
+            model.user.set({ id: 1, name: "Alice", email: "alice@test.com" });
+            pre.mockClear();
+            post.mockClear();
+
+            model.user.patch({ name: "Bob" });
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("pre is called before post", () => {
+            const callOrder: string[] = [];
+            const pre = vi.fn(() => callOrder.push("pre"));
+            const post = vi.fn(() => callOrder.push("post"));
+            const { model } = setup({ pre, post });
+
+            model.user.set({ id: 1, name: "Alice", email: "alice@test.com" });
+
+            expect(callOrder).toEqual(["pre", "post"]);
+        });
+
+        it("hooks are optional", () => {
+            const modelDefs = {
+                user: factory.one(UserShape),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-no-hooks-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            expect(() => {
+                model.user.set({ id: 1, name: "Alice", email: "alice@test.com" });
+                model.user.patch({ name: "Bob" });
+                model.user.reset();
+            }).not.toThrow();
+        });
+
+        it("throwing hook does not break mutation", () => {
+            const pre = vi.fn(() => {
+                throw new Error("pre error");
+            });
+            const post = vi.fn(() => {
+                throw new Error("post error");
+            });
+            const { source, model } = setup({ pre, post });
+            const user: User = { id: 1, name: "Alice", email: "alice@test.com" };
+
+            model.user.set(user);
+
+            expect(source.state.user).toEqual(user);
+        });
+    });
+
+    describe("one silent option", () => {
+        function setup() {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const modelDefs = {
+                user: factory.one(UserShape, { pre, post }),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-one-silent-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            return { source, model, pre, post };
+        }
+
+        it("silent: true skips both pre and post on set", () => {
+            const { model, pre, post } = setup();
+
+            model.user.set({ id: 1, name: "Alice", email: "alice@test.com" }, { silent: true });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: true skips both pre and post on reset", () => {
+            const { model, pre, post } = setup();
+            model.user.set({ id: 1, name: "Alice", email: "alice@test.com" });
+            pre.mockClear();
+            post.mockClear();
+
+            model.user.reset({ silent: true });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: true skips both pre and post on patch", () => {
+            const { model, pre, post } = setup();
+            model.user.set({ id: 1, name: "Alice", email: "alice@test.com" });
+            pre.mockClear();
+            post.mockClear();
+
+            model.user.patch({ name: "Bob" }, { silent: true });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: 'pre' skips only pre", () => {
+            const { model, pre, post } = setup();
+
+            model.user.set({ id: 1, name: "Alice", email: "alice@test.com" }, { silent: ModelSilent.PRE });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("silent: 'post' skips only post", () => {
+            const { model, pre, post } = setup();
+
+            model.user.set({ id: 1, name: "Alice", email: "alice@test.com" }, { silent: ModelSilent.POST });
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("mutation still applies when silent", () => {
+            const { source, model } = setup();
+            const user: User = { id: 1, name: "Alice", email: "alice@test.com" };
+
+            model.user.set(user, { silent: true });
+
+            expect(source.state.user).toEqual(user);
+        });
+    });
+
+    describe("function default reset", () => {
+        it("one-model reset calls function default for fresh value", () => {
+            let callCount = 0;
+            const modelDefs = {
+                user: factory.one(UserShape, {
+                    default: () => {
+                        callCount++;
+                        return { id: callCount, name: "fn-default", email: "fn@test.com" };
+                    },
+                }),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-fn-default-one-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            expect(source.state.user).toEqual({ id: 1, name: "fn-default", email: "fn@test.com" });
+
+            model.user.set({ id: 99, name: "Alice", email: "alice@test.com" });
+            model.user.reset();
+
+            expect(source.state.user).toEqual({ id: 2, name: "fn-default", email: "fn@test.com" });
+        });
+
+        it("many-model reset calls function default for fresh value", () => {
+            let callCount = 0;
+            const modelDefs = {
+                users: factory.many(UserShape, {
+                    default: () => {
+                        callCount++;
+                        return [{ id: callCount, name: "fn-default", email: "fn@test.com" }];
+                    },
+                }),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-fn-default-many-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            expect(source.state.users).toEqual([{ id: 1, name: "fn-default", email: "fn@test.com" }]);
+
+            model.users.set([{ id: 99, name: "Alice", email: "alice@test.com" }]);
+            model.users.reset();
+
+            expect(source.state.users).toEqual([{ id: 2, name: "fn-default", email: "fn@test.com" }]);
+        });
+
+        it("record many-model reset calls function default for fresh value", () => {
+            let callCount = 0;
+            const modelDefs = {
+                grouped: factory.many(UserShape, {
+                    kind: ModelManyKind.RECORD,
+                    default: () => {
+                        callCount++;
+                        return {
+                            "team-a": [{ id: callCount, name: "fn-default", email: "fn@test.com" }],
+                        };
+                    },
+                }),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-fn-default-record-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            expect(source.state.grouped).toEqual({
+                "team-a": [{ id: 1, name: "fn-default", email: "fn@test.com" }],
+            });
+
+            model.grouped.set({ "team-b": [{ id: 99, name: "Alice", email: "alice@test.com" }] });
+            model.grouped.reset();
+
+            expect(source.state.grouped).toEqual({
+                "team-a": [{ id: 2, name: "fn-default", email: "fn@test.com" }],
+            });
+        });
+    });
+
+    describe("many list pre/post hooks", () => {
+        function setup(hooks: { pre?: () => void; post?: () => void }) {
+            const modelDefs = {
+                users: factory.many(UserShape, hooks),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-many-hooks-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            return { source, model };
+        }
+
+        it("hooks fire on set", () => {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const { model } = setup({ pre, post });
+
+            model.users.set([{ id: 1, name: "Alice", email: "alice@test.com" }]);
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("hooks fire on reset", () => {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const { model } = setup({ pre, post });
+            model.users.set([{ id: 1, name: "Alice", email: "alice@test.com" }]);
+            pre.mockClear();
+            post.mockClear();
+
+            model.users.reset();
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("hooks fire on add", () => {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const { model } = setup({ pre, post });
+            pre.mockClear();
+            post.mockClear();
+
+            model.users.add({ id: 1, name: "Alice", email: "alice@test.com" });
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("hooks fire on remove", () => {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const { model } = setup({ pre, post });
+            model.users.set([{ id: 1, name: "Alice", email: "alice@test.com" }]);
+            pre.mockClear();
+            post.mockClear();
+
+            model.users.remove({ id: 1 });
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("hooks fire on patch", () => {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const { model } = setup({ pre, post });
+            model.users.set([{ id: 1, name: "Alice", email: "alice@test.com" }]);
+            pre.mockClear();
+            post.mockClear();
+
+            model.users.patch({ id: 1, name: "Alice Updated" } as Partial<User>);
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("throwing hook does not break mutation", () => {
+            const pre = vi.fn(() => {
+                throw new Error("pre error");
+            });
+            const post = vi.fn(() => {
+                throw new Error("post error");
+            });
+            const { source, model } = setup({ pre, post });
+            const users: User[] = [{ id: 1, name: "Alice", email: "alice@test.com" }];
+
+            model.users.set(users);
+
+            expect(source.state.users).toEqual(users);
+        });
+    });
+
+    describe("many list silent option", () => {
+        function setup() {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const modelDefs = {
+                users: factory.many(UserShape, { pre, post }),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-many-silent-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            return { source, model, pre, post };
+        }
+
+        it("silent: true skips both hooks on set", () => {
+            const { model, pre, post } = setup();
+
+            model.users.set([{ id: 1, name: "Alice", email: "alice@test.com" }], { silent: true });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: true skips both hooks on reset", () => {
+            const { model, pre, post } = setup();
+            model.users.set([{ id: 1, name: "Alice", email: "alice@test.com" }]);
+            pre.mockClear();
+            post.mockClear();
+
+            model.users.reset({ silent: true });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: true skips both hooks on add", () => {
+            const { model, pre, post } = setup();
+            pre.mockClear();
+            post.mockClear();
+
+            model.users.add({ id: 1, name: "Alice", email: "alice@test.com" }, { silent: true });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: true skips both hooks on remove", () => {
+            const { model, pre, post } = setup();
+            model.users.set([{ id: 1, name: "Alice", email: "alice@test.com" }]);
+            pre.mockClear();
+            post.mockClear();
+
+            model.users.remove({ id: 1 }, { silent: true });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: true skips both hooks on patch", () => {
+            const { model, pre, post } = setup();
+            model.users.set([{ id: 1, name: "Alice", email: "alice@test.com" }]);
+            pre.mockClear();
+            post.mockClear();
+
+            model.users.patch({ id: 1, name: "Updated" } as Partial<User>, { silent: true });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: 'pre' skips only pre", () => {
+            const { model, pre, post } = setup();
+
+            model.users.set([{ id: 1, name: "Alice", email: "alice@test.com" }], { silent: ModelSilent.PRE });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("silent: 'post' skips only post", () => {
+            const { model, pre, post } = setup();
+
+            model.users.set([{ id: 1, name: "Alice", email: "alice@test.com" }], { silent: ModelSilent.POST });
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("many record pre/post hooks", () => {
+        function setup(hooks: { pre?: () => void; post?: () => void }) {
+            const modelDefs = {
+                grouped: factory.many(UserShape, { kind: ModelManyKind.RECORD, ...hooks }),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-record-hooks-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            return { source, model };
+        }
+
+        it("hooks fire on set", () => {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const { model } = setup({ pre, post });
+
+            model.grouped.set({ "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }] });
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("hooks fire on reset", () => {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const { model } = setup({ pre, post });
+            model.grouped.set({ "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }] });
+            pre.mockClear();
+            post.mockClear();
+
+            model.grouped.reset();
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("hooks fire on add", () => {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const { model } = setup({ pre, post });
+            pre.mockClear();
+            post.mockClear();
+
+            model.grouped.add({ key: "team-a", value: [{ id: 1, name: "Alice", email: "alice@test.com" }] });
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("hooks fire on remove", () => {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const { model } = setup({ pre, post });
+            model.grouped.set({
+                "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }],
+                "team-b": [{ id: 2, name: "Bob", email: "bob@test.com" }],
+            });
+            pre.mockClear();
+            post.mockClear();
+
+            model.grouped.remove("team-a");
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("hooks fire on patch", () => {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const { model } = setup({ pre, post });
+            model.grouped.set({ "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }] });
+            pre.mockClear();
+            post.mockClear();
+
+            model.grouped.patch({ "team-b": [{ id: 2, name: "Bob", email: "bob@test.com" }] });
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("throwing hook does not break mutation", () => {
+            const pre = vi.fn(() => {
+                throw new Error("pre error");
+            });
+            const post = vi.fn(() => {
+                throw new Error("post error");
+            });
+            const { source, model } = setup({ pre, post });
+            const data = { "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }] };
+
+            model.grouped.set(data);
+
+            expect(source.state.grouped).toEqual(data);
+        });
+    });
+
+    describe("many record silent option", () => {
+        function setup() {
+            const pre = vi.fn();
+            const post = vi.fn();
+            const modelDefs = {
+                grouped: factory.many(UserShape, { kind: ModelManyKind.RECORD, pre, post }),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-record-silent-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            return { source, model, pre, post };
+        }
+
+        it("silent: true skips both hooks on set", () => {
+            const { model, pre, post } = setup();
+
+            model.grouped.set({ "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }] }, { silent: true });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: true skips both hooks on reset", () => {
+            const { model, pre, post } = setup();
+            model.grouped.set({ "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }] });
+            pre.mockClear();
+            post.mockClear();
+
+            model.grouped.reset({ silent: true });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: true skips both hooks on add", () => {
+            const { model, pre, post } = setup();
+            pre.mockClear();
+            post.mockClear();
+
+            model.grouped.add(
+                { key: "team-a", value: [{ id: 1, name: "Alice", email: "alice@test.com" }] },
+                { silent: true },
+            );
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: true skips both hooks on remove", () => {
+            const { model, pre, post } = setup();
+            model.grouped.set({ "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }] });
+            pre.mockClear();
+            post.mockClear();
+
+            model.grouped.remove("team-a", { silent: true });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: true skips both hooks on patch", () => {
+            const { model, pre, post } = setup();
+            model.grouped.set({ "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }] });
+            pre.mockClear();
+            post.mockClear();
+
+            model.grouped.patch({ "team-b": [{ id: 2, name: "Bob", email: "bob@test.com" }] }, { silent: true });
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        });
+
+        it("silent: 'pre' skips only pre", () => {
+            const { model, pre, post } = setup();
+
+            model.grouped.set(
+                { "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }] },
+                { silent: ModelSilent.PRE },
+            );
+
+            expect(pre).not.toHaveBeenCalled();
+            expect(post).toHaveBeenCalledOnce();
+        });
+
+        it("silent: 'post' skips only post", () => {
+            const { model, pre, post } = setup();
+
+            model.grouped.set(
+                { "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }] },
+                { silent: ModelSilent.POST },
+            );
+
+            expect(pre).toHaveBeenCalledOnce();
+            expect(post).not.toHaveBeenCalled();
         });
     });
 });

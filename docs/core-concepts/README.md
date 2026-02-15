@@ -4,28 +4,32 @@ Harlemify stores are built from four layers, each defined by a factory function 
 
 ```
 Shape (Zod)
-└── createStore({ name, model, view, action })
-    ├── Model  → State
+└── createStore({ name, model, view, action, compose?, lazy? })
+    ├── Model   → State
     │   ├── one()
     │   └── many()
-    ├── View   → Computed
+    ├── View    → Computed
     │   ├── from()
     │   └── merge()
-    └── Action → Async
-        ├── api()
-        └── handler()
+    ├── Action  → Async
+    │   ├── api()
+    │   └── handler()
+    └── Compose → Orchestration (optional)
 ```
 
-## Concepts
+## Overview
 
-Every store splits into three layers with a clear responsibility:
+Every store splits into layers with a clear responsibility:
 
-- **Shape** — Data schema defined with Zod. Types everything in the store.
-- **Model** — Mutable state. Changed only through typed commits.
-- **View** — Read-only computed data derived from models.
-- **Action** — Async operations. Fetches data and commits it to models.
+| Layer       | Role                                                        |
+| ----------- | ----------------------------------------------------------- |
+| **Shape**   | Data schema defined with Zod. Types everything in the store |
+| **Model**   | Mutable state. Changed only through typed commits           |
+| **View**    | Read-only computed data derived from models                 |
+| **Action**  | Async operations. Fetches data and commits it to models     |
+| **Compose** | Orchestration functions that combine actions, models, views |
 
-Data flows one way: **Action → Model → View**.
+Data flows one way: **Action → Model → View**. Compose sits on top, orchestrating all three.
 
 ## [Shape](shape.md)
 
@@ -41,13 +45,14 @@ const userShape = shape((factory) => ({
 
 ## [Model](model.md)
 
-State containers using `one(shape)` for single items and `many(shape)` for collections. Each model key exposes typed mutation methods (`set`, `patch`, `reset`, `add`, `remove`).
+State containers using `one(shape)` for single items and `many(shape)` for collections. Each model key exposes typed mutation methods (`set`, `patch`, `reset`, `add`, `remove`). Defaults can be static values or functions that return a fresh value on each reset.
 
 ```typescript
 model({ one, many }) {
     return {
-        current: one(userShape),   // User | null
-        list: many(userShape),     // User[]
+        current: one(userShape),                                  // User
+        list: many(userShape),                                    // User[]
+        config: one(configShape, { default: () => ({ ... }) }),   // Function default
     };
 },
 ```
@@ -62,7 +67,7 @@ view({ from, merge }) {
         user: from("current"),
         count: from("list", (model) => model.length),
         summary: merge(["current", "list"], (current, list) => ({
-            selected: current?.name ?? null,
+            selected: current.name,
             total: list.length,
         })),
     };
@@ -85,4 +90,25 @@ action({ api, handler }) {
 },
 ```
 
-Every action tracks `loading`, `status`, `error`, and `data` automatically.
+Every action tracks `loading`, `status`, and `error` automatically.
+
+## [Compose](compose.md)
+
+Optional orchestration layer. Compose functions receive fully typed `{ model, view, action }` and can call sibling actions, mutate models, and read views. Each compose function tracks an `active` ref while executing.
+
+```typescript
+compose({ model, view, action }) {
+    return {
+        loadAll: async () => {
+            await action.fetchUsers();
+            await action.fetchTodos();
+        },
+        resetAll: () => {
+            model.users.reset();
+            model.todos.reset();
+        },
+    };
+},
+```
+
+> **Note:** By default, stores are created eagerly at module evaluation time. Set `lazy: true` to defer initialization until first access — useful when model defaults depend on Nuxt composables. See [Lazy Store](../advanced/lazy-store.md).

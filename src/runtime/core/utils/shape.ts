@@ -6,118 +6,27 @@ import type {
     ShapeDefinition,
     ShapeFieldDefinition,
     ShapeInfer,
-    ShapeResolved,
     ShapeRawDefinition,
     ShapeType,
     ZodFieldDefinition,
 } from "../types/shape";
 import { isPlainObject, isEmptyRecord } from "./base";
 
-// Zero-value resolvers (primitives)
+// Internal utils
 
-function resolveStringZeroValue(): string {
-    return "";
-}
-
-function resolveNumberZeroValue(): number {
-    return 0;
-}
-
-function resolveBooleanZeroValue(): boolean {
-    return false;
-}
-
-function resolveBigintZeroValue(): bigint {
-    return BigInt(0);
-}
-
-function resolveDateZeroValue(): Date {
-    return new Date(0);
-}
-
-// Zero-value resolvers (collections)
-
-function resolveArrayZeroValue(): unknown[] {
-    return [];
-}
-
-function resolveRecordZeroValue(): Record<string, unknown> {
-    return {};
-}
-
-function resolveMapZeroValue(): Map<unknown, unknown> {
-    return new Map();
-}
-
-function resolveSetZeroValue(): Set<unknown> {
-    return new Set();
-}
-
-// Zero-value resolvers (structures)
-
-function resolveObjectZeroValue(definition: ZodFieldDefinition): Record<string, unknown> {
-    const output: Record<string, unknown> = {};
-
-    if (definition.shape) {
-        for (const [key, value] of Object.entries(definition.shape)) {
-            output[key] = resolveZeroValue(value);
-        }
+function resolveShapeFields(shape: ShapeType<unknown>): Record<string, unknown> | undefined {
+    if (!("shape" in shape) || typeof shape.shape !== "object" || !shape.shape) {
+        return undefined;
     }
 
-    return output;
+    return shape.shape as Record<string, unknown>;
 }
 
-function resolveEnumZeroValue(definition: ZodFieldDefinition): unknown {
-    if (definition.entries) {
-        return Object.values(definition.entries)[0];
-    }
-
-    return undefined;
+function resolveFieldMeta(field: unknown): ShapeFieldDefinition["meta"] | undefined {
+    return (field as { meta?: () => ShapeFieldDefinition["meta"] | undefined })?.meta?.();
 }
 
-function resolveLiteralZeroValue(definition: ZodFieldDefinition): unknown {
-    if (definition.values) {
-        return definition.values[0];
-    }
-
-    return undefined;
-}
-
-function resolveTupleZeroValue(definition: ZodFieldDefinition): unknown[] {
-    if (definition.items) {
-        return definition.items.map(resolveZeroValue);
-    }
-
-    return [];
-}
-
-function resolveUnionZeroValue(definition: ZodFieldDefinition): unknown {
-    if (definition.options?.[0]) {
-        return resolveZeroValue(definition.options[0]);
-    }
-
-    return undefined;
-}
-
-// Zero-value resolvers (wrappers)
-
-function resolveDefaultZeroValue(definition: ZodFieldDefinition): unknown {
-    if (typeof definition.defaultValue === "function") {
-        return definition.defaultValue();
-    }
-
-    return definition.defaultValue;
-}
-
-function resolveInnerZeroValue(definition: ZodFieldDefinition): unknown {
-    if (definition.innerType) {
-        return resolveZeroValue(definition.innerType);
-    }
-
-    return undefined;
-}
-
-// Zero-value resolver (entry point)
+// Zero-value resolvers
 
 function resolveZeroValue(field: ShapeType<unknown>): unknown {
     const definition = (field as ShapeType<unknown> & { def?: ZodFieldDefinition }).def;
@@ -128,107 +37,90 @@ function resolveZeroValue(field: ShapeType<unknown>): unknown {
 
     switch (definition.type) {
         case "string": {
-            return resolveStringZeroValue();
+            return "";
         }
         case "number": {
-            return resolveNumberZeroValue();
+            return 0;
         }
         case "boolean": {
-            return resolveBooleanZeroValue();
+            return false;
         }
         case "bigint": {
-            return resolveBigintZeroValue();
+            return BigInt(0);
         }
         case "date": {
-            return resolveDateZeroValue();
+            return new Date(0);
         }
         case "array": {
-            return resolveArrayZeroValue();
+            return [];
         }
         case "record": {
-            return resolveRecordZeroValue();
+            return {};
         }
         case "map": {
-            return resolveMapZeroValue();
+            return new Map();
         }
         case "set": {
-            return resolveSetZeroValue();
+            return new Set();
         }
         case "object": {
-            return resolveObjectZeroValue(definition);
+            const output: Record<string, unknown> = {};
+
+            if (definition.shape) {
+                for (const [key, value] of Object.entries(definition.shape)) {
+                    output[key] = resolveZeroValue(value);
+                }
+            }
+
+            return output;
         }
         case "enum": {
-            return resolveEnumZeroValue(definition);
+            if (definition.entries) {
+                return Object.values(definition.entries)[0];
+            }
+
+            return undefined;
         }
         case "literal": {
-            return resolveLiteralZeroValue(definition);
+            if (definition.values) {
+                return definition.values[0];
+            }
+
+            return undefined;
         }
         case "tuple": {
-            return resolveTupleZeroValue(definition);
+            if (definition.items) {
+                return definition.items.map(resolveZeroValue);
+            }
+
+            return [];
         }
         case "union": {
-            return resolveUnionZeroValue(definition);
+            if (definition.options?.[0]) {
+                return resolveZeroValue(definition.options[0]);
+            }
+
+            return undefined;
         }
         case "default": {
-            return resolveDefaultZeroValue(definition);
+            if (typeof definition.defaultValue === "function") {
+                return definition.defaultValue();
+            }
+
+            return definition.defaultValue;
         }
         case "optional":
         case "nullable": {
-            return resolveInnerZeroValue(definition);
+            if (definition.innerType) {
+                return resolveZeroValue(definition.innerType);
+            }
+
+            return undefined;
         }
         default: {
             return undefined;
         }
     }
-}
-
-// Exported functions
-
-export function resolveShape(shape: ShapeDefinition): ShapeResolved {
-    const resolved: ShapeResolved = {
-        identifier: undefined,
-        defaults: {},
-        fields: [],
-        aliases: {},
-    };
-
-    for (const [key, field] of Object.entries(shape.shape)) {
-        resolved.fields.push(key);
-
-        const fieldMeta = (
-            field as ShapeType<unknown> & { meta: () => ShapeFieldDefinition["meta"] | undefined }
-        ).meta();
-
-        if (fieldMeta?.identifier) {
-            resolved.identifier = key;
-        }
-
-        if (fieldMeta?.alias) {
-            resolved.aliases[key] = fieldMeta.alias as string;
-        }
-
-        const fieldDefinition = (field as ShapeType<unknown> & { def?: ShapeFieldDefinition }).def;
-
-        if (fieldDefinition?.defaultValue !== undefined) {
-            if (typeof fieldDefinition.defaultValue === "function") {
-                resolved.defaults[key] = fieldDefinition.defaultValue();
-
-                continue;
-            }
-
-            resolved.defaults[key] = fieldDefinition.defaultValue;
-        }
-    }
-
-    if (!resolved.identifier) {
-        if (resolved.fields.includes("id")) {
-            resolved.identifier = "id";
-        } else if (resolved.fields.includes("_id")) {
-            resolved.identifier = "_id";
-        }
-    }
-
-    return resolved;
 }
 
 // Alias resolvers
@@ -291,29 +183,71 @@ export function resolveAliasOutbound<T = unknown>(data: T, aliases?: Record<stri
     return data;
 }
 
-export function resolveDefaults<T extends ShapeDefinition>(
-    shape: T,
-    overrides?: Partial<ShapeInfer<T>>,
-): ShapeInfer<T> {
-    const output: Record<string, unknown> = {};
+// Shape resolvers
 
+export function resolveShapeIdentifier(shape: ShapeType<unknown>, ...overrides: (string | undefined)[]): string {
+    for (const key of overrides) {
+        if (key) {
+            return key;
+        }
+    }
+
+    const fields = resolveShapeFields(shape);
+    if (!fields) {
+        return "id";
+    }
+
+    for (const [key, field] of Object.entries(fields)) {
+        const meta = resolveFieldMeta(field);
+        if (meta?.identifier) {
+            return key;
+        }
+    }
+
+    return "id";
+}
+
+export function resolveShapeAliases(shape: ShapeType<unknown>): Record<string, string> {
+    const output: Record<string, string> = {};
+
+    const fields = resolveShapeFields(shape);
+    if (!fields) {
+        return output;
+    }
+
+    for (const [key, field] of Object.entries(fields)) {
+        const meta = resolveFieldMeta(field);
+        if (meta?.alias) {
+            output[key] = meta.alias as string;
+        }
+    }
+
+    return output;
+}
+
+export function resolveZeroValues<T extends ShapeDefinition>(shape: T): ShapeInfer<T> {
+    const output: Record<string, unknown> = {};
     for (const [key, field] of Object.entries(shape.shape)) {
         output[key] = resolveZeroValue(field as ShapeType<unknown>);
     }
 
-    if (overrides) {
-        return defu(overrides, output) as ShapeInfer<T>;
-    }
-
     return output as ShapeInfer<T>;
 }
+
+// Create shape
 
 export function createShape<T extends ShapeRawDefinition>(definition: T): ShapeCall<T> {
     const object = z.object(definition);
 
     const shape = Object.assign(object, {
         defaults(overrides?: Partial<ShapeInfer<typeof object>>) {
-            return resolveDefaults(object, overrides);
+            const zero = resolveZeroValues(object);
+
+            if (overrides) {
+                return defu(overrides, zero) as ShapeInfer<typeof object>;
+            }
+
+            return zero;
         },
     });
 

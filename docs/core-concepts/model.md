@@ -1,6 +1,6 @@
 # Model
 
-Models define the state containers. The model factory provides `one` for single items and `many` for collections.
+Models define the state containers in a store. The model factory provides `one` for single items and `many` for collections.
 
 ```typescript
 model({ one, many }) {
@@ -12,16 +12,16 @@ model({ one, many }) {
 },
 ```
 
-## One (Single Item)
+## One
 
-`one(shape)` creates a state container initialized to `null`:
+`one(shape)` creates a state container initialized to shape defaults:
 
 ```typescript
 one(userShape);
-one(userShape, { default: { id: 0, name: "" } }); // Custom default
+one(userShape, { default: () => ({ id: 0, name: "" }) }); // Function default
 ```
 
-### One Mutations
+### Mutations
 
 ```typescript
 store.model.user.set(userData);
@@ -34,23 +34,23 @@ store.model.user.reset();
 | ------- | --------------------------------------------- |
 | `set`   | Replace the entire value                      |
 | `patch` | Shallow merge (or deep with `{ deep: true }`) |
-| `reset` | Reset to default (`null` or custom default)   |
+| `reset` | Reset to default value                        |
 
-> **Note:** `patch` on a `null` state does nothing silently. Set a value first before patching.
+> **Note:** State is always initialized to shape defaults (e.g. `{ id: 0, name: "" }`). Provide a custom `default` function to override the initial and reset values.
 
-## Many List
+## Many (List)
 
 `many(shape)` creates a collection initialized to `[]`:
 
 ```typescript
 many(userShape);
 many(userShape, { identifier: "uuid" }); // Override identifier field
-many(userShape, { default: [defaultUser] }); // Custom default
+many(userShape, { default: () => [defaultUser] }); // Function default
 ```
 
-The `identifier` determines which field is used to match items in `patch` and `add` (with `unique`). If not set, it resolves from shape metadata or falls back to `id` / `_id`. The `remove` method matches by any provided field automatically.
+The `identifier` determines which field is used to match items in `patch` and `add` (with `unique`). If not set, it resolves from shape metadata or falls back to `id`. The `remove` method matches by any provided field automatically.
 
-### List Mutations
+### Mutations
 
 ```typescript
 store.model.users.set(usersArray);
@@ -70,37 +70,138 @@ store.model.users.reset();
 | `add`    | Append (or prepend) items                        |
 | `patch`  | Update matching items by identifier              |
 | `remove` | Remove items matching by identifier or any field |
-| `reset`  | Reset to default (`[]` or custom default)        |
+| `reset`  | Reset to default value                           |
 
-## Many Record
+## Many (Record)
 
 `many(shape, { kind: "record" })` creates a keyed collection initialized to `{}`:
 
 ```typescript
 many(userShape, { kind: "record" });
-many(userShape, { kind: "record", default: { "team-a": [defaultUser] } });
+many(userShape, { kind: "record", default: () => ({ "team-a": [defaultUser] }) }); // Function default
 ```
 
-### Record Mutations
+### Mutations
 
 ```typescript
 store.model.grouped.set({ "team-a": usersArray, "team-b": otherUsers });
-store.model.grouped.reset();
 store.model.grouped.patch({ "team-a": updatedUsers });
 store.model.grouped.patch({ "team-c": newUsers }, { deep: true });
-store.model.grouped.add("team-c", newUsers);
+store.model.grouped.add({ key: "team-c", value: newUsers });
 store.model.grouped.remove("team-a");
+store.model.grouped.reset();
 ```
 
 | Method   | Description                                                      |
 | -------- | ---------------------------------------------------------------- |
 | `set`    | Replace the entire record                                        |
-| `reset`  | Clear the entire record to `{}` (or default)                     |
-| `patch`  | Merge keys into the record (or deep merge with `{ deep: true }`) |
 | `add`    | Add a key with its array value                                   |
+| `patch`  | Merge keys into the record (or deep merge with `{ deep: true }`) |
 | `remove` | Remove a key from the record                                     |
+| `reset`  | Reset to default value                                           |
+
+## Function Default
+
+`default` must be a sync function that returns a fresh value each time. The function is called at store creation and again on every `reset()`:
+
+```typescript
+model({ one, many }) {
+    return {
+        config: one(configShape, {
+            default: () => ({ theme: "dark", language: "en" }),
+        }),
+        users: many(userShape, {
+            default: () => [createDefaultUser()],
+        }),
+        grouped: many(userShape, {
+            kind: "record",
+            default: () => ({ "team-a": [createDefaultUser()] }),
+        }),
+    };
+},
+```
+
+This ensures each reset gets a fresh copy rather than sharing the same reference. It also enables proper SSR state isolation — defaults are re-evaluated per request. Combined with [Lazy Store](../advanced/lazy-store.md), function defaults can depend on Nuxt composables:
+
+```typescript
+export const configStore = createStore({
+    name: "config",
+    lazy: true,
+    model({ one }) {
+        const route = useRoute();
+
+        return {
+            config: one(configShape, {
+                default: () => ({ theme: route.query.theme ?? "dark" }),
+            }),
+        };
+    },
+});
+```
+
+| Form                   | Behavior                                |
+| ---------------------- | --------------------------------------- |
+| `default: () => value` | Called fresh on creation and each reset |
+| `reset()`              | Restores to default                     |
+
+## Pre/Post Hooks
+
+Attach `pre` and `post` hooks to any model. They fire before and after every mutation (`set`, `reset`, `patch`, `add`, `remove`):
+
+```typescript
+model({ one, many }) {
+    return {
+        session: one(sessionShape, {
+            pre() {
+                console.log("before mutation");
+            },
+            post() {
+                console.log("after mutation");
+            },
+        }),
+        users: many(userShape, {
+            pre() {
+                console.log("before mutation");
+            },
+            post() {
+                console.log("after mutation");
+            },
+        }),
+    };
+},
+```
+
+Hooks are optional and safe — they cannot control the flow of the mutation. A `pre` hook runs before the mutation, not as a guard. Even if a hook throws, the error is caught and logged, and the mutation proceeds normally.
+
+## Silent Option
+
+Use `silent` to skip hooks on specific mutations. This is useful when you want to avoid side effects like cookie sync, analytics, or logging for certain operations:
+
+```typescript
+import { ModelSilent } from "@diphyx/harlemify";
+```
+
+| Value                      | Effect                 |
+| -------------------------- | ---------------------- |
+| `silent: true`             | Skip both pre and post |
+| `silent: ModelSilent.PRE`  | Skip only pre          |
+| `silent: ModelSilent.POST` | Skip only post         |
+
+```typescript
+store.model.session.set(value, { silent: true });
+store.model.session.reset({ silent: ModelSilent.POST });
+store.model.session.patch({ name: "Updated" }, { silent: ModelSilent.PRE });
+
+store.model.users.add(user, { silent: true });
+store.model.users.remove({ id: 1 }, { silent: ModelSilent.POST });
+
+store.model.grouped.add({ key: "team-a", value: users }, { silent: true });
+store.model.grouped.remove("team-a", { silent: ModelSilent.PRE });
+```
+
+The `silent` option works on all model types (`one`, `many` list, `many` record) and all mutation methods.
 
 ## Next Steps
 
-- [View](view.md) - Create computed properties from model state
-- [Action](action.md) - Define async operations that commit to models
+- [View](view.md) — Create computed properties from model state
+- [Action](action.md) — Define async operations that commit to models

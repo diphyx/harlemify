@@ -37,7 +37,7 @@ export const todoStore = createStore({
             get: api.get(
                 {
                     url(view) {
-                        return `/todos/${view.todo.value?.id}`;
+                        return `/todos/${view.todo.value.id}`;
                     },
                 },
                 { model: "current", mode: ModelOneMode.SET },
@@ -47,7 +47,7 @@ export const todoStore = createStore({
             update: api.patch(
                 {
                     url(view) {
-                        return `/todos/${view.todo.value?.id}`;
+                        return `/todos/${view.todo.value.id}`;
                     },
                 },
                 { model: "list", mode: ModelManyMode.PATCH },
@@ -55,7 +55,7 @@ export const todoStore = createStore({
             delete: api.delete(
                 {
                     url(view) {
-                        return `/todos/${view.todo.value?.id}`;
+                        return `/todos/${view.todo.value.id}`;
                     },
                 },
                 { model: "list", mode: ModelManyMode.REMOVE },
@@ -68,7 +68,6 @@ export const todoStore = createStore({
             rename: handler<string>(
                 async ({ model, view, payload }) => {
                     const todo = view.todo.value;
-                    if (!todo) return;
                     const updated = { ...todo, title: payload };
                     model.current.set(updated);
                     model.list.patch(updated);

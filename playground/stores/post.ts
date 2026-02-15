@@ -37,9 +37,9 @@ export const postStore = createStore({
                 },
                 { clone: ViewClone.SHALLOW },
             ),
-            overview: merge(["current", "list", "list"], (current, list) => {
+            overview: merge(["current", "list"], (current, list) => {
                 return {
-                    selectedTitle: current?.title ?? null,
+                    selectedTitle: current.title,
                     total: list.length,
                     byUser: list.reduce(
                         (acc, p) => {
@@ -52,9 +52,9 @@ export const postStore = createStore({
             }),
             editor: merge(["current", "draft", "list"], (current, draft, list) => {
                 return {
-                    hasSelection: current !== null,
-                    hasDraft: draft !== null,
-                    isDirty: draft !== null && draft.title !== (current?.title ?? ""),
+                    hasSelection: !!current.id,
+                    hasDraft: !!draft.id,
+                    isDirty: !!draft.id && draft.title !== current.title,
                     totalPosts: list.length,
                 };
             }),
@@ -81,7 +81,7 @@ export const postStore = createStore({
             update: api.patch(
                 {
                     url(view) {
-                        return `/posts/${view.post.value?.id}`;
+                        return `/posts/${view.post.value.id}`;
                     },
                 },
                 { model: "list", mode: ModelManyMode.PATCH },
@@ -89,7 +89,7 @@ export const postStore = createStore({
             delete: api.delete(
                 {
                     url(view) {
-                        return `/posts/${view.post.value?.id}`;
+                        return `/posts/${view.post.value.id}`;
                     },
                 },
                 { model: "list", mode: ModelManyMode.REMOVE },

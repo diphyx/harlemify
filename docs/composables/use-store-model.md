@@ -5,9 +5,6 @@ Returns typed mutation methods for a store model. Supports both `one` and `many`
 ## One Model
 
 ```typescript
-import { useStoreModel } from "@diphyx/harlemify";
-import { userStore } from "~/stores/user";
-
 const { set, patch, reset } = useStoreModel(userStore, "current");
 
 set({ id: 1, name: "Alice", email: "alice@test.com" });
@@ -64,13 +61,32 @@ model.set(value2); // Ignored (within 500ms window)
 model.set(value3); // Executes
 ```
 
+## Silent Option
+
+All mutation methods accept a `silent` option to skip pre/post hooks:
+
+```typescript
+import { ModelSilent } from "@diphyx/harlemify";
+
+const { set, reset, patch } = useStoreModel(userStore, "current");
+
+set(value, { silent: true }); // Skip both hooks
+reset({ silent: ModelSilent.PRE }); // Skip only pre hook
+patch({ name: "Updated" }, { silent: ModelSilent.POST }); // Skip only post hook
+```
+
+```typescript
+const { add, remove, reset } = useStoreModel(userStore, "list");
+
+add(user, { silent: true });
+remove({ id: 1 }, { silent: ModelSilent.POST });
+reset({ silent: true });
+```
+
 ## Component Example
 
 ```vue
 <script setup lang="ts">
-import { useStoreModel } from "@diphyx/harlemify";
-import { userStore } from "~/stores/user";
-
 const { set: setCurrent, patch: patchCurrent, reset: resetCurrent } = useStoreModel(userStore, "current");
 const { add: addToList, remove: removeFromList } = useStoreModel(userStore, "list");
 
@@ -100,9 +116,9 @@ const searchModel = useStoreModel(userStore, "current", { debounce: 300 });
 
 ```typescript
 type UseStoreModelOne = {
-    set: (value) => void;
+    set: (value, options?) => void;
     patch: (value, options?) => void;
-    reset: () => void;
+    reset: (options?) => void;
 };
 ```
 
@@ -110,9 +126,9 @@ type UseStoreModelOne = {
 
 ```typescript
 type UseStoreModelMany = {
-    set: (value) => void;
+    set: (value, options?) => void;
     patch: (value, options?) => void;
-    reset: () => void;
+    reset: (options?) => void;
     add: (value, options?) => void;
     remove: (value, options?) => void;
 };
@@ -120,5 +136,5 @@ type UseStoreModelMany = {
 
 ## Next Steps
 
-- [useStoreView](use-store-view.md) - Reactive view data and tracking
-- [useStoreAction](use-store-action.md) - Reactive action execution
+- [useStoreView](use-store-view.md) — Reactive view data and tracking
+- [useStoreAction](use-store-action.md) — Reactive action execution

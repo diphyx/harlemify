@@ -1,6 +1,6 @@
 {
     "name": "@diphyx/harlemify",
-    "version": "5.3.0",
+    "version": "5.4.0",
     "description": "API state management for Nuxt powered by Harlem",
     "keywords": [
         "nuxt",
@@ -50,25 +50,24 @@
         "test:e2e": "playwright test"
     },
     "dependencies": {
-        "@harlem/core": "^3.0.0",
-        "@harlem/plugin-ssr": "^3.0.0",
-        "@nuxt/kit": "^3.14.0",
-        "consola": "^3.0.0",
-        "defu": "^6.0.0",
-        "zod": "^4.0.0"
+        "@harlem/core": "^3.1.8",
+        "@nuxt/kit": "^3.14.0 || ^4.0.0",
+        "consola": "^3.4.2",
+        "defu": "^6.1.4",
+        "zod": "^4.3.6"
     },
     "devDependencies": {
-        "@nuxt/eslint-config": "^0.6.0",
-        "@nuxt/module-builder": "^0.8.0",
-        "@nuxt/schema": "^3.14.0",
-        "@nuxt/test-utils": "^3.14.0",
-        "@playwright/test": "^1.50.0",
-        "@types/node": "^22.0.0",
+        "@nuxt/eslint-config": "^0.6.2",
+        "@nuxt/module-builder": "^0.8.4",
+        "@nuxt/schema": "^4.3.1",
+        "@nuxt/test-utils": "^3.23.0",
+        "@playwright/test": "^1.58.2",
+        "@types/node": "^22.19.11",
         "@vitest/coverage-v8": "^2.1.9",
-        "eslint": "^9.0.0",
-        "nuxt": "^3.14.0",
-        "typescript": "^5.6.0",
-        "vitest": "^2.0.0",
-        "vue": "^3.5.26"
+        "eslint": "^9.39.2",
+        "nuxt": "^4.3.1",
+        "typescript": "^5.9.3",
+        "vitest": "^2.1.9",
+        "vue": "^3.5.28"
     }
 }

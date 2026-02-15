@@ -44,15 +44,15 @@ describe("createStore", () => {
                 return {
                     user: v.from("user"),
                     posts: v.from("posts"),
-                    userName: v.from("user", (user: User | null) => {
-                        return user?.name ?? "unknown";
+                    userName: v.from("user", (user: User) => {
+                        return user.name;
                     }),
                     postCount: v.from("posts", (posts: Post[]) => {
                         return posts.length;
                     }),
-                    summary: v.merge(["user", "posts"], (user: User | null, posts: Post[]) => {
+                    summary: v.merge(["user", "posts"], (user: User, posts: Post[]) => {
                         return {
-                            name: user?.name ?? "none",
+                            name: user.name,
                             total: posts.length,
                         };
                     }),
@@ -84,6 +84,89 @@ describe("createStore", () => {
         expect(store.action).toBeDefined();
     });
 
+    it("initializes eagerly by default", () => {
+        let modelCalled = false;
+        createStore({
+            name: "test-eager-default-" + Math.random(),
+            model: (m) => {
+                modelCalled = true;
+                return { user: m.one(UserShape) };
+            },
+            view: (v) => ({ user: v.from("user") }),
+            action: (_a) => ({}),
+        });
+
+        expect(modelCalled).toBe(true);
+    });
+
+    it("defers initialization when lazy is true", () => {
+        let modelCalled = false;
+        const store = createStore({
+            name: "test-lazy-" + Math.random(),
+            model: (m) => {
+                modelCalled = true;
+                return { user: m.one(UserShape) };
+            },
+            view: (v) => ({ user: v.from("user") }),
+            action: (_a) => ({}),
+            lazy: true,
+        });
+
+        expect(modelCalled).toBe(false);
+
+        // First access triggers initialization
+        void store.model;
+
+        expect(modelCalled).toBe(true);
+    });
+
+    it("lazy factory can use external context for model default", () => {
+        let contextReady = false;
+
+        const store = createStore({
+            name: "test-lazy-context-" + Math.random(),
+            model: (m) => {
+                if (!contextReady) {
+                    throw new Error("Context not ready");
+                }
+                return {
+                    user: m.one(UserShape, {
+                        default: () => ({ id: 1, name: "FromContext", email: "ctx@test.com" }),
+                    }),
+                };
+            },
+            view: (v) => ({ user: v.from("user") }),
+            action: (_a) => ({}),
+            lazy: true,
+        });
+
+        // Simulate Nuxt becoming ready
+        contextReady = true;
+
+        // First access triggers factory — context is now ready
+        expect(store.view.user.value).toEqual({ id: 1, name: "FromContext", email: "ctx@test.com" });
+    });
+
+    it("initializes only once on multiple accesses (lazy)", () => {
+        let initCount = 0;
+        const store = createStore({
+            name: "test-lazy-once-" + Math.random(),
+            model: (m) => {
+                initCount++;
+                return { user: m.one(UserShape) };
+            },
+            view: (v) => ({ user: v.from("user") }),
+            action: (_a) => ({}),
+            lazy: true,
+        });
+
+        void store.model;
+        void store.view;
+        void store.action;
+
+        expect(initCount).toBe(1);
+    });
+
     // Model
 
     describe("model", () => {
@@ -110,7 +193,7 @@ describe("createStore", () => {
 
             store.model.user.reset();
 
-            expect(store.view.user.value).toBeNull();
+            expect(store.view.user.value).toEqual({ id: 0, name: "", email: "" });
         });
 
         it("patch on one-model", () => {
@@ -212,14 +295,14 @@ describe("createStore", () => {
         it("reflects current state", () => {
             const store = setup();
 
-            expect(store.view.user.value).toBeNull();
+            expect(store.view.user.value).toEqual({ id: 0, name: "", email: "" });
             expect(store.view.posts.value).toEqual([]);
         });
 
         it("resolver transforms data", () => {
             const store = setup();
 
-            expect(store.view.userName.value).toBe("unknown");
+            expect(store.view.userName.value).toBe("");
 
             store.model.user.set({
                 id: 1,
@@ -255,7 +338,7 @@ describe("createStore", () => {
             const store = setup();
 
             expect(store.view.summary.value).toEqual({
-                name: "none",
+                name: "",
                 total: 0,
             });
 

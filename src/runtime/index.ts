@@ -7,7 +7,7 @@ export { shape } from "./core/layers/shape";
 export type { ShapeInfer } from "./core/types/shape";
 
 // Model
-export { ModelType, ModelManyKind, ModelOneMode, ModelManyMode } from "./core/types/model";
+export { ModelType, ModelManyKind, ModelOneMode, ModelManyMode, ModelSilent } from "./core/types/model";
 export type { ModelOneCommitOptions, ModelManyCommitOptions } from "./core/types/model";
 
 // View
@@ -31,6 +31,17 @@ export type {
     ActionResolvedApi,
 } from "./core/types/action";
 export { ActionApiError, ActionHandlerError, ActionCommitError, ActionConcurrentError } from "./core/utils/error";
+
+// Compose
+export type {
+    ComposeCallback,
+    ComposeCall,
+    ComposeDefinitions,
+    ComposeContext,
+    StoreCompose,
+} from "./core/types/compose";
+export { useStoreCompose } from "./composables/compose";
+export type { UseStoreCompose } from "./composables/compose";
 
 // Composables
 export { useIsolatedActionStatus, useIsolatedActionError, useStoreAction } from "./composables/action";

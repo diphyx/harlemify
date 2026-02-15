@@ -130,35 +130,15 @@ await execute();
 </template>
 ```
 
-Every action automatically tracks `loading`, `error`, and `status`. No manual ref management.
+## Compatibility
 
-## Features
+| Dependency | Version               |
+| ---------- | --------------------- |
+| Nuxt       | `^3.14.0` or `^4.0.0` |
+| Vue        | `^3.5.0`              |
+| Zod        | `^4.0.0`              |
 
-- **Schema-first** — Define your data shape once with Zod, get TypeScript types and validation automatically
-- **Reactive models** — Single items (`one`) and collections (`many`) with built-in mutations: set, patch, add, remove, reset
-- **Computed views** — Derived read-only state that updates when models change, with merge and clone support
-- **Declarative API actions** — HTTP actions (GET, POST, PATCH, DELETE) that fetch and commit data in one step
-- **Status tracking** — Every action exposes `loading`, `error`, and `status` reactively — no boilerplate
-- **Concurrency control** — Block, skip, cancel, or allow parallel calls per action
-- **Vue composables** — `useStoreAction`, `useStoreModel`, `useStoreView` for clean component integration
-- **SSR ready** — Server-side rendering with automatic state hydration
-- **Handler actions** — Custom async logic with full model/view access and typed payloads
-- **Record collections** — Keyed collections (`many` with `RECORD` kind) for grouped data
-
-## Install
-
-```bash
-npm install @diphyx/harlemify
-```
-
-```typescript
-// nuxt.config.ts
-export default defineNuxtConfig({
-    modules: ["@diphyx/harlemify"],
-});
-```
-
-That's it. No plugins, no providers, no setup functions.
+> **Note:** Early Nuxt 4 versions (e.g., 4.1.x) may have issues resolving the `#build` alias for module templates. If you encounter build errors related to `#build/harlemify.config`, upgrade to the latest Nuxt 4 release.
 
 ## Documentation
 
