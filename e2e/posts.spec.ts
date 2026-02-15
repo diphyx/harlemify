@@ -69,13 +69,13 @@ test.describe("posts page", () => {
 
     test("resets sort action status", async ({ page }) => {
         await page.getByTestId("sort-posts").click();
-        await expect(page.getByTestId("status-sort").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-sort").locator(".action-chip-state")).toHaveText("success");
         await page.getByTestId("reset-sort").click();
-        await expect(page.getByTestId("status-sort").locator(".monitor-state")).toHaveText("idle");
+        await expect(page.getByTestId("status-sort").locator(".action-chip-state")).toHaveText("idle");
     });
 
     test("action status shows success after list", async ({ page }) => {
-        await expect(page.getByTestId("status-list").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-list").locator(".action-chip-state")).toHaveText("success");
     });
 
     test("create modal opens with shape defaults (empty form)", async ({ page }) => {

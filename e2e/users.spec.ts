@@ -81,13 +81,13 @@ test.describe("users page", () => {
     });
 
     test("reset action resets list status", async ({ page }) => {
-        await expect(page.getByTestId("status-list").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-list").locator(".action-chip-state")).toHaveText("success");
         await page.getByTestId("reset-list-action").click();
-        await expect(page.getByTestId("status-list").locator(".monitor-state")).toHaveText("idle");
+        await expect(page.getByTestId("status-list").locator(".action-chip-state")).toHaveText("idle");
     });
 
     test("action status shows success after list", async ({ page }) => {
-        await expect(page.getByTestId("status-list").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-list").locator(".action-chip-state")).toHaveText("success");
     });
 
     test("create modal opens with shape defaults (empty form)", async ({ page }) => {

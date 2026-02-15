@@ -19,7 +19,7 @@ test.describe("composables page", () => {
     test("selects a todo", async ({ page }) => {
         await page.getByTestId("todo-1").getByTestId("select-todo").click();
         await expect(page.getByTestId("view-data-title")).toHaveText("Buy groceries");
-        await expect(page.getByTestId("todo-1")).toHaveClass(/list-item-selected/);
+        await expect(page.getByTestId("todo-1")).toHaveClass(/selected/);
     });
 
     test("toggles a todo", async ({ page }) => {
@@ -190,11 +190,11 @@ test.describe("composables page", () => {
 
     test("view non-destructured: selected highlight uses proxy", async ({ page }) => {
         await page.getByTestId("todo-2").getByTestId("select-todo").click();
-        await expect(page.getByTestId("todo-2")).toHaveClass(/list-item-selected/);
-        await expect(page.getByTestId("todo-1")).not.toHaveClass(/list-item-selected/);
+        await expect(page.getByTestId("todo-2")).toHaveClass(/selected/);
+        await expect(page.getByTestId("todo-1")).not.toHaveClass(/selected/);
         await page.getByTestId("todo-1").getByTestId("select-todo").click();
-        await expect(page.getByTestId("todo-1")).toHaveClass(/list-item-selected/);
-        await expect(page.getByTestId("todo-2")).not.toHaveClass(/list-item-selected/);
+        await expect(page.getByTestId("todo-1")).toHaveClass(/selected/);
+        await expect(page.getByTestId("todo-2")).not.toHaveClass(/selected/);
     });
 
     test("view without proxy: shows shape defaults when no selection", async ({ page }) => {
@@ -267,8 +267,8 @@ test.describe("composables page", () => {
         await expect(page.getByTestId("feature-info")).toContainText("useStoreAction");
         await expect(page.getByTestId("feature-info")).toContainText("useStoreModel");
         await expect(page.getByTestId("feature-info")).toContainText("useStoreView");
-        await expect(page.getByTestId("feature-info")).toContainText("Definition-level default payload");
-        await expect(page.getByTestId("feature-info")).toContainText("Call-time payload override");
+        await expect(page.getByTestId("feature-info")).toContainText("Definition-level default");
+        await expect(page.getByTestId("feature-info")).toContainText("Call-time override");
     });
 
     test("back link navigates to home", async ({ page }) => {

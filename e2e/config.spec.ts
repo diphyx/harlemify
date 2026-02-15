@@ -5,7 +5,7 @@ test.describe("config page", () => {
         await page.request.post("/api/_reset");
         await page.goto("/config");
         await page.getByTestId("config-content").waitFor();
-        await expect(page.getByTestId("status-get").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-get").locator(".action-chip-state")).toHaveText("success");
     });
 
     test("lazy store loads and displays config", async ({ page }) => {
@@ -37,7 +37,7 @@ test.describe("config page", () => {
     });
 
     test("action status updates after load", async ({ page }) => {
-        await expect(page.getByTestId("status-get").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-get").locator(".action-chip-state")).toHaveText("success");
     });
 
     test("reset restores shape defaults with overrides", async ({ page }) => {

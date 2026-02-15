@@ -60,7 +60,7 @@ test.describe("contacts page", () => {
     });
 
     test("action status shows success after list", async ({ page }) => {
-        await expect(page.getByTestId("status-list").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-list").locator(".action-chip-state")).toHaveText("success");
     });
 
     test("create modal opens with shape defaults (empty form)", async ({ page }) => {

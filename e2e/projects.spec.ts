@@ -44,14 +44,14 @@ test.describe("projects page", () => {
         await page.getByTestId("project-1").getByTestId("select-project").click();
         await page.getByTestId("project-detail").waitFor();
         await page.getByTestId("check-project").click();
-        await expect(page.getByTestId("status-check").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-check").locator(".action-chip-state")).toHaveText("success");
     });
 
     test("displays cloned sorted milestones view", async ({ page }) => {
         await page.getByTestId("project-1").getByTestId("select-project").click();
         await page.getByTestId("project-detail").waitFor();
         await page.getByTestId("load-milestones").click();
-        await expect(page.getByTestId("status-milestones").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-milestones").locator(".action-chip-state")).toHaveText("success");
         const sorted = page.getByTestId("cloned-sorted-milestones");
         await expect(sorted).toContainText('"Design mockups"');
         await expect(sorted).toContainText('"Frontend development"');
@@ -160,11 +160,11 @@ test.describe("projects page", () => {
         await page.getByTestId("concurrent-select").selectOption("CANCEL");
         await page.getByTestId("slow-export").click();
         await page.getByTestId("slow-export").click();
-        await expect(page.getByTestId("status-slowExport").locator(".monitor-state")).not.toHaveText("idle");
+        await expect(page.getByTestId("status-slowExport").locator(".action-chip-state")).not.toHaveText("idle");
     });
 
     test("action status updates after list", async ({ page }) => {
-        await expect(page.getByTestId("status-list").locator(".monitor-state")).toHaveText("success");
+        await expect(page.getByTestId("status-list").locator(".action-chip-state")).toHaveText("success");
     });
 
     test("create modal opens with shape defaults (empty form)", async ({ page }) => {
