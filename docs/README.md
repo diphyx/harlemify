@@ -2,7 +2,7 @@
 
 > Factory-driven state management for Nuxt powered by [Harlem](https://harlemjs.com/)
 
-![Version](https://img.shields.io/badge/version-5.4.0-42b883)
+![Version](https://img.shields.io/badge/version-5.4.1-42b883)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 Define your data **shape** once with Zod — get typed **models**, computed **views**, and async **actions** with a single `createStore` call.
@@ -23,7 +23,7 @@ Every action tracks `loading`, `status`, and `error` automatically. Every model 
 ## Quick Example
 
 ```typescript
-import { shape, ModelManyMode } from "@diphyx/harlemify";
+import { shape, ModelManyMode } from "@diphyx/harlemify/runtime";
 
 const userShape = shape((factory) => ({
     id: factory.number().meta({ identifier: true }),
@@ -63,7 +63,7 @@ await execute();
 
 <template>
     <ul v-if="!loading">
-        <li v-for="user in data.value" :key="user.id">{{ user.name }}</li>
+        <li v-for="user in data" :key="user.id">{{ user.name }}</li>
     </ul>
 </template>
 ```

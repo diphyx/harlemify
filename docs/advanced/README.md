@@ -8,4 +8,5 @@ Features for fine-tuning store behavior and debugging.
 | [Cancellation](cancellation.md)       | Cancel in-flight requests using `AbortSignal`                             |
 | [Isolated Status](isolated-status.md) | Track action status and errors independently across different UI contexts |
 | [Lazy Store](lazy-store.md)           | Defer store initialization until first access with `lazy: true`           |
+| [SSR](ssr.md)                         | Automatic server-side rendering with state hydration                      |
 | [Logging](logging.md)                 | Enable per-store debug logging via Consola                                |

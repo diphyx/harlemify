@@ -60,13 +60,13 @@ const sidebarAction = useStoreAction(userStore, "list", { isolated: true });
 
 <template>
     <header>
-        <button @click="headerAction.execute()" :disabled="headerAction.loading.value">
-            {{ headerAction.loading.value ? "Refreshing..." : "Refresh" }}
+        <button @click="headerAction.execute()" :disabled="headerAction.loading">
+            {{ headerAction.loading ? "Refreshing..." : "Refresh" }}
         </button>
     </header>
     <aside>
-        <button @click="sidebarAction.execute()" :disabled="sidebarAction.loading.value">
-            {{ sidebarAction.loading.value ? "Loading..." : "Reload" }}
+        <button @click="sidebarAction.execute()" :disabled="sidebarAction.loading">
+            {{ sidebarAction.loading ? "Loading..." : "Reload" }}
         </button>
     </aside>
 </template>

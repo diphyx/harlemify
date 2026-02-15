@@ -7,7 +7,7 @@ The shape is the foundation of every harlemify store. It defines your data struc
 Use the `shape` helper to define a Zod object schema:
 
 ```typescript
-import { shape, type ShapeInfer } from "@diphyx/harlemify";
+import { shape, type ShapeInfer } from "@diphyx/harlemify/runtime";
 
 const userShape = shape((factory) => ({
     id: factory.number(),

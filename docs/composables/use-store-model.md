@@ -66,7 +66,7 @@ model.set(value3); // Executes
 All mutation methods accept a `silent` option to skip pre/post hooks:
 
 ```typescript
-import { ModelSilent } from "@diphyx/harlemify";
+import { ModelSilent } from "@diphyx/harlemify/runtime";
 
 const { set, reset, patch } = useStoreModel(userStore, "current");
 

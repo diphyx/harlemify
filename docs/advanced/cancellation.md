@@ -104,7 +104,7 @@ watch(query, (value) => {
 <template>
     <input v-model="query" placeholder="Search users..." />
     <ul>
-        <li v-for="user in view.users.value" :key="user.id">{{ user.name }}</li>
+        <li v-for="user in view.users" :key="user.id">{{ user.name }}</li>
     </ul>
 </template>
 ```

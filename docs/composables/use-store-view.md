@@ -1,50 +1,15 @@
 # useStoreView
 
-Returns reactive view data with proxy access and a `track` method for watching changes.
+Returns reactive view data as a `ComputedRef` and a `track` method for watching changes.
 
 ## Basic Usage
 
 ```typescript
 const { data, track } = useStoreView(userStore, "user");
 
-data.value; // User — standard ref access
-data.name; // string — proxy access without .value
-data.email; // string — proxy access without .value
-```
-
-## Data Proxy
-
-The `data` object is a proxy that supports both `.value` for the full ref value and direct property access:
-
-```typescript
-const { data } = useStoreView(userStore, "user");
-
-// Standard access
-data.value; // User
-
-// Proxy access — reads from the current .value
-data.name; // equivalent to data.value.name
-data.email; // equivalent to data.value.email
-```
-
-This is useful in templates where you want to avoid repeated `.value` checks:
-
-```vue
-<template>
-    <p>{{ data.name }}</p>
-    <p>{{ data.email }}</p>
-</template>
-```
-
-## Without Proxy
-
-Pass `proxy: false` to get a standard Vue `ComputedRef` instead:
-
-```typescript
-const { data } = useStoreView(userStore, "user", { proxy: false });
-
-data.value; // User — standard ComputedRef
-data.value.name; // access via .value in script
+data.value; // User — standard ComputedRef access
+data.value.name; // string
+data.value.email; // string
 ```
 
 In templates, Vue auto-unwraps the `ComputedRef`, so `.value` is not needed:
@@ -52,6 +17,7 @@ In templates, Vue auto-unwraps the `ComputedRef`, so `.value` is not needed:
 ```vue
 <template>
     <p>{{ data.name }}</p>
+    <p>{{ data.email }}</p>
 </template>
 ```
 
@@ -108,32 +74,15 @@ onMounted(() => {
     <h2>{{ userData.name }}</h2>
     <p>{{ userData.email }}</p>
     <ul>
-        <li v-for="user in usersData.value" :key="user.id">{{ user.name }}</li>
+        <li v-for="user in usersData" :key="user.id">{{ user.name }}</li>
     </ul>
 </template>
 ```
 
-## Options
-
-| Option  | Type      | Default | Description                                                             |
-| ------- | --------- | ------- | ----------------------------------------------------------------------- |
-| `proxy` | `boolean` | `true`  | When `true`, returns a proxy. When `false`, returns a raw `ComputedRef` |
-
 ## Return Type
 
-### With Proxy (default)
-
 ```typescript
-type UseStoreViewProxy<T> = {
-    data: { value: T } & { [K in keyof T]: T[K] };
-    track: (handler: (value: T) => void, options?: UseStoreViewTrackOptions) => WatchStopHandle;
-};
-```
-
-### Without Proxy
-
-```typescript
-type UseStoreViewComputed<T> = {
+type UseStoreView<T> = {
     data: ComputedRef<T>;
     track: (handler: (value: T) => void, options?: UseStoreViewTrackOptions) => WatchStopHandle;
 };

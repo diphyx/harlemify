@@ -35,15 +35,14 @@ Each store creates a tagged logger with the format `harlemify:{storeName}`. The 
 
 ```
 [harlemify:users] Creating store          (info)
-[harlemify:users] Initializing store      (debug)
 [harlemify:users] Store created           (info)
 ```
 
 ### Model
 
 ```
-[harlemify:users] Model registered        (debug)  { model: "current", kind: "object" }
-[harlemify:users] Model registered        (debug)  { model: "list", kind: "array" }
+[harlemify:users] Registering model       (debug)  { model: "current", type: "one" }
+[harlemify:users] Registering model       (debug)  { model: "list", type: "many" }
 [harlemify:users] Model mutation          (debug)  { model: "current", mutation: "set" }
 [harlemify:users] Model mutation          (debug)  { model: "list", mutation: "add" }
 ```
@@ -51,26 +50,36 @@ Each store creates a tagged logger with the format `harlemify:{storeName}`. The 
 ### View
 
 ```
-[harlemify:users] View registered         (debug)  { view: "user", sources: ["current"] }
-[harlemify:users] View registered         (debug)  { view: "summary", sources: ["current", "list"] }
+[harlemify:users] Registering view        (debug)  { view: "user", models: ["current"] }
+[harlemify:users] Registering view        (debug)  { view: "summary", models: ["current", "list"] }
 ```
 
 ### Action
 
 ```
+[harlemify:users] Registering action      (debug)  { action: "list", type: "api" }
 [harlemify:users] Action API request      (debug)  { action: "list", method: "GET", url: "/users" }
-[harlemify:users] Action API response     (debug)  { action: "list", method: "GET", url: "/users" }
-[harlemify:users] Action handle phase     (debug)  { action: "toggle" }
-[harlemify:users] Action commit phase     (debug)  { action: "list", model: "list", mode: "set" }
+[harlemify:users] Action API response received (debug)  { action: "list", method: "GET", url: "/users" }
+[harlemify:users] Action handler phase    (debug)  { action: "toggle" }
+[harlemify:users] Action commit phase     (debug)  { action: "list", target: ..., mode: "set" }
 [harlemify:users] Action success          (debug)  { action: "list" }
+```
+
+### Compose
+
+```
+[harlemify:users] Registering compose action (debug)  { action: "loadAll" }
+[harlemify:users] Compose action executing   (debug)  { action: "loadAll" }
+[harlemify:users] Compose action success     (debug)  { action: "loadAll" }
 ```
 
 ### Errors
 
 ```
 [harlemify:users] Action API error        (error)  { action: "list", error: "Server Error" }
-[harlemify:users] Action handle error     (error)  { action: "toggle", error: "..." }
+[harlemify:users] Action handler error    (error)  { action: "toggle", error: "..." }
 [harlemify:users] Action commit error     (error)  { action: "list", error: "..." }
+[harlemify:users] Model pre hook error    (error)  { model: "current", error: ... }
 ```
 
 ### Concurrency

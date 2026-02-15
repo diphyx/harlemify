@@ -8,7 +8,7 @@ Create a Zod-powered shape with the `shape` helper:
 
 ```typescript
 // stores/user.ts
-import { shape, ModelOneMode, ModelManyMode, type ShapeInfer } from "@diphyx/harlemify";
+import { shape, ModelOneMode, ModelManyMode, type ShapeInfer } from "@diphyx/harlemify/runtime";
 
 const userShape = shape((factory) => ({
     id: factory.number().meta({ identifier: true }),
@@ -163,14 +163,14 @@ async function handleDelete(user: User) {
         <div v-if="loading">Loading...</div>
 
         <ul v-else>
-            <li v-for="u in users.value" :key="u.id">
+            <li v-for="u in users" :key="u.id">
                 {{ u.name }} - {{ u.email }}
                 <button @click="selectUser(u)">Select</button>
                 <button @click="handleDelete(u)">Delete</button>
             </li>
         </ul>
 
-        <p>Total: {{ count.value }}</p>
+        <p>Total: {{ count }}</p>
     </div>
 </template>
 ```

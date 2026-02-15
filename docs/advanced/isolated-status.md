@@ -36,7 +36,7 @@ Show separate loading indicators for the same action called from different UI se
 
 ```vue
 <script setup lang="ts">
-import { ActionStatus } from "@diphyx/harlemify";
+import { ActionStatus } from "@diphyx/harlemify/runtime";
 
 const { action } = userStore;
 

@@ -260,10 +260,10 @@ store.action.fetch.reset(); // Reset to idle
 
 ```vue
 <template>
-    <div v-if="action.list.loading.value">Loading...</div>
-    <div v-else-if="action.list.error.value">{{ action.list.error.value.message }}</div>
+    <div v-if="action.list.loading">Loading...</div>
+    <div v-else-if="action.list.error">{{ action.list.error.message }}</div>
     <ul v-else>
-        <li v-for="user in view.users.value" :key="user.id">{{ user.name }}</li>
+        <li v-for="user in view.users" :key="user.id">{{ user.name }}</li>
     </ul>
 </template>
 ```

@@ -21,4 +21,5 @@
     - [Cancellation](advanced/cancellation.md)
     - [Isolated Status](advanced/isolated-status.md)
     - [Lazy Store](advanced/lazy-store.md)
+    - [SSR](advanced/ssr.md)
     - [Logging](advanced/logging.md)

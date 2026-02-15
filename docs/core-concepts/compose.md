@@ -82,8 +82,8 @@ store.compose.loadAll.active; // Readonly<Ref<boolean>>
 
 ```vue
 <template>
-    <button @click="store.compose.loadAll()" :disabled="store.compose.loadAll.active.value">
-        {{ store.compose.loadAll.active.value ? "Loading..." : "Load All" }}
+    <button @click="store.compose.loadAll()" :disabled="store.compose.loadAll.active">
+        {{ store.compose.loadAll.active ? "Loading..." : "Load All" }}
     </button>
 </template>
 ```

@@ -58,7 +58,7 @@ Harlemify automatically imports the following in your Nuxt project:
 Types and enums must be imported manually:
 
 ```typescript
-import { shape, ModelOneMode, ModelManyMode, type ShapeInfer } from "@diphyx/harlemify";
+import { shape, ModelOneMode, ModelManyMode, type ShapeInfer } from "@diphyx/harlemify/runtime";
 ```
 
 ## Next Step

@@ -77,7 +77,7 @@ await execute();
 
 <template>
     <ul v-if="!loading">
-        <li v-for="user in data.value" :key="user.id">{{ user.name }}</li>
+        <li v-for="user in data" :key="user.id">{{ user.name }}</li>
     </ul>
 </template>
 ```
