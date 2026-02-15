@@ -27,6 +27,7 @@ Reactive view data as a `ComputedRef` with change tracking.
 const { data, track } = useStoreView(store, "user");
 
 data.value; // User — standard ComputedRef
+data.value.name; // string
 ```
 
 ## [useStoreCompose](use-store-compose.md)

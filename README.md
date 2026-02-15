@@ -2,40 +2,66 @@
 
 > Factory-driven state management for Nuxt powered by [Harlem](https://harlemjs.com/)
 
+![Version](https://img.shields.io/badge/version-5.3.0-42b883)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 Define your data **shape** once with Zod — get typed **models**, computed **views**, and async **actions** with a single `createStore` call.
 
-- **Schema-first** — Define your data shape once, get TypeScript types and validation automatically
-- **Reactive state** — Single items and collections with built-in mutations
-- **Computed views** — Derived read-only state that updates when models change
-- **API integration** — Declarative HTTP actions that fetch and commit data in one step
-- **Status tracking** — Every action exposes loading, error, and status reactively
-- **Concurrency control** — Block, skip, cancel, or allow parallel calls per action
-- **Vue composables** — Reactive helpers for actions, models, and views in components
-- **SSR ready** — Server-side rendering with automatic state hydration
+Built on top of [Harlem](https://harlemjs.com/), a powerful and extensible state management library for Vue 3.
 
-## Install
+---
 
-```bash
-npm install @diphyx/harlemify
-```
+## The Problem
+
+Every Nuxt app has the same boilerplate for every API resource:
 
 ```typescript
-// nuxt.config.ts
-export default defineNuxtConfig({
-    modules: ["@diphyx/harlemify"],
+// Without Harlemify — this gets written for EVERY resource
+
+// 1. Define types manually
+interface User {
+    id: number;
+    name: string;
+    email: string;
+}
+
+// 2. Define state
+const users = ref<User[]>([]);
+const currentUser = ref<User | null>(null);
+const loading = ref(false);
+const error = ref<Error | null>(null);
+
+// 3. Write fetch logic
+async function fetchUsers() {
+    loading.value = true;
+    error.value = null;
+    try {
+        users.value = await $fetch("/api/users");
+    } catch (e) {
+        error.value = e as Error;
+    } finally {
+        loading.value = false;
+    }
+}
+
+// 4. Repeat for create, update, delete...
+// 5. Repeat for every resource in your app...
+```
+
+## The Solution
+
+With Harlemify, define a data shape once and get everything else for free:
+
+```typescript
+const userShape = shape((factory) => {
+    return {
+        id: factory.number().meta({
+            identifier: true,
+        }),
+        name: factory.string(),
+        email: factory.email(),
+    };
 });
-```
-
-## Usage
-
-```typescript
-const userShape = shape((factory) => ({
-    id: factory.number().meta({
-        identifier: true,
-    }),
-    name: factory.string(),
-    email: factory.email(),
-}));
 
 export const userStore = createStore({
     name: "users",
@@ -57,20 +83,41 @@ export const userStore = createStore({
                 {
                     url: "/users",
                 },
+                { model: "list", mode: ModelManyMode.SET },
+            ),
+            get: api.get(
                 {
-                    model: "list",
-                    mode: ModelManyMode.SET,
+                    url(view) {
+                        return `/users/${view.user.value?.id}`;
+                    },
                 },
+                { model: "current", mode: ModelOneMode.SET },
+            ),
+            create: api.post(
+                {
+                    url: "/users",
+                },
+                { model: "list", mode: ModelManyMode.ADD },
+            ),
+            delete: api.delete(
+                {
+                    url(view) {
+                        return `/users/${view.user.value?.id}`;
+                    },
+                },
+                { model: "list", mode: ModelManyMode.REMOVE },
             ),
         };
     },
 });
 ```
 
+Use it in any component with built-in composables:
+
 ```vue
 <script setup>
-const { execute, loading } = useStoreAction(userStore, "list");
-const { data } = useStoreView(userStore, "users");
+const { execute, loading, error } = useStoreAction(userStore, "list");
+const { data: users } = useStoreView(userStore, "users");
 
 await execute();
 </script>
@@ -94,8 +141,14 @@ await execute();
 
 ## Documentation
 
+Full docs with guides, API reference, and examples:
+
 [https://diphyx.github.io/harlemify/](https://diphyx.github.io/harlemify/)
+
+## Contributing
+
+Contributions are welcome! Please open an issue first to discuss what you'd like to change.
 
 ## License
 
-MIT
+[MIT](LICENSE)
