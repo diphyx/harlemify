@@ -63,6 +63,10 @@ async function appendFromServer() {
     });
 }
 
+async function loadPage() {
+    await postStore.action.loadPage();
+}
+
 function resetSortAction() {
     postStore.action.sort.reset();
 }
@@ -82,6 +86,7 @@ function resetSortAction() {
         <div class="toolbar">
             <button class="btn btn-sm" data-testid="sort-posts" @click="sortPosts">Sort A-Z</button>
             <button class="btn btn-sm" data-testid="append-posts" @click="appendFromServer">Append from Server</button>
+            <button class="btn btn-sm" data-testid="load-page" @click="loadPage">Load Page (multi-commit)</button>
             <button class="btn btn-sm" data-testid="reset-sort" @click="resetSortAction">Reset Sort</button>
         </div>
 
@@ -150,6 +155,11 @@ function resetSortAction() {
                 <pre class="aside-pre">{{ JSON.stringify(postStore.view.editor.value, null, 2) }}</pre>
             </div>
 
+            <div class="aside-panel" data-testid="page-meta">
+                <div class="aside-panel-title">view.pageMeta (multi-commit)</div>
+                <pre class="aside-pre">{{ JSON.stringify(postStore.view.pageMeta.value, null, 2) }}</pre>
+            </div>
+
             <ActionStatus
                 :actions="{
                     list: postStore.action.list,
@@ -170,6 +180,10 @@ function resetSortAction() {
                 <li>
                     <code>action(&#123; commit: &#123; mode: ActionManyMode.ADD &#125; &#125;)</code> - Call-time
                     commit.mode override
+                </li>
+                <li>
+                    <code>api.get(req, commitA, commitB)</code> - Multi-commit: one envelope response into multiple
+                    models
                 </li>
                 <li><code>action.sort.reset()</code> - Reset action state</li>
                 <li><code>action(&#123; body &#125;)</code> - Call-time payload with body data</li>

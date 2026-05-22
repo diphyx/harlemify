@@ -103,9 +103,9 @@ describe("createActionFactory", () => {
             );
 
             expect(definition.request).toBeDefined();
-            expect(definition.commit).toBeDefined();
-            expect(definition.commit?.model).toBe("users");
-            expect(definition.commit?.mode).toBe(ModelManyMode.SET);
+            expect(definition.commits).toBeDefined();
+            expect(definition.commits?.[0]?.model).toBe("users");
+            expect(definition.commits?.[0]?.mode).toBe(ModelManyMode.SET);
         });
     });
 
@@ -562,10 +562,12 @@ describe("createAction", () => {
                     url: "/users/1",
                     method: ActionApiMethod.GET,
                 },
-                commit: {
-                    model: "user",
-                    mode: ModelOneMode.SET,
-                },
+                commits: [
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                    },
+                ],
             });
 
             await action();
@@ -592,11 +594,13 @@ describe("createAction", () => {
                     url: "/users",
                     method: ActionApiMethod.GET,
                 },
-                commit: {
-                    model: "users",
-                    mode: ModelManyMode.SET,
-                    value: (data: unknown) => data,
-                },
+                commits: [
+                    {
+                        model: "users",
+                        mode: ModelManyMode.SET,
+                        value: (data: unknown) => data,
+                    },
+                ],
             });
 
             await action();
@@ -611,10 +615,12 @@ describe("createAction", () => {
                     url: "/users/1",
                     method: ActionApiMethod.GET,
                 },
-                commit: {
-                    model: "nonexistent",
-                    mode: ModelOneMode.SET,
-                },
+                commits: [
+                    {
+                        model: "nonexistent",
+                        mode: ModelOneMode.SET,
+                    },
+                ],
             });
             mockFetch.mockResolvedValue({
                 id: 1,
@@ -645,10 +651,12 @@ describe("createAction", () => {
                     url: "/users/2",
                     method: ActionApiMethod.GET,
                 },
-                commit: {
-                    model: "users",
-                    mode: ModelManyMode.SET,
-                },
+                commits: [
+                    {
+                        model: "users",
+                        mode: ModelManyMode.SET,
+                    },
+                ],
             });
 
             model.users.set(users);
@@ -662,6 +670,188 @@ describe("createAction", () => {
             expect(source.state.users as User[]).toHaveLength(2);
             expect((source.state.users as User[])[0].name).toBe("Alice");
             expect((source.state.users as User[])[1].name).toBe("Bob");
+        });
+    });
+
+    describe("multi-commit", () => {
+        it("commits envelope response to multiple models", async () => {
+            mockFetch.mockResolvedValue({
+                output: [
+                    { id: 1, name: "Alice", email: "alice@test.com" },
+                    { id: 2, name: "Bob", email: "bob@test.com" },
+                ],
+                meta: { id: 99, name: "primary", email: "primary@test.com" },
+            });
+
+            const { action, source } = setup({
+                request: {
+                    url: "/users",
+                    method: ActionApiMethod.GET,
+                },
+                commits: [
+                    {
+                        model: "users",
+                        mode: ModelManyMode.SET,
+                        value: (data: unknown) => (data as { output: User[] }).output,
+                    },
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                        value: (data: unknown) => (data as { meta: User }).meta,
+                    },
+                ],
+            });
+
+            await action();
+
+            expect(source.state.users as User[]).toHaveLength(2);
+            expect((source.state.users as User[])[0].name).toBe("Alice");
+            expect((source.state.user as User).name).toBe("primary");
+        });
+
+        it("returns grouped object keyed by model with 1+ commits", async () => {
+            mockFetch.mockResolvedValue({
+                output: [{ id: 1, name: "Alice", email: "alice@test.com" }],
+                meta: { id: 99, name: "primary", email: "primary@test.com" },
+            });
+
+            const { action } = setup({
+                request: {
+                    url: "/users",
+                    method: ActionApiMethod.GET,
+                },
+                commits: [
+                    {
+                        model: "users",
+                        mode: ModelManyMode.SET,
+                        value: (data: unknown) => (data as { output: User[] }).output,
+                    },
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                        value: (data: unknown) => (data as { meta: User }).meta,
+                    },
+                ],
+            });
+
+            const result = (await action()) as Record<string, unknown>;
+
+            expect(result).toHaveProperty("users");
+            expect(result).toHaveProperty("user");
+            expect((result.users as User[])[0].name).toBe("Alice");
+            expect((result.user as User).name).toBe("primary");
+        });
+
+        it("returns raw response when no commits", async () => {
+            mockFetch.mockResolvedValue({ raw: "payload" });
+
+            const { action } = setup({
+                request: {
+                    url: "/anything",
+                    method: ActionApiMethod.GET,
+                },
+            });
+
+            const result = (await action()) as Record<string, unknown>;
+
+            expect(result).toEqual({ raw: "payload" });
+        });
+
+        it("single commit returns grouped object with one key", async () => {
+            mockFetch.mockResolvedValue({
+                id: 1,
+                name: "Alice",
+                email: "alice@test.com",
+            });
+
+            const { action } = setup({
+                request: {
+                    url: "/users/1",
+                    method: ActionApiMethod.GET,
+                },
+                commits: [
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                    },
+                ],
+            });
+
+            const result = (await action()) as Record<string, unknown>;
+
+            expect(Object.keys(result)).toEqual(["user"]);
+            expect((result.user as User).name).toBe("Alice");
+        });
+
+        it("per-entry mode override via record form", async () => {
+            const seed: User[] = [{ id: 1, name: "Alice", email: "alice@test.com" }];
+
+            mockFetch.mockResolvedValue({
+                list: [{ id: 2, name: "Bob", email: "bob@test.com" }],
+                main: { id: 99, name: "primary", email: "primary@test.com" },
+            });
+
+            const { action, source, model } = setup({
+                request: {
+                    url: "/users",
+                    method: ActionApiMethod.GET,
+                },
+                commits: [
+                    {
+                        model: "users",
+                        mode: ModelManyMode.SET,
+                        value: (data: unknown) => (data as { list: User[] }).list,
+                    },
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                        value: (data: unknown) => (data as { main: User }).main,
+                    },
+                ],
+            });
+
+            model.users.set(seed);
+
+            await action({
+                commit: { mode: { users: ModelManyMode.ADD } },
+            });
+
+            expect(source.state.users as User[]).toHaveLength(2);
+            expect((source.state.users as User[])[0].name).toBe("Alice");
+            expect((source.state.users as User[])[1].name).toBe("Bob");
+            expect((source.state.user as User).name).toBe("primary");
+        });
+
+        it("atomic: pass-1 failure leaves all models untouched", async () => {
+            mockFetch.mockResolvedValue({
+                output: [{ id: 1, name: "Alice", email: "alice@test.com" }],
+            });
+
+            const seed: User[] = [{ id: 99, name: "untouched", email: "x@test.com" }];
+
+            const { action, source, model } = setup({
+                request: {
+                    url: "/users",
+                    method: ActionApiMethod.GET,
+                },
+                commits: [
+                    {
+                        model: "users",
+                        mode: ModelManyMode.SET,
+                        value: (data: unknown) => (data as { output: User[] }).output,
+                    },
+                    {
+                        model: "nonexistent",
+                        mode: ModelOneMode.SET,
+                    },
+                ],
+            });
+
+            model.users.set(seed);
+
+            await expect(action()).rejects.toThrow();
+            expect(action.error.value?.name).toBe("ActionCommitError");
+            expect(source.state.users as User[]).toEqual(seed);
         });
     });
 
@@ -1215,10 +1405,12 @@ describe("createAction", () => {
                     url: "/users/1",
                     method: ActionApiMethod.GET,
                 },
-                commit: {
-                    model: "user",
-                    mode: ModelOneMode.SET,
-                },
+                commits: [
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                    },
+                ],
             });
 
             await action();
@@ -1242,10 +1434,12 @@ describe("createAction", () => {
                     url: "/users",
                     method: ActionApiMethod.GET,
                 },
-                commit: {
-                    model: "users",
-                    mode: ModelManyMode.SET,
-                },
+                commits: [
+                    {
+                        model: "users",
+                        mode: ModelManyMode.SET,
+                    },
+                ],
             });
 
             await action();
@@ -1264,10 +1458,12 @@ describe("createAction", () => {
                     url: "/users",
                     method: ActionApiMethod.POST,
                 },
-                commit: {
-                    model: "user",
-                    mode: ModelOneMode.SET,
-                },
+                commits: [
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                    },
+                ],
             });
 
             await action({
@@ -1319,10 +1515,12 @@ describe("createAction", () => {
                     url: "/users/1",
                     method: ActionApiMethod.GET,
                 },
-                commit: {
-                    model: "user",
-                    mode: ModelOneMode.SET,
-                },
+                commits: [
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                    },
+                ],
             });
 
             await action({
