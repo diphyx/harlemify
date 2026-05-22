@@ -1,5 +1,5 @@
-name: Release
-run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'Dry Run' || 'Release' }}
+name: Publish
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'Dry Run' || 'Publish' }}
 
 on:
     release:
@@ -72,6 +72,9 @@ jobs:
     publish:
         needs: [test, test-e2e]
         runs-on: ubuntu-latest
+        permissions:
+            id-token: write
+            contents: read
         steps:
             - uses: actions/checkout@v4
             - uses: pnpm/action-setup@v4
@@ -88,5 +91,3 @@ jobs:
                   name: dist
                   path: dist/
             - run: pnpm publish --no-git-checks --access public ${{ inputs.dry_run && '--dry-run' || '' }}
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
