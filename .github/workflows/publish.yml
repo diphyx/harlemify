@@ -86,4 +86,4 @@ jobs:
               with:
                   name: dist
                   path: dist/
-            - run: npm publish --access public ${{ inputs.dry_run && '--dry-run' || '' }}
+            - run: npm publish --ignore-scripts --access public ${{ inputs.dry_run && '--dry-run' || '' }}
