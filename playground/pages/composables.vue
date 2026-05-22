@@ -14,10 +14,9 @@ const debouncedModel = useStoreModel(todoStore, "current", { debounce: 500 });
 const throttledModel = useStoreModel(todoStore, "current", { throttle: 500 });
 const modelLog = ref<string[]>([]);
 
-const { data: pendingData } = useStoreView(todoStore, "pending");
+const pendingView = useStoreView(todoStore, "pending");
 const todoView = useStoreView(todoStore, "todo");
 const todosView = useStoreView(todoStore, "todos");
-const computedView = useStoreView(todoStore, "todo", { proxy: false });
 const trackLog = ref<string[]>([]);
 
 onMounted(() => execute());
@@ -105,7 +104,12 @@ function clearTrackLog() {
         <div class="toolbar">
             <h2 data-testid="todo-count">{{ todosView.data.value.length }} todos</h2>
             <button class="btn btn-primary" data-testid="reload" @click="execute()">Reload</button>
-            <button v-if="todoView.data.id" class="btn btn-sm" data-testid="clear-selection" @click="resetCurrent()">
+            <button
+                v-if="todoView.data.value.id"
+                class="btn btn-sm"
+                data-testid="clear-selection"
+                @click="resetCurrent()"
+            >
                 Clear
             </button>
         </div>
@@ -117,7 +121,7 @@ function clearTrackLog() {
                 v-for="todo in todosView.data.value"
                 :key="todo.id"
                 class="list-item"
-                :class="{ selected: todoView.data.id === todo.id }"
+                :class="{ selected: todoView.data.value.id === todo.id }"
                 :data-testid="`todo-${todo.id}`"
             >
                 <div>
@@ -250,7 +254,7 @@ function clearTrackLog() {
             <h2>useStoreView</h2>
 
             <div class="demo-box">
-                <h4>Data Proxy</h4>
+                <h4>Data</h4>
                 <p class="desc"><code>const todoView = useStoreView(store, "todo")</code></p>
                 <div class="kv-grid">
                     <div class="kv">
@@ -260,39 +264,22 @@ function clearTrackLog() {
                         }}</span>
                     </div>
                     <div class="kv">
-                        <span class="kv-k">.data.title</span
-                        ><span class="kv-v" data-testid="view-data-title">{{ todoView.data.title }}</span>
-                    </div>
-                    <div class="kv">
-                        <span class="kv-k">.data.done</span
-                        ><span class="kv-v" data-testid="view-data-done">{{ todoView.data.done }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="demo-box">
-                <h4>Without Proxy</h4>
-                <p class="desc"><code>useStoreView(store, "todo", { proxy: false })</code></p>
-                <div class="kv-grid">
-                    <div class="kv">
-                        <span class="kv-k">.data.value</span
-                        ><span class="kv-v" data-testid="view-computed-value">{{
-                            JSON.stringify(computedView.data.value)
-                        }}</span>
-                    </div>
-                    <div class="kv">
                         <span class="kv-k">.data.value.title</span
-                        ><span class="kv-v" data-testid="view-computed-title">{{ computedView.data.value.title }}</span>
+                        ><span class="kv-v" data-testid="view-data-title">{{ todoView.data.value.title }}</span>
+                    </div>
+                    <div class="kv">
+                        <span class="kv-k">.data.value.done</span
+                        ><span class="kv-v" data-testid="view-data-done">{{ todoView.data.value.done }}</span>
                     </div>
                 </div>
             </div>
 
             <div class="demo-box">
                 <h4>Pending View</h4>
-                <p class="desc"><code>const { data: pendingData } = useStoreView(store, "pending")</code></p>
+                <p class="desc"><code>const pendingView = useStoreView(store, "pending")</code></p>
                 <pre data-testid="view-pending">{{
                     JSON.stringify(
-                        pendingData.value.map((t: Todo) => t.title),
+                        pendingView.data.value.map((t: Todo) => t.title),
                         null,
                         2,
                     )
@@ -330,8 +317,6 @@ function clearTrackLog() {
                 <li><code>useStoreModel</code> many - { add, remove }</li>
                 <li><code>{ debounce }</code> / <code>{ throttle }</code> - Rate-limited mutations</li>
                 <li><code>useStoreView(store, key)</code> - { data, track }</li>
-                <li><code>{ proxy: false }</code> - Raw ComputedRef</li>
-                <li>Data proxy: <code>data.title</code> without <code>.value</code></li>
                 <li><code>track(handler)</code> - Watch view changes</li>
             </FeatureInfo>
         </template>

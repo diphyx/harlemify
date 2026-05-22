@@ -1,4 +1,12 @@
-import { createStore, shape, ModelManyMode, ModelManyKind, ViewClone, type ShapeInfer } from "../../src/runtime";
+import {
+    createStore,
+    shape,
+    ModelOneMode,
+    ModelManyMode,
+    ModelManyKind,
+    ViewClone,
+    type ShapeInfer,
+} from "../../src/runtime";
 
 export const postShape = shape((factory) => {
     return {
@@ -13,6 +21,16 @@ export const postShape = shape((factory) => {
 
 export type Post = ShapeInfer<typeof postShape>;
 
+export const pageMetaShape = shape((factory) => {
+    return {
+        total: factory.number(),
+        offset: factory.number(),
+        limit: factory.number(),
+    };
+});
+
+export type PageMeta = ShapeInfer<typeof pageMetaShape>;
+
 export const postStore = createStore({
     name: "posts",
     model({ one, many }) {
@@ -21,6 +39,7 @@ export const postStore = createStore({
             draft: one(postShape),
             list: many(postShape),
             byUser: many(postShape, { kind: ModelManyKind.RECORD }),
+            pageMeta: one(pageMetaShape),
         };
     },
     view({ from, merge }) {
@@ -62,17 +81,27 @@ export const postStore = createStore({
             userPosts: from("byUser", (grouped) => {
                 return Object.keys(grouped).length;
             }),
+            pageMeta: from("pageMeta"),
         };
     },
     action({ api, handler }) {
         return {
             list: api.get({ url: "/posts" }, { model: "list", mode: ModelManyMode.SET }),
+            loadPage: api.get(
+                { url: "/posts/page" },
+                { model: "list", mode: ModelManyMode.SET, value: (data: unknown) => (data as { items: Post[] }).items },
+                {
+                    model: "pageMeta",
+                    mode: ModelOneMode.SET,
+                    value: (data: unknown) => (data as { meta: PageMeta }).meta,
+                },
+            ),
             create: api.post(
                 { url: "/posts" },
                 {
                     model: "list",
                     mode: ModelManyMode.ADD,
-                    value: (data) => {
+                    value: (data: unknown) => {
                         const post = data as Post;
                         return { ...post, title: post.title.toUpperCase() };
                     },

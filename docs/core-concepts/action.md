@@ -22,13 +22,13 @@ action({ api, handler }) {
 
 ## API Actions
 
-Make HTTP requests and optionally commit the response to a model:
+Make HTTP requests and optionally commit the response to one or more models:
 
 ```typescript
 api.get({ url: "/users" }, { model: "list", mode: ModelManyMode.SET });
 ```
 
-The first argument is the request config, the second (optional) is the commit config.
+The first argument is the request config. Every following argument is a commit config — pass zero, one, or many.
 
 ### HTTP Methods
 
@@ -74,7 +74,7 @@ await store.action.get({ params: { id: "42" } });
 
 ### Commit Config
 
-The second argument defines how to commit the response:
+Each commit argument defines how to commit the response into one model:
 
 ```typescript
 {
@@ -84,6 +84,51 @@ The second argument defines how to commit the response:
     options: { unique: true, prepend: true },  // Optional: mutation options
 }
 ```
+
+### Multiple Commits
+
+For wrapped/envelope responses, pass multiple commit configs and slice the response per target:
+
+```typescript
+api.get(
+    { url: "/users" },
+    { model: "list", mode: ModelManyMode.SET, value: (data) => data.output },
+    { model: "pagination", mode: ModelOneMode.SET, value: (data) => data.meta },
+);
+```
+
+Each commit applies independently. Pass `value` to extract the slice that belongs to that model.
+
+### Return Value
+
+The shape of `await store.action.xxx()` depends on the number of commits:
+
+| Commits | Returns                                                                   |
+| ------- | ------------------------------------------------------------------------- |
+| 0       | The raw `$fetch` response (after `transformer.response`, if any)          |
+| 1+      | An object keyed by `model`, each value = what was committed to that model |
+
+```typescript
+// 2 commits
+const result = await store.action.list();
+// result = { list: User[], pagination: { total, offset, limit } }
+
+result.list; // committed users
+result.pagination; // committed pagination
+
+// 0 commits
+const raw = await store.action.fire();
+// raw = whatever $fetch returned
+```
+
+### Atomic Commits
+
+Commits resolve in two phases:
+
+1. **Resolve** — for every entry: look up the target model, run `value(data)`, apply alias remapping.
+2. **Apply** — write each prepared value into its model.
+
+Any error in phase 1 (typo in `model`, throw in `value()`) aborts the action **before any model is mutated** — the store stays untouched.
 
 ### Alias Mapping
 
@@ -100,8 +145,8 @@ const contactShape = shape((factory) => ({
 
 For actions with a `commit` config pointing to a model that uses an aliased shape:
 
-- **Outbound:** Request body keys are remapped from shape keys to alias keys. `{ first_name: "John" }` becomes `{ "first-name": "John" }`.
-- **Inbound:** Response keys are remapped from alias keys to shape keys. `{ "first-name": "John" }` becomes `{ first_name: "John" }`.
+- **Outbound:** Request body keys are remapped from shape keys to alias keys. `{ first_name: "John" }` becomes `{ "first-name": "John" }`. With multiple commits, outbound aliasing uses the **first commit's** target.
+- **Inbound:** Each commit's slice (after `value()`) is remapped using **its own target's** aliases. Different targets can have different alias maps without conflict.
 
 **Ordering with transformers:**
 
@@ -212,6 +257,20 @@ await store.action.fetch({
 
 > **Option priority:** Call-time options override definition-time values, which override module config, which override built-in defaults. Headers are merged via `defu`.
 
+### Commit Mode Override
+
+Override the commit `mode` per call. Two forms:
+
+```typescript
+// applies to every commit entry
+await store.action.list({ commit: { mode: ModelManyMode.ADD } });
+
+// per-entry, keyed by model name
+await store.action.list({
+    commit: { mode: { list: ModelManyMode.ADD } }, // only the "list" entry is overridden; others keep their defined mode
+});
+```
+
 ### Transformer
 
 Transform request and/or response at call time:
@@ -240,8 +299,10 @@ See [Isolated Status](../advanced/isolated-status.md) for details.
 
 Every action call defers via `nextTick()` before executing. This ensures Vue's reactivity system has processed any pending state changes before the action runs.
 
-- **API actions:** nextTick → concurrency check → resolve API → request → commit → done
+- **API actions:** nextTick → concurrency check → resolve API → request → resolve commits → apply commits → done
 - **Handler actions:** nextTick → concurrency check → callback → done
+
+Commit phase is two-pass — see [Atomic Commits](#atomic-commits).
 
 ## Action Properties
 

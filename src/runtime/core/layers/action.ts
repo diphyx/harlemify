@@ -20,7 +20,10 @@ export function createActionFactory<MD extends ModelDefinitions, VD extends View
     config?: RuntimeActionConfig,
     logger?: ConsolaInstance,
 ): ActionFactory<MD, VD> {
-    function apiCall(request: ActionApiRequest<MD, VD>, commit?: ActionApiCommit<MD>): ActionApiDefinition<MD, VD> {
+    function apiCall(
+        request: ActionApiRequest<MD, VD>,
+        ...commits: ActionApiCommit<MD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
         return wrapBaseDefinition({
             request: {
                 endpoint: config?.endpoint,
@@ -30,81 +33,51 @@ export function createActionFactory<MD extends ModelDefinitions, VD extends View
                 concurrent: config?.concurrent,
                 ...request,
             },
-            commit,
+            commits,
             logger,
         });
     }
 
     function apiGet(
         request: ActionApiRequestShortcut<MD, VD>,
-        commit?: ActionApiCommit<MD>,
-    ): ActionApiDefinition<MD, VD> {
-        return apiCall({ ...request, method: ActionApiMethod.GET }, commit);
+        ...commits: ActionApiCommit<MD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        return apiCall({ ...request, method: ActionApiMethod.GET }, ...commits);
     }
 
     function apiHead(
         request: ActionApiRequestShortcut<MD, VD>,
-        commit?: ActionApiCommit<MD>,
-    ): ActionApiDefinition<MD, VD> {
-        return apiCall(
-            {
-                ...request,
-                method: ActionApiMethod.HEAD,
-            },
-            commit,
-        );
+        ...commits: ActionApiCommit<MD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        return apiCall({ ...request, method: ActionApiMethod.HEAD }, ...commits);
     }
 
     function apiPost(
         request: ActionApiRequestShortcut<MD, VD>,
-        commit?: ActionApiCommit<MD>,
-    ): ActionApiDefinition<MD, VD> {
-        return apiCall(
-            {
-                ...request,
-                method: ActionApiMethod.POST,
-            },
-            commit,
-        );
+        ...commits: ActionApiCommit<MD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        return apiCall({ ...request, method: ActionApiMethod.POST }, ...commits);
     }
 
     function apiPut(
         request: ActionApiRequestShortcut<MD, VD>,
-        commit?: ActionApiCommit<MD>,
-    ): ActionApiDefinition<MD, VD> {
-        return apiCall(
-            {
-                ...request,
-                method: ActionApiMethod.PUT,
-            },
-            commit,
-        );
+        ...commits: ActionApiCommit<MD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        return apiCall({ ...request, method: ActionApiMethod.PUT }, ...commits);
     }
 
     function apiPatch(
         request: ActionApiRequestShortcut<MD, VD>,
-        commit?: ActionApiCommit<MD>,
-    ): ActionApiDefinition<MD, VD> {
-        return apiCall(
-            {
-                ...request,
-                method: ActionApiMethod.PATCH,
-            },
-            commit,
-        );
+        ...commits: ActionApiCommit<MD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        return apiCall({ ...request, method: ActionApiMethod.PATCH }, ...commits);
     }
 
     function apiDelete(
         request: ActionApiRequestShortcut<MD, VD>,
-        commit?: ActionApiCommit<MD>,
-    ): ActionApiDefinition<MD, VD> {
-        return apiCall(
-            {
-                ...request,
-                method: ActionApiMethod.DELETE,
-            },
-            commit,
-        );
+        ...commits: ActionApiCommit<MD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        return apiCall({ ...request, method: ActionApiMethod.DELETE }, ...commits);
     }
 
     const api = Object.assign(apiCall, {
@@ -114,7 +87,7 @@ export function createActionFactory<MD extends ModelDefinitions, VD extends View
         put: apiPut,
         patch: apiPatch,
         delete: apiDelete,
-    });
+    }) as ActionFactory<MD, VD>["api"];
 
     function handler<P = unknown, R = void>(
         callback: ActionHandlerCallback<MD, VD, P, R>,

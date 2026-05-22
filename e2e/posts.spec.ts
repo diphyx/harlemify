@@ -67,6 +67,18 @@ test.describe("posts page", () => {
         await expect(page.getByTestId("post-count")).toHaveText("6 posts");
     });
 
+    test("loads page via multi-commit and populates both list and pageMeta", async ({ page }) => {
+        const pageMeta = page.getByTestId("page-meta");
+        await expect(pageMeta).toContainText('"total": 0');
+
+        await page.getByTestId("load-page").click();
+
+        await expect(page.getByTestId("post-count")).toHaveText("3 posts");
+        await expect(pageMeta).toContainText('"total": 3');
+        await expect(pageMeta).toContainText('"offset": 0');
+        await expect(pageMeta).toContainText('"limit": 3');
+    });
+
     test("resets sort action status", async ({ page }) => {
         await page.getByTestId("sort-posts").click();
         await expect(page.getByTestId("status-sort").locator(".action-chip-state")).toHaveText("success");

@@ -13,6 +13,13 @@ Define your data **shape** once with Zod — get typed **models**, computed **vi
 - **Vue composables** — Reactive helpers for actions, models, and views in components
 - **SSR ready** — Server-side rendering with automatic state hydration
 
+## For AI Agents
+
+If you are an AI coding agent working on a project that uses `@diphyx/harlemify`, read **[`docs/AGENTS.md`](docs/AGENTS.md)** first. It is a single-file, end-to-end reference (shapes, models, views, actions, compose, composables, SSR, lazy stores, concurrency, cancellation, isolated status, logging) designed to give you the full mental model in one read.
+
+- Source: [`docs/AGENTS.md`](docs/AGENTS.md)
+- Rendered: [https://diphyx.github.io/harlemify/#/AGENTS](https://diphyx.github.io/harlemify/#/AGENTS)
+
 ## Install
 
 ```bash

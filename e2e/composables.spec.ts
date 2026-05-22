@@ -160,19 +160,19 @@ test.describe("composables page", () => {
 
     // useStoreView
 
-    test("view non-destructured: data proxy shows shape defaults when no selection", async ({ page }) => {
+    test("view data shows shape defaults when no selection", async ({ page }) => {
         await expect(page.getByTestId("view-data-value")).toContainText('"id":0');
         await expect(page.getByTestId("view-data-title")).toHaveText("");
         await expect(page.getByTestId("view-data-done")).toHaveText("false");
     });
 
-    test("view non-destructured: data proxy reflects selection", async ({ page }) => {
+    test("view data reflects selection", async ({ page }) => {
         await page.getByTestId("todo-1").getByTestId("select-todo").click();
         await expect(page.getByTestId("view-data-title")).toHaveText("Buy groceries");
         await expect(page.getByTestId("view-data-done")).toHaveText("false");
     });
 
-    test("view non-destructured: proxy access matches .value access", async ({ page }) => {
+    test("view data title and done match .value", async ({ page }) => {
         await page.getByTestId("todo-1").getByTestId("select-todo").click();
         const json = await page.getByTestId("view-data-value").textContent();
         const parsed = JSON.parse(json!);
@@ -180,7 +180,7 @@ test.describe("composables page", () => {
         await expect(page.getByTestId("view-data-done")).toHaveText(String(parsed.done));
     });
 
-    test("view non-destructured: clear selection button uses proxy", async ({ page }) => {
+    test("view clear selection resets data", async ({ page }) => {
         await page.getByTestId("todo-1").getByTestId("select-todo").click();
         await expect(page.getByTestId("clear-selection")).toBeVisible();
         await page.getByTestId("clear-selection").click();
@@ -188,24 +188,13 @@ test.describe("composables page", () => {
         await expect(page.getByTestId("clear-selection")).not.toBeVisible();
     });
 
-    test("view non-destructured: selected highlight uses proxy", async ({ page }) => {
+    test("view selected highlight", async ({ page }) => {
         await page.getByTestId("todo-2").getByTestId("select-todo").click();
         await expect(page.getByTestId("todo-2")).toHaveClass(/selected/);
         await expect(page.getByTestId("todo-1")).not.toHaveClass(/selected/);
         await page.getByTestId("todo-1").getByTestId("select-todo").click();
         await expect(page.getByTestId("todo-1")).toHaveClass(/selected/);
         await expect(page.getByTestId("todo-2")).not.toHaveClass(/selected/);
-    });
-
-    test("view without proxy: shows shape defaults when no selection", async ({ page }) => {
-        await expect(page.getByTestId("view-computed-value")).toContainText('"title":""');
-        await expect(page.getByTestId("view-computed-title")).toHaveText("");
-    });
-
-    test("view without proxy: reflects selection via .value", async ({ page }) => {
-        await page.getByTestId("todo-1").getByTestId("select-todo").click();
-        await expect(page.getByTestId("view-computed-title")).toHaveText("Buy groceries");
-        await expect(page.getByTestId("view-computed-value")).toContainText("Buy groceries");
     });
 
     test("view destructured: pending data shows incomplete todos", async ({ page }) => {

@@ -415,7 +415,7 @@ describe("useStoreView", () => {
         expect(() => useStoreView(store, "nonexistent" as any)).toThrow('View "nonexistent" not found in store');
     });
 
-    describe("data proxy", () => {
+    describe("data", () => {
         it("data.value returns the view value", () => {
             const store = setup();
             const { data } = useStoreView(store, "user");
@@ -432,59 +432,12 @@ describe("useStoreView", () => {
             expect(data.value).toEqual({ id: 1, name: "Alice" });
         });
 
-        it("data proxies property access", () => {
-            const store = setup();
-            const { data } = useStoreView(store, "user");
-
-            store.model.user.set({ id: 1, name: "Alice" });
-
-            expect((data as any).name).toBe("Alice");
-            expect((data as any).id).toBe(1);
-        });
-
-        it("data returns shape default for properties on initial state", () => {
-            const store = setup();
-            const { data } = useStoreView(store, "user");
-
-            expect((data as any).name).toBe("");
-        });
-
-        it("has operator works", () => {
-            const store = setup();
-            const { data } = useStoreView(store, "user");
-
-            store.model.user.set({ id: 1, name: "Alice" });
-
-            expect("name" in data).toBe(true);
-            expect("value" in data).toBe(true);
-            expect("nonexistent" in data).toBe(false);
-        });
-    });
-
-    describe("proxy: false", () => {
         it("data is a ComputedRef", () => {
             const store = setup();
-            const { data } = useStoreView(store, "user", { proxy: false });
+            const { data } = useStoreView(store, "user");
 
             expect(data.value).toEqual({ id: 0, name: "" });
-        });
-
-        it("data.value reflects model changes", () => {
-            const store = setup();
-            const { data } = useStoreView(store, "user", { proxy: false });
-
-            store.model.user.set({ id: 1, name: "Alice" });
-
-            expect(data.value).toEqual({ id: 1, name: "Alice" });
-        });
-
-        it("data does not proxy properties", () => {
-            const store = setup();
-            const { data } = useStoreView(store, "user", { proxy: false });
-
-            store.model.user.set({ id: 1, name: "Alice" });
-
-            expect((data as any).name).toBeUndefined();
+            expect((data as any).effect).toBeDefined();
         });
     });
 

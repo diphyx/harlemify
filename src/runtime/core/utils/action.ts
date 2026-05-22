@@ -105,7 +105,7 @@ function resolveApiBody<MD extends ModelDefinitions, VD extends ViewDefinitions<
         return body;
     }
 
-    if (!isEmptyRecord(target?.aliases())) {
+    if (target && !isEmptyRecord(target.aliases())) {
         return resolveAliasOutbound(body, target.aliases());
     }
 
@@ -162,33 +162,23 @@ function resolveHandlerPayload<MD extends ModelDefinitions, VD extends ViewDefin
 
 // Resolve Commit
 
-function resolveApiCommitTarget<MD extends ModelDefinitions>(
-    commit: ActionApiCommit<MD> | undefined,
-    model: StoreModel<MD>,
-): ModelCall<Shape> | undefined {
-    if (commit) {
-        return model[commit.model] as ModelCall<Shape>;
-    }
-
-    return undefined;
-}
-
-function resolveApiCommitMode<MD extends ModelDefinitions>(
-    commit: ActionApiCommit<MD> | undefined,
+function resolveCommitMode<MD extends ModelDefinitions>(
+    commit: ActionApiCommit<MD>,
     options?: ActionApiCallOptions,
-): (ModelOneMode | ModelManyMode) | undefined {
-    if (commit) {
-        if (options?.commit?.mode) {
-            return options.commit.mode;
+): ModelOneMode | ModelManyMode {
+    const override = options?.commit?.mode;
+    if (override) {
+        if (typeof override === "object") {
+            return (override as Record<string, ModelOneMode | ModelManyMode>)[commit.model as string] ?? commit.mode;
         }
 
-        return commit.mode;
+        return override;
     }
 
-    return undefined;
+    return commit.mode;
 }
 
-function resolveApiCommitValue<MD extends ModelDefinitions>(commit: ActionApiCommit<MD>, data: unknown): unknown {
+function resolveCommitValue<MD extends ModelDefinitions>(commit: ActionApiCommit<MD>, data: unknown): unknown {
     if (typeof commit.value === "function") {
         return commit.value(data);
     }
@@ -314,36 +304,44 @@ async function executeHandler<MD extends ModelDefinitions, VD extends ViewDefini
 
 // Execute Commit
 
+interface CommitPlanEntry<MD extends ModelDefinitions> {
+    commit: ActionApiCommit<MD>;
+    target: ModelCall<Shape>;
+    mode: ModelOneMode | ModelManyMode;
+    value: unknown;
+}
+
 function executeCommit<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
     definition: ActionApiDefinition<MD, VD>,
-    target: ModelCall<Shape> | undefined,
-    mode: (ModelOneMode | ModelManyMode) | undefined,
+    model: StoreModel<MD>,
     data: unknown,
-): void {
-    if (!definition.commit) {
-        return;
+    options?: ActionApiCallOptions,
+): unknown {
+    const commits = definition.commits;
+    if (!commits || commits.length === 0) {
+        return data;
     }
 
-    if (!target || !mode) {
-        throw new ActionCommitError({
-            message: `Model "${definition.commit.model as string}" is not defined`,
-        });
-    }
+    const plan: CommitPlanEntry<MD>[] = [];
 
     try {
-        definition.logger?.debug("Action commit phase", {
-            action: definition.key,
-            target,
-            mode,
-        });
+        for (const commit of commits) {
+            const target = model[commit.model] as ModelCall<Shape>;
+            if (!target) {
+                throw new ActionCommitError({
+                    message: `Model "${commit.model as string}" is not defined`,
+                });
+            }
 
-        if (!isEmptyRecord(target.aliases())) {
-            data = resolveAliasInbound(data, target.aliases());
+            const mode = resolveCommitMode(commit, options);
+
+            let value = resolveCommitValue(commit, data);
+            if (!isEmptyRecord(target.aliases())) {
+                value = resolveAliasInbound(value, target.aliases());
+            }
+
+            plan.push({ commit, target, mode, value });
         }
-
-        const value = resolveApiCommitValue(definition.commit, data);
-
-        target.commit(mode, value, definition.commit.options);
     } catch (error: unknown) {
         const commitError = toError(error, ActionCommitError);
 
@@ -354,6 +352,33 @@ function executeCommit<MD extends ModelDefinitions, VD extends ViewDefinitions<M
 
         throw commitError;
     }
+
+    const result: Record<string, unknown> = {};
+
+    for (const entry of plan) {
+        definition.logger?.debug("Action commit phase", {
+            action: definition.key,
+            target: entry.target,
+            mode: entry.mode,
+        });
+
+        try {
+            entry.target.commit(entry.mode, entry.value, entry.commit.options);
+        } catch (error: unknown) {
+            const commitError = toError(error, ActionCommitError);
+
+            definition.logger?.error("Action commit error", {
+                action: definition.key,
+                error: commitError.message,
+            });
+
+            throw commitError;
+        }
+
+        result[entry.commit.model as string] = entry.value;
+    }
+
+    return result;
 }
 
 // Create Action
@@ -424,18 +449,18 @@ export function createAction<MD extends ModelDefinitions, VD extends ViewDefinit
                 let data: R = undefined as R;
 
                 if (isApiDefinition(definition)) {
-                    const target = resolveApiCommitTarget(definition.commit, model);
-                    const mode = resolveApiCommitMode(definition.commit, options);
+                    const firstCommit = definition.commits?.[0];
+                    const bodyTarget = firstCommit ? (model[firstCommit.model] as ModelCall<Shape>) : undefined;
 
                     const url = resolveApiUrl(definition, view, options);
                     const method = resolveApiMethod(definition, view);
                     const headers = resolveApiHeaders(definition, view, options);
                     const query = resolveApiQuery(definition, view, options);
-                    const body = resolveApiBody(definition, view, target, options);
+                    const body = resolveApiBody(definition, view, bodyTarget, options);
                     const timeout = resolveApiTimeout(definition, view, options);
                     const signal = resolveApiSignal(options, abortController!);
 
-                    data = await executeApi<MD, VD, R>(
+                    const response = await executeApi<MD, VD, unknown>(
                         definition,
                         {
                             url,
@@ -449,7 +474,7 @@ export function createAction<MD extends ModelDefinitions, VD extends ViewDefinit
                         options,
                     );
 
-                    executeCommit(definition, target, mode, data);
+                    data = executeCommit(definition, model, response, options) as R;
                 } else if (isHandlerDefinition(definition)) {
                     const payload = resolveHandlerPayload(definition, options);
 
