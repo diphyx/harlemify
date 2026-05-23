@@ -38,6 +38,8 @@ store.model.user.reset();
 
 > **Note:** State is always initialized to shape defaults (e.g. `{ id: 0, name: "" }`). Provide a custom `default` function to override the initial and reset values.
 
+> **Scalar singletons:** `one(shape)` expects an object shape. For primitive state (counters, totals, tokens, flags), wrap the value in a single-field shape and unwrap via a view. See [Scalar State Pattern](shape.md#scalar-state-pattern).
+
 ## Many (List)
 
 `many(shape)` creates a collection initialized to `[]`:

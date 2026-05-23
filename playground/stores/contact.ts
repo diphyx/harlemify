@@ -1,14 +1,21 @@
+import { z } from "zod";
+
 import { createStore, shape, ModelOneMode, ModelManyMode, type ShapeInfer } from "../../src/runtime";
 
-export const contactShape = shape((factory) => {
-    return {
-        id: factory.number().meta({
-            identifier: true,
-        }),
-        first_name: factory.string().meta({ alias: "first-name" }),
-        last_name: factory.string().meta({ alias: "last-name" }),
-        email: factory.email(),
-    };
+// Pre-built Zod schema (as if imported from a shared validators package or generated from OpenAPI)
+const externalContactSchema = z.object({
+    id: z.number(),
+    first_name: z.string(),
+    last_name: z.string(),
+    email: z.email(),
+});
+
+// Wrap with shape() then annotate via shape.extend — adds identifier + alias meta
+// without modifying the source schema.
+export const contactShape = shape.extend(shape(externalContactSchema), {
+    id: z.number().meta({ identifier: true }),
+    first_name: z.string().meta({ alias: "first-name" }),
+    last_name: z.string().meta({ alias: "last-name" }),
 });
 
 export type Contact = ShapeInfer<typeof contactShape>;

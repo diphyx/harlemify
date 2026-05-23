@@ -236,13 +236,10 @@ export function resolveZeroValues<T extends ShapeDefinition>(shape: T): ShapeInf
 
 // Create shape
 
-export function createShape<T extends ShapeRawDefinition>(definition: T): ShapeCall<T> {
-    const object = z.object(definition);
-
+export function decorateShape<T extends ShapeRawDefinition>(object: z.ZodObject<T>): ShapeCall<T> {
     const shape = Object.assign(object, {
         defaults(overrides?: Partial<ShapeInfer<typeof object>>) {
             const zero = resolveZeroValues(object);
-
             if (overrides) {
                 return defu(overrides, zero) as ShapeInfer<typeof object>;
             }
@@ -252,4 +249,10 @@ export function createShape<T extends ShapeRawDefinition>(definition: T): ShapeC
     });
 
     return shape;
+}
+
+export function createShape<T extends ShapeRawDefinition>(definition: T): ShapeCall<T> {
+    const object = z.object(definition);
+
+    return decorateShape(object);
 }
