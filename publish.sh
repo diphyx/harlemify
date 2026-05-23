@@ -88,7 +88,10 @@ if [[ "$action" == "2" ]]; then
         echo ""
         echo "Warning: releases must be created from main (current: ${BRANCH})"
         read -rp "Merge ${BRANCH} into main and continue? [y/N]: " confirm
-        [[ "${confirm,,}" == "y" ]] || exit 1
+        case "$confirm" in
+            y|Y) ;;
+            *) exit 1 ;;
+        esac
 
         SOURCE="$BRANCH"
         git checkout main
