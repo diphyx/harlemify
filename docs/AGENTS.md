@@ -86,16 +86,31 @@ import {
 
 ## 3. Shape — Schema Foundation
 
-Shapes are Zod object schemas defined with a factory helper. They drive types, defaults, identifier matching, and alias key-mapping.
+Shapes are Zod object schemas. They drive types, defaults, identifier matching, and alias key-mapping.
+
+`shape()` accepts three input forms — all return the same `ShapeCall<T>`:
 
 ```typescript
+import { z } from "zod";
 import { shape, type ShapeInfer } from "@diphyx/harlemify/runtime";
 
+// 1. Factory callback (terse, includes short-form helpers like .email())
 const userShape = shape((factory) => ({
     id: factory.number().meta({ identifier: true }),
     name: factory.string(),
     email: factory.email(),
 }));
+
+// 2. Raw Zod definition
+const userShape = shape({
+    id: z.number().meta({ identifier: true }),
+    name: z.string(),
+    email: z.email(),
+});
+
+// 3. Pre-built z.object(...) — reuse external schemas, preserves refinements/transforms
+const externalSchema = z.object({ id: z.number(), name: z.string() });
+const userShape = shape(externalSchema);
 
 type User = ShapeInfer<typeof userShape>;
 // → { id: number; name: string; email: string }
@@ -149,6 +164,49 @@ const contactShape = shape((factory) => ({
 - Order outbound: `resolveBody()` → alias remap → `transformer.request`.
 - Order inbound: `$fetch` → `transformer.response` → alias remap → commit.
 - **Skipped when:** action has no `commit` config; shape has no aliases; body is non-object (`FormData`, `Blob`, …).
+
+### Composition helpers
+
+Thin pass-throughs over Zod's native `.extend` / `.pick` / `.omit`, re-decorated with `.defaults()`. Same signatures as Zod — accept raw definitions / mask objects. Refinements, transforms, and field meta (`identifier`, `alias`) on retained fields are preserved.
+
+- `shape.extend(base, rawZodShape)` — add fields, or override existing ones (later fields win on key collision).
+- `shape.pick(base, { key: true, … })` — keep masked keys.
+- `shape.omit(base, { key: true, … })` — drop masked keys.
+
+```typescript
+import { z } from "zod";
+
+const profileShape = shape.extend(userShape, { bio: z.string() });
+const publicUserShape = shape.omit(userShape, { passwordHash: true });
+const credentialsShape = shape.pick(userShape, { id: true, email: true });
+
+// Override pattern — annotate a pre-built schema with meta:
+const externalUserSchema = z.object({ id: z.number(), first_name: z.string() });
+const userShape = shape.extend(shape(externalUserSchema), {
+    id: z.number().meta({ identifier: true }),
+    first_name: z.string().meta({ alias: "first-name" }),
+});
+```
+
+### Scalar state pattern
+
+Shapes must be Zod objects. For a singleton primitive value (counters, totals, tokens, flags), wrap in a single-field shape and unwrap via a view:
+
+```typescript
+const totalShape = shape((f) => ({ value: f.number() }));
+
+model({ one }) { return { total: one(totalShape) }; }
+view({ from })  { return { total: from("total", (m) => m.value) }; }
+
+// view.total.value             → number
+// model.total.set({ value: 42 })
+```
+
+For grouped scalars (pagination `total`/`offset`/`limit`), put them on one shape and expose each via its own view. Pair with [multi-commit](#63-calling-actions) when the API returns an envelope.
+
+> **Primitive arrays:** don't `many()` with `{ value: T }` wrappers. Use `one()` with an array field (`shape({ values: f.array(f.string()) })`) and accept that mutations replace the whole array. If you need per-item add/remove, give items real ids and use `many()` of objects.
+
+> **UI-only state:** use a Vue `ref` in the component — models are overkill for ephemeral local state.
 
 ### Complex shapes
 

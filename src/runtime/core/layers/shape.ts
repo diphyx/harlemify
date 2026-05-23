@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import type { ShapeFactory, ShapeRawDefinition } from "../types/shape";
-import { createShape } from "../utils/shape";
+import type { ShapeCall, ShapeFactory, ShapeRawDefinition } from "../types/shape";
+import { createShape, decorateShape } from "../utils/shape";
 
 export const primitiveField = {
     string: z.string,
@@ -49,17 +49,50 @@ export const specialField = {
     optional: z.optional,
 };
 
-export function shape<T extends ShapeRawDefinition>(definition: T | ((factory: ShapeFactory) => T)) {
+const factory: ShapeFactory = {
+    ...primitiveField,
+    ...structureField,
+    ...formatField,
+    ...specialField,
+};
+
+function shapeFn<T extends ShapeRawDefinition>(
+    definition: T | z.ZodObject<T> | ((factory: ShapeFactory) => T),
+): ShapeCall<T> {
+    if (definition instanceof z.ZodObject) {
+        return decorateShape(definition);
+    }
+
     if (typeof definition === "function") {
-        return createShape(
-            definition({
-                ...primitiveField,
-                ...structureField,
-                ...formatField,
-                ...specialField,
-            }),
-        );
+        return createShape(definition(factory));
     }
 
     return createShape(definition);
 }
+
+function shapeExtend<B extends ShapeRawDefinition, E extends ShapeRawDefinition>(
+    base: ShapeCall<B>,
+    extension: E,
+): ShapeCall<B & E> {
+    return decorateShape(base.extend(extension)) as unknown as ShapeCall<B & E>;
+}
+
+function shapePick<B extends ShapeRawDefinition, M extends { [K in keyof B]?: true }>(
+    base: ShapeCall<B>,
+    mask: M,
+): ShapeCall<Pick<B, Extract<keyof B, keyof M>>> {
+    return decorateShape(base.pick(mask as never)) as unknown as ShapeCall<Pick<B, Extract<keyof B, keyof M>>>;
+}
+
+function shapeOmit<B extends ShapeRawDefinition, M extends { [K in keyof B]?: true }>(
+    base: ShapeCall<B>,
+    mask: M,
+): ShapeCall<Omit<B, Extract<keyof B, keyof M>>> {
+    return decorateShape(base.omit(mask as never)) as unknown as ShapeCall<Omit<B, Extract<keyof B, keyof M>>>;
+}
+
+export const shape = Object.assign(shapeFn, {
+    extend: shapeExtend,
+    pick: shapePick,
+    omit: shapeOmit,
+});

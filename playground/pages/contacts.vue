@@ -126,6 +126,8 @@ function clearSelection() {
 
         <template #footer>
             <FeatureInfo>
+                <li><code>shape(z.object(...))</code> - Wrap a pre-built Zod schema</li>
+                <li><code>shape.extend(base, { id: z.number().meta({...}) })</code> - Override fields to add meta</li>
                 <li><code>meta({ alias: "first-name" })</code> - Shape-level key alias mapping</li>
                 <li>API returns kebab-case keys (<code>first-name</code>, <code>last-name</code>)</li>
                 <li>Store commits with snake_case keys (<code>first_name</code>, <code>last_name</code>)</li>

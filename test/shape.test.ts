@@ -31,6 +31,133 @@ describe("shape", () => {
 
         expect(schema).toBeInstanceOf(ZodObject);
     });
+
+    it("wraps a pre-built zod object schema", () => {
+        const external = z.object({
+            id: z.number(),
+            name: z.string(),
+        });
+
+        const schema = shape(external);
+
+        expect(schema).toBeInstanceOf(ZodObject);
+        expect(schema.defaults()).toEqual({ id: 0, name: "" });
+    });
+});
+
+// shape.extend
+
+describe("shape.extend", () => {
+    const base = shape((factory) => ({
+        id: factory.number(),
+        name: factory.string(),
+    }));
+
+    it("extends a shape with a raw zod definition", () => {
+        const extended = shape.extend(base, {
+            email: z.string(),
+            active: z.boolean(),
+        });
+
+        expect(extended).toBeInstanceOf(ZodObject);
+        expect(Object.keys(extended.shape)).toEqual(["id", "name", "email", "active"]);
+    });
+
+    it("returns a shape with defaults() method", () => {
+        const extended = shape.extend(base, { score: z.number() });
+
+        expect(extended.defaults()).toEqual({ id: 0, name: "", score: 0 });
+    });
+
+    it("preserves field meta from the base", () => {
+        const withMeta = shape((factory) => ({
+            id: factory.number().meta({ identifier: true }),
+            slug: factory.string().meta({ alias: "url-slug" }),
+        }));
+
+        const extended = shape.extend(withMeta, { extra: z.string() });
+
+        expect(resolveShapeAliases(extended)).toEqual({ slug: "url-slug" });
+        expect(resolveShapeIdentifier(extended)).toBe("id");
+    });
+
+    it("later fields override earlier fields with the same key", () => {
+        const overridden = shape.extend(base, { name: z.number() });
+
+        expect(overridden.defaults()).toEqual({ id: 0, name: 0 });
+    });
+});
+
+// shape.pick
+
+describe("shape.pick", () => {
+    const base = shape((factory) => ({
+        id: factory.number(),
+        name: factory.string(),
+        email: factory.string(),
+        active: factory.boolean(),
+    }));
+
+    it("keeps only the selected keys", () => {
+        const picked = shape.pick(base, { id: true, name: true });
+
+        expect(Object.keys(picked.shape)).toEqual(["id", "name"]);
+    });
+
+    it("preserves the original field meta", () => {
+        const withMeta = shape((factory) => ({
+            id: factory.number().meta({ identifier: true }),
+            slug: factory.string().meta({ alias: "url-slug" }),
+            name: factory.string(),
+        }));
+
+        const picked = shape.pick(withMeta, { id: true, slug: true });
+
+        expect(resolveShapeAliases(picked)).toEqual({ slug: "url-slug" });
+        expect(resolveShapeIdentifier(picked)).toBe("id");
+    });
+
+    it("returns a shape with defaults() method", () => {
+        const picked = shape.pick(base, { name: true });
+
+        expect(picked.defaults()).toEqual({ name: "" });
+    });
+});
+
+// shape.omit
+
+describe("shape.omit", () => {
+    const base = shape((factory) => ({
+        id: factory.number(),
+        name: factory.string(),
+        email: factory.string(),
+        active: factory.boolean(),
+    }));
+
+    it("drops the specified keys", () => {
+        const omitted = shape.omit(base, { email: true, active: true });
+
+        expect(Object.keys(omitted.shape)).toEqual(["id", "name"]);
+    });
+
+    it("preserves remaining field meta", () => {
+        const withMeta = shape((factory) => ({
+            id: factory.number().meta({ identifier: true }),
+            slug: factory.string().meta({ alias: "url-slug" }),
+            internal: factory.string(),
+        }));
+
+        const omitted = shape.omit(withMeta, { internal: true });
+
+        expect(resolveShapeAliases(omitted)).toEqual({ slug: "url-slug" });
+        expect(resolveShapeIdentifier(omitted)).toBe("id");
+    });
+
+    it("returns a shape with defaults() method", () => {
+        const omitted = shape.omit(base, { email: true, active: true });
+
+        expect(omitted.defaults()).toEqual({ id: 0, name: "" });
+    });
 });
 
 // Resolve
