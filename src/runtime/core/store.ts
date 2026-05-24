@@ -1,3 +1,4 @@
+import { effectScope } from "vue";
 import { createConsola } from "consola";
 import { createStore as createStoreSource } from "@harlem/core";
 
@@ -61,14 +62,17 @@ export function createStore<
 
     if (config.lazy) {
         let instance: Store<MD, VD, AD, CD> | undefined;
+        const scope = effectScope(true);
 
         return new Proxy({} as Store<MD, VD, AD, CD>, {
             get(_, prop: string) {
                 if (!instance) {
-                    instance = init();
+                    scope.run(() => {
+                        instance = init();
+                    });
                 }
 
-                return instance[prop as keyof Store<MD, VD, AD, CD>];
+                return instance![prop as keyof Store<MD, VD, AD, CD>];
             },
         });
     }

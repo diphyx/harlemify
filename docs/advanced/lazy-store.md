@@ -28,6 +28,10 @@ configStore.model.config.set(data);
 
 Subsequent accesses reuse the same instance — initialization only happens once.
 
+## Scope Isolation
+
+Lazy stores are initialized inside a detached [`effectScope`](https://vuejs.org/api/reactivity-advanced.html#effectscope), so the store's reactive internals are not bound to whatever scope is active at first access (usually a component's setup). The store has app-lifetime semantics — identical to an eager store — and survives the unmount of any component that first read it.
+
 ## When to Use
 
 Lazy stores are useful when the model factory depends on Nuxt composables that are only available after app setup. With eager stores, the factory runs at module evaluation time — before the Nuxt app is initialized. With `lazy: true`, the factory runs on first access, when Nuxt is ready:
