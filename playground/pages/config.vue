@@ -1,7 +1,26 @@
 <script setup lang="ts">
 import { configStore, configShape } from "../stores/config";
+import { scopeProbeStore } from "../stores/scope-probe";
 
 const languageInput = ref("");
+
+// Scope isolation demo: mount/unmount a child that first-reads a lazy store,
+// then mutate the same store from outside after the child is gone.
+const probeMounted = ref(false);
+const probeOutcome = ref<string>("");
+
+function toggleProbe() {
+    probeMounted.value = !probeMounted.value;
+}
+
+async function mutateProbeFromOutside() {
+    try {
+        await scopeProbeStore.action.bump({ payload: `outside-${Date.now()}` });
+        probeOutcome.value = "ok";
+    } catch (error) {
+        probeOutcome.value = (error as Error).message;
+    }
+}
 
 onMounted(() => configStore.action.get());
 
@@ -116,6 +135,23 @@ async function silentUpdate() {
                 </div>
                 <button class="btn btn-sm" data-testid="silent-update" @click="silentUpdate">Silent Update</button>
             </div>
+
+            <div class="config-item scope-isolation" data-testid="config-scope-isolation">
+                <div>
+                    <strong>Scope Isolation</strong>
+                    <span class="value">lazy store survives child unmount</span>
+                </div>
+                <div class="scope-controls">
+                    <button class="btn btn-sm" data-testid="probe-toggle" @click="toggleProbe">
+                        {{ probeMounted ? "Unmount probe" : "Mount probe" }}
+                    </button>
+                    <button class="btn btn-sm" data-testid="probe-mutate" @click="mutateProbeFromOutside">
+                        Mutate from outside
+                    </button>
+                </div>
+                <ScopeProbe v-if="probeMounted" />
+                <div class="scope-outcome" data-testid="probe-outcome">{{ probeOutcome || "(no mutation yet)" }}</div>
+            </div>
         </div>
 
         <div v-else class="loading" data-testid="no-data">
@@ -166,7 +202,27 @@ async function silentUpdate() {
                 <li><code>silent: ModelSilent.POST</code> - Skip only post hook</li>
                 <li><code>lazy: true</code> - Defer store initialization until first access</li>
                 <li><code>default: () => (...)</code> - Function default for fresh values on reset</li>
+                <li>Scope Isolation - Lazy stores run <code>init()</code> in a detached scope</li>
             </FeatureInfo>
         </template>
     </PageLayout>
 </template>
+
+<style scoped>
+.scope-isolation {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.scope-controls {
+    display: flex;
+    gap: 6px;
+}
+
+.scope-outcome {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-3);
+}
+</style>

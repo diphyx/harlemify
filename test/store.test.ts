@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { effectScope } from "vue";
 
 import { createStore } from "../src/runtime/core/store";
 import { shape } from "../src/runtime/core/layers/shape";
@@ -145,6 +146,27 @@ describe("createStore", () => {
 
         // First access triggers factory — context is now ready
         expect(store.view.user.value).toEqual({ id: 1, name: "FromContext", email: "ctx@test.com" });
+    });
+
+    it("lazy store survives disposal of the scope that first accessed it", () => {
+        const store = createStore({
+            name: "test-lazy-scope-" + Math.random(),
+            model: (m) => ({ user: m.one(UserShape) }),
+            view: (v) => ({ user: v.from("user") }),
+            action: (_a) => ({}),
+            lazy: true,
+        });
+
+        const scope = effectScope();
+        scope.run(() => {
+            void store.model;
+        });
+        scope.stop();
+
+        expect(() => {
+            store.model.user.set({ id: 1, name: "Alice", email: "alice@test.com" });
+        }).not.toThrow();
+        expect(store.view.user.value).toEqual({ id: 1, name: "Alice", email: "alice@test.com" });
     });
 
     it("initializes only once on multiple accesses (lazy)", () => {

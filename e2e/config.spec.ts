@@ -87,4 +87,32 @@ test.describe("config page", () => {
     test("function default feature is listed", async ({ page }) => {
         await expect(page.getByTestId("feature-info")).toContainText("default: () => (...)");
     });
+
+    // Scope isolation
+
+    test("scope isolation: probe mounts and shows defaults", async ({ page }) => {
+        await page.getByTestId("probe-toggle").click();
+        await expect(page.getByTestId("lazy-scope-probe")).toBeVisible();
+        await expect(page.getByTestId("probe-value")).toHaveText("initial");
+        await expect(page.getByTestId("probe-mutations")).toHaveText("0");
+    });
+
+    test("scope isolation: mutate from outside after probe unmounts succeeds", async ({ page }) => {
+        await page.getByTestId("probe-toggle").click();
+        await expect(page.getByTestId("lazy-scope-probe")).toBeVisible();
+        await page.getByTestId("probe-toggle").click();
+        await expect(page.getByTestId("lazy-scope-probe")).toBeHidden();
+        await page.getByTestId("probe-mutate").click();
+        await expect(page.getByTestId("probe-outcome")).toHaveText("ok");
+    });
+
+    test("scope isolation: remounting probe shows surviving state", async ({ page }) => {
+        await page.getByTestId("probe-toggle").click();
+        await page.getByTestId("probe-toggle").click();
+        await page.getByTestId("probe-mutate").click();
+        await expect(page.getByTestId("probe-outcome")).toHaveText("ok");
+        await page.getByTestId("probe-toggle").click();
+        await expect(page.getByTestId("probe-value")).toContainText("outside-");
+        await expect(page.getByTestId("probe-mutations")).toHaveText("1");
+    });
 });
