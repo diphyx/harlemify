@@ -4,5 +4,5 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event);
     const post = { ...body, id: getNextPostId() };
     data.posts.push(post);
-    return post;
+    return { id: post.id };
 });

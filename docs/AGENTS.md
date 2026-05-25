@@ -30,9 +30,11 @@ Every **action** automatically tracks `loading`, `status`, and `error`. Every **
 ## 2. Installation & Configuration
 
 ```bash
-npm install @diphyx/harlemify
-# or: pnpm add @diphyx/harlemify / yarn add @diphyx/harlemify
+npm install @diphyx/harlemify zod
+# or: pnpm add @diphyx/harlemify zod / yarn add @diphyx/harlemify zod
 ```
+
+`zod` is a **peer dependency** — consumers must install it. `shape()` returns zod schemas, so duplicate copies would silently break `instanceof` checks against the app's own zod (used for forms, validation, etc.).
 
 ```typescript
 // nuxt.config.ts
@@ -427,10 +429,17 @@ HTTP methods: `api.get`, `api.head`, `api.post`, `api.put`, `api.patch`, `api.de
 {
     model:   "list",                                            // target model key
     mode:    ModelManyMode.ADD,                                 // or ModelOneMode.SET, etc.
-    value?:  (data) => data.items,                              // transform response before commit
+    transform?: (data, context) => data.items,                  // reshape response; context = { request, view }
     options?: { unique: true, prepend: true, /* by, deep, … */ } // forwarded as mutation options
 }
 ```
+
+`transform`'s `context` exposes the resolved `request` (`Readonly<{ url, method, headers, query, body }>`) and the read-only `view` (`DeepReadonly<StoreView>`). `data` (first arg) is the API response. Two canonical uses:
+
+- Merge request body back when server returns sparse `{ id }`: `transform: (data, { request }) => ({ ...request.body, ...data })`
+- Patch on top of existing store state: `transform: (data, { view }) => ({ ...view.user.value, ...data })`
+
+`context` is read-only; `transform` must be synchronous (no Promise returns). In multi-commit chains every transform receives the same `context` instance. TS quirk: inference through the factory's overloaded generics doesn't reach the `context` param — annotate explicitly via the exported `ActionApiCommitContext` type or a minimal inline shape if your editor flags it as `any`.
 
 **Multi-commit — envelope/wrapped responses:**
 
@@ -439,12 +448,12 @@ Pass multiple commit configs to slice one response into several models:
 ```typescript
 api.get(
     { url: "/users" },
-    { model: "list", mode: ModelManyMode.SET, value: (d) => d.output },
-    { model: "pagination", mode: ModelOneMode.SET, value: (d) => d.meta },
+    { model: "list", mode: ModelManyMode.SET, transform: (d) => d.output },
+    { model: "pagination", mode: ModelOneMode.SET, transform: (d) => d.meta },
 );
 ```
 
-Each commit applies independently. Resolution is two-pass: every entry is resolved (target lookup, `value()`, alias remap) before any model is mutated — pass-1 errors leave the store untouched.
+Each commit applies independently. Resolution is two-pass: every entry is resolved (target lookup, `transform()`, alias remap) before any model is mutated — pass-1 errors leave the store untouched.
 
 **Return value depends on commit count:**
 
@@ -557,7 +566,7 @@ await store.action.list({
 - API actions: `nextTick` → concurrency check → resolve API → request → resolve commits → apply commits → done.
 - Handler actions: `nextTick` → concurrency check → callback → done.
 
-The commit phase is two-pass: resolve all entries (target lookup, `value()`, alias inbound) into a plan, then apply each `target.commit(...)`. Pass-1 errors abort before any mutation.
+The commit phase is two-pass: resolve all entries (target lookup, `transform()`, alias inbound) into a plan, then apply each `target.commit(...)`. Pass-1 errors abort before any mutation.
 
 Every call defers via `nextTick()` first, so pending Vue reactivity is flushed before the action runs.
 
@@ -1010,7 +1019,7 @@ import {
 15. **For autocomplete-style search:** prefer `ActionConcurrent.CANCEL` over hand-rolled `AbortController` — it handles the abort wiring for you.
 16. **For the same action displayed in two UI spots with independent spinners:** use `useStoreAction(..., { isolated: true })` (or `useIsolatedActionStatus()` + `bind`).
 17. **Action return value is keyed by commit `model`.** With 1+ commits, `await store.action.foo()` resolves to `{ [model]: value, … }`. With 0 commits it returns the raw response. Destructure: `const { list } = await store.action.list()`.
-18. **Multi-commit with `value()` is the answer to envelope responses** (`{ data, meta, pagination }`). Don't reach for `handler` just to slice a response across models — `api.*` with multiple commits keeps the URL/param/alias machinery you'd lose with a handler.
+18. **Multi-commit with `transform()` is the answer to envelope responses** (`{ data, meta, pagination }`). Don't reach for `handler` just to slice a response across models — `api.*` with multiple commits keeps the URL/param/alias machinery you'd lose with a handler.
 
 ---
 

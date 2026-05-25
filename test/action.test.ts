@@ -579,7 +579,7 @@ describe("createAction", () => {
             });
         });
 
-        it("value function transforms data", async () => {
+        it("transform function reshapes data", async () => {
             const users: User[] = [
                 {
                     id: 1,
@@ -598,7 +598,7 @@ describe("createAction", () => {
                     {
                         model: "users",
                         mode: ModelManyMode.SET,
-                        value: (data: unknown) => data,
+                        transform: (data: unknown) => data,
                     },
                 ],
             });
@@ -607,6 +607,146 @@ describe("createAction", () => {
 
             expect(source.state.users as User[]).toHaveLength(1);
             expect((source.state.users as User[])[0]).toEqual(users[0]);
+        });
+
+        it("transform receives request/view context", async () => {
+            mockFetch.mockResolvedValue({ id: 7 });
+
+            const seen: { data?: unknown; request?: unknown; viewKeys?: string[] } = {};
+
+            const { action } = setup({
+                request: {
+                    url: "/users",
+                    method: ActionApiMethod.POST,
+                    headers: { "X-Trace": "abc" },
+                    query: { ref: "signup" },
+                    body: { name: "Eve", email: "eve@test.com" },
+                },
+                commits: [
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                        transform: (data, context) => {
+                            seen.data = data;
+                            seen.request = context.request;
+                            seen.viewKeys = Object.keys(context.view);
+                            return data;
+                        },
+                    },
+                ],
+            });
+
+            await action();
+
+            expect(seen.data).toEqual({ id: 7 });
+            expect(seen.request).toMatchObject({
+                url: "/users",
+                method: ActionApiMethod.POST,
+                headers: { "X-Trace": "abc" },
+                query: { ref: "signup" },
+                body: { name: "Eve", email: "eve@test.com" },
+            });
+            expect(seen.viewKeys).toContain("user");
+        });
+
+        it("transform can merge request body into committed value", async () => {
+            mockFetch.mockResolvedValue({ id: 42 });
+
+            const { action, source } = setup({
+                request: {
+                    url: "/users",
+                    method: ActionApiMethod.POST,
+                    body: { name: "Mallory", email: "mallory@test.com" },
+                },
+                commits: [
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                        transform: (data, { request }) => ({
+                            ...(request.body as Record<string, unknown>),
+                            ...(data as Record<string, unknown>),
+                        }),
+                    },
+                ],
+            });
+
+            await action();
+
+            expect(source.state.user).toEqual({
+                id: 42,
+                name: "Mallory",
+                email: "mallory@test.com",
+            });
+        });
+
+        it("transform can read existing store state via context.view", async () => {
+            mockFetch.mockResolvedValue({ id: 99, name: "Patched", email: "p@test.com" });
+
+            const { action, source, model } = setup({
+                request: {
+                    url: "/users/99",
+                    method: ActionApiMethod.PATCH,
+                },
+                commits: [
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                        transform: (data, { view }) => {
+                            const existing = (view as unknown as { user: { value: User } }).user.value;
+                            return { ...existing, ...(data as User) };
+                        },
+                    },
+                ],
+            });
+
+            model.user.set({ id: 99, name: "Old", email: "old@test.com" });
+
+            await action();
+
+            expect(source.state.user).toEqual({
+                id: 99,
+                name: "Patched",
+                email: "p@test.com",
+            });
+        });
+
+        it("multi-commit: every transform receives the same context", async () => {
+            mockFetch.mockResolvedValue({
+                main: { id: 1, name: "Alice", email: "alice@test.com" },
+                list: [{ id: 2, name: "Bob", email: "bob@test.com" }],
+            });
+
+            const seen: { user?: unknown; users?: unknown } = {};
+
+            const { action } = setup({
+                request: {
+                    url: "/users/bundle",
+                    method: ActionApiMethod.POST,
+                    body: { tag: "bundle" },
+                },
+                commits: [
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                        transform: (data, context) => {
+                            seen.user = context;
+                            return (data as { main: User }).main;
+                        },
+                    },
+                    {
+                        model: "users",
+                        mode: ModelManyMode.SET,
+                        transform: (data, context) => {
+                            seen.users = context;
+                            return (data as { list: User[] }).list;
+                        },
+                    },
+                ],
+            });
+
+            await action();
+
+            expect(seen.user).toBe(seen.users);
         });
 
         it("error creates ActionCommitError", async () => {
@@ -692,12 +832,12 @@ describe("createAction", () => {
                     {
                         model: "users",
                         mode: ModelManyMode.SET,
-                        value: (data: unknown) => (data as { output: User[] }).output,
+                        transform: (data: unknown) => (data as { output: User[] }).output,
                     },
                     {
                         model: "user",
                         mode: ModelOneMode.SET,
-                        value: (data: unknown) => (data as { meta: User }).meta,
+                        transform: (data: unknown) => (data as { meta: User }).meta,
                     },
                 ],
             });
@@ -724,12 +864,12 @@ describe("createAction", () => {
                     {
                         model: "users",
                         mode: ModelManyMode.SET,
-                        value: (data: unknown) => (data as { output: User[] }).output,
+                        transform: (data: unknown) => (data as { output: User[] }).output,
                     },
                     {
                         model: "user",
                         mode: ModelOneMode.SET,
-                        value: (data: unknown) => (data as { meta: User }).meta,
+                        transform: (data: unknown) => (data as { meta: User }).meta,
                     },
                 ],
             });
@@ -800,12 +940,12 @@ describe("createAction", () => {
                     {
                         model: "users",
                         mode: ModelManyMode.SET,
-                        value: (data: unknown) => (data as { list: User[] }).list,
+                        transform: (data: unknown) => (data as { list: User[] }).list,
                     },
                     {
                         model: "user",
                         mode: ModelOneMode.SET,
-                        value: (data: unknown) => (data as { main: User }).main,
+                        transform: (data: unknown) => (data as { main: User }).main,
                     },
                 ],
             });
@@ -838,7 +978,7 @@ describe("createAction", () => {
                     {
                         model: "users",
                         mode: ModelManyMode.SET,
-                        value: (data: unknown) => (data as { output: User[] }).output,
+                        transform: (data: unknown) => (data as { output: User[] }).output,
                     },
                     {
                         model: "nonexistent",

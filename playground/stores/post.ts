@@ -89,11 +89,11 @@ export const postStore = createStore({
             list: api.get({ url: "/posts" }, { model: "list", mode: ModelManyMode.SET }),
             loadPage: api.get(
                 { url: "/posts/page" },
-                { model: "list", mode: ModelManyMode.SET, value: (data: unknown) => (data as { items: Post[] }).items },
+                { model: "list", mode: ModelManyMode.SET, transform: (data: unknown) => (data as { items: Post[] }).items },
                 {
                     model: "pageMeta",
                     mode: ModelOneMode.SET,
-                    value: (data: unknown) => (data as { meta: PageMeta }).meta,
+                    transform: (data: unknown) => (data as { meta: PageMeta }).meta,
                 },
             ),
             create: api.post(
@@ -101,10 +101,10 @@ export const postStore = createStore({
                 {
                     model: "list",
                     mode: ModelManyMode.ADD,
-                    value: (data: unknown) => {
-                        const post = data as Post;
-                        return { ...post, title: post.title.toUpperCase() };
-                    },
+                    transform: (data: unknown, { request }: { request: { body: unknown } }) => ({
+                        ...(request.body as Partial<Post>),
+                        ...(data as { id: number }),
+                    }),
                 },
             ),
             update: api.patch(

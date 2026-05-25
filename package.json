@@ -1,6 +1,6 @@
 {
     "name": "@diphyx/harlemify",
-    "version": "6.1.1",
+    "version": "6.2.0",
     "description": "API state management for Nuxt powered by Harlem",
     "keywords": [
         "nuxt",
@@ -49,25 +49,28 @@
         "test": "vitest run",
         "test:e2e": "playwright test"
     },
+    "peerDependencies": {
+        "zod": "^4.4.3"
+    },
     "dependencies": {
         "@harlem/core": "^3.1.8",
-        "@nuxt/kit": "^3.14.0 || ^4.0.0",
+        "@nuxt/kit": "^4.4.6",
         "consola": "^3.4.2",
-        "defu": "^6.1.4",
-        "zod": "^4.3.6"
+        "defu": "^6.1.7"
     },
     "devDependencies": {
         "@nuxt/eslint-config": "^0.6.2",
         "@nuxt/module-builder": "^0.8.4",
-        "@nuxt/schema": "^4.3.1",
+        "@nuxt/schema": "^4.4.6",
         "@nuxt/test-utils": "^3.23.0",
-        "@playwright/test": "^1.58.2",
-        "@types/node": "^22.19.11",
+        "@playwright/test": "^1.60.0",
+        "@types/node": "^22.19.19",
         "@vitest/coverage-v8": "^2.1.9",
-        "eslint": "^9.39.2",
-        "nuxt": "^4.3.1",
+        "eslint": "^9.39.4",
+        "nuxt": "^4.4.6",
         "typescript": "^5.9.3",
         "vitest": "^2.1.9",
-        "vue": "^3.5.28"
+        "vue": "^3.5.34",
+        "zod": "^4.4.3"
     }
 }

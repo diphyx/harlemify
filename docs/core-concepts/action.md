@@ -80,7 +80,7 @@ Each commit argument defines how to commit the response into one model:
 {
     model: "list",                             // Target model key
     mode: ModelManyMode.ADD,                   // Commit mode
-    value: (data) => data.items,               // Optional: transform before commit
+    transform: (data) => data.items,           // Optional: reshape response before commit
     options: { unique: true, prepend: true },  // Optional: mutation options
 }
 ```
@@ -92,12 +92,64 @@ For wrapped/envelope responses, pass multiple commit configs and slice the respo
 ```typescript
 api.get(
     { url: "/users" },
-    { model: "list", mode: ModelManyMode.SET, value: (data) => data.output },
-    { model: "pagination", mode: ModelOneMode.SET, value: (data) => data.meta },
+    { model: "list", mode: ModelManyMode.SET, transform: (data) => data.output },
+    { model: "pagination", mode: ModelOneMode.SET, transform: (data) => data.meta },
 );
 ```
 
-Each commit applies independently. Pass `value` to extract the slice that belongs to that model.
+Each commit applies independently. Pass `transform` to extract the slice that belongs to that model.
+
+### Commit Context
+
+`transform` receives a second `context` argument exposing the resolved request and the read-only view:
+
+```typescript
+transform(data, context) {
+    // data         — the API response (what would be committed if no transform)
+    context.request; // Readonly<{ url, method, headers, query, body }> — the resolved request
+    context.view;    // DeepReadonly<StoreView> — read store state during the commit
+}
+```
+
+**Merge request body back in.** Canonical case: `POST /collections` returns sparse `{ id }` only — the body the caller sent is otherwise lost.
+
+```typescript
+api.post(
+    { url: "/collections" },
+    {
+        model: "list",
+        mode: ModelManyMode.ADD,
+        transform: (data, { request }) => ({ ...(request.body as object), ...(data as object) }),
+    },
+);
+```
+
+**Derive from existing store state.** Read `context.view` to shape the committed value from what's already there — useful for partial-update endpoints (PATCH) that return just the changed fields.
+
+```typescript
+api.patch(
+    {
+        url(view) {
+            return `/users/${view.user.value.id}`;
+        },
+    },
+    {
+        model: "user",
+        mode: ModelOneMode.SET,
+        transform: (data, { view }) => ({ ...view.user.value, ...(data as object) }),
+    },
+);
+```
+
+**Multi-commit.** Every transform in a multi-commit chain receives the same `context` object — they all see the same `request` and `view` snapshot.
+
+**Rules.**
+
+- `context.request` and `context.view` are read-only — use them to read, not to mutate.
+- `transform` must be synchronous; returning a Promise is not supported.
+- `context.view` is a snapshot at the moment the commit phase begins — reading it inside one transform won't observe writes another transform makes later.
+
+> **TypeScript inference quirk.** TS can't currently infer the `context` param's type through the factory's overloaded generics. If your editor flags `context` as `any`, annotate it explicitly — either with the exported `ActionApiCommitContext` type or a minimal inline shape (e.g. `{ request: { body: unknown } }`).
 
 ### Return Value
 
@@ -125,10 +177,10 @@ const raw = await store.action.fire();
 
 Commits resolve in two phases:
 
-1. **Resolve** — for every entry: look up the target model, run `value(data)`, apply alias remapping.
+1. **Resolve** — for every entry: look up the target model, run `transform(data)`, apply alias remapping.
 2. **Apply** — write each prepared value into its model.
 
-Any error in phase 1 (typo in `model`, throw in `value()`) aborts the action **before any model is mutated** — the store stays untouched.
+Any error in phase 1 (typo in `model`, throw in `transform()`) aborts the action **before any model is mutated** — the store stays untouched.
 
 ### Alias Mapping
 
@@ -146,7 +198,7 @@ const contactShape = shape((factory) => ({
 For actions with a `commit` config pointing to a model that uses an aliased shape:
 
 - **Outbound:** Request body keys are remapped from shape keys to alias keys. `{ first_name: "John" }` becomes `{ "first-name": "John" }`. With multiple commits, outbound aliasing uses the **first commit's** target.
-- **Inbound:** Each commit's slice (after `value()`) is remapped using **its own target's** aliases. Different targets can have different alias maps without conflict.
+- **Inbound:** Each commit's slice (after `transform()`) is remapped using **its own target's** aliases. Different targets can have different alias maps without conflict.
 
 **Ordering with transformers:**
 

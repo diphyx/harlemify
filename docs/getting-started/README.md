@@ -2,16 +2,20 @@
 
 ## Install Package
 
+Install harlemify together with `zod`, which is a peer dependency (used by `shape()`):
+
 ```bash
 # npm
-npm install @diphyx/harlemify
+npm install @diphyx/harlemify zod
 
 # pnpm
-pnpm add @diphyx/harlemify
+pnpm add @diphyx/harlemify zod
 
 # yarn
-yarn add @diphyx/harlemify
+yarn add @diphyx/harlemify zod
 ```
+
+> `zod` must come from your project, not from harlemify. Most non-trivial apps already use zod for forms/validation, and having two copies in the bundle causes `instanceof` checks to fail silently across boundaries.
 
 ## Configure Nuxt
 
