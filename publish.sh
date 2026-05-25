@@ -104,7 +104,33 @@ if [[ "$action" == "2" ]]; then
         echo "==> Merged ${SOURCE} into main"
     fi
 
-    gh release create "$VERSION" --title "$VERSION" --generate-notes --target "$BRANCH"
+    # Detect existing release at this tag — retag flow
+    EXISTING_NOTES=""
+    if gh release view "$VERSION" >/dev/null 2>&1; then
+        echo ""
+        echo "Warning: release ${VERSION} already exists"
+        read -rp "Delete existing release+tag and re-create at current ${BRANCH}? [y/N]: " confirm
+        case "$confirm" in
+            y|Y) ;;
+            *) exit 1 ;;
+        esac
+
+        # Preserve existing notes; fall back to auto-gen if there were none
+        EXISTING_NOTES=$(gh release view "$VERSION" --json body --jq .body 2>/dev/null || true)
+
+        gh release delete "$VERSION" --yes --cleanup-tag
+        git tag -d "$VERSION" 2>/dev/null || true
+        git fetch origin --prune --prune-tags >/dev/null 2>&1 || true
+
+        echo ""
+        echo "==> Deleted existing release ${VERSION} and tag"
+    fi
+
+    if [[ -n "$EXISTING_NOTES" ]]; then
+        gh release create "$VERSION" --title "$VERSION" --notes "$EXISTING_NOTES" --target "$BRANCH"
+    else
+        gh release create "$VERSION" --title "$VERSION" --generate-notes --target "$BRANCH"
+    fi
     echo ""
     echo "==> Created release ${VERSION} (publish workflow triggered)"
 fi
