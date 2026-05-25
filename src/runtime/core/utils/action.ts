@@ -1,11 +1,12 @@
 import { defu } from "defu";
-import { type Ref, ref, computed, readonly, toValue, nextTick } from "vue";
+import { type DeepReadonly, type Ref, ref, computed, readonly, toValue, nextTick } from "vue";
 
 import { type StoreModel, type ModelDefinitions, type ModelCall, ModelOneMode, ModelManyMode } from "../types/model";
 import type { Shape } from "../types/shape";
 import type { StoreView, ViewDefinitions } from "../types/view";
 import {
     type ActionApiCommit,
+    type ActionApiCommitContext,
     type ActionApiDefinition,
     type ActionCall,
     type ActionCallOptions,
@@ -162,8 +163,8 @@ function resolveHandlerPayload<MD extends ModelDefinitions, VD extends ViewDefin
 
 // Resolve Commit
 
-function resolveCommitMode<MD extends ModelDefinitions>(
-    commit: ActionApiCommit<MD>,
+function resolveCommitMode<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
+    commit: ActionApiCommit<MD, VD>,
     options?: ActionApiCallOptions,
 ): ModelOneMode | ModelManyMode {
     const override = options?.commit?.mode;
@@ -178,9 +179,13 @@ function resolveCommitMode<MD extends ModelDefinitions>(
     return commit.mode;
 }
 
-function resolveCommitValue<MD extends ModelDefinitions>(commit: ActionApiCommit<MD>, data: unknown): unknown {
-    if (typeof commit.value === "function") {
-        return commit.value(data);
+function resolveCommitTransform<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
+    commit: ActionApiCommit<MD, VD>,
+    data: unknown,
+    context: ActionApiCommitContext<MD, VD>,
+): unknown {
+    if (typeof commit.transform === "function") {
+        return commit.transform(data, context);
     }
 
     return data;
@@ -304,8 +309,8 @@ async function executeHandler<MD extends ModelDefinitions, VD extends ViewDefini
 
 // Execute Commit
 
-interface CommitPlanEntry<MD extends ModelDefinitions> {
-    commit: ActionApiCommit<MD>;
+interface CommitPlanEntry<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>> {
+    commit: ActionApiCommit<MD, VD>;
     target: ModelCall<Shape>;
     mode: ModelOneMode | ModelManyMode;
     value: unknown;
@@ -315,6 +320,7 @@ function executeCommit<MD extends ModelDefinitions, VD extends ViewDefinitions<M
     definition: ActionApiDefinition<MD, VD>,
     model: StoreModel<MD>,
     data: unknown,
+    context: ActionApiCommitContext<MD, VD>,
     options?: ActionApiCallOptions,
 ): unknown {
     const commits = definition.commits;
@@ -322,7 +328,7 @@ function executeCommit<MD extends ModelDefinitions, VD extends ViewDefinitions<M
         return data;
     }
 
-    const plan: CommitPlanEntry<MD>[] = [];
+    const plan: CommitPlanEntry<MD, VD>[] = [];
 
     try {
         for (const commit of commits) {
@@ -335,7 +341,7 @@ function executeCommit<MD extends ModelDefinitions, VD extends ViewDefinitions<M
 
             const mode = resolveCommitMode(commit, options);
 
-            let value = resolveCommitValue(commit, data);
+            let value = resolveCommitTransform(commit, data, context);
             if (!isEmptyRecord(target.aliases())) {
                 value = resolveAliasInbound(value, target.aliases());
             }
@@ -474,7 +480,12 @@ export function createAction<MD extends ModelDefinitions, VD extends ViewDefinit
                         options,
                     );
 
-                    data = executeCommit(definition, model, response, options) as R;
+                    const context: ActionApiCommitContext<MD, VD> = {
+                        request: { url, method, headers, query, body },
+                        view: view as DeepReadonly<StoreView<MD, VD>>,
+                    };
+
+                    data = executeCommit(definition, model, response, context, options) as R;
                 } else if (isHandlerDefinition(definition)) {
                     const payload = resolveHandlerPayload(definition, options);
 

@@ -75,10 +75,25 @@ export type ActionApiRequestShortcut<MD extends ModelDefinitions, VD extends Vie
 
 // Api Commit
 
-export interface ActionApiCommit<MD extends ModelDefinitions, K extends keyof MD = keyof MD> {
+export interface ActionApiCommitContext<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>> {
+    request: Readonly<{
+        url: string;
+        method: ActionApiMethod;
+        headers: Readonly<Record<string, string>>;
+        query: Readonly<Record<string, unknown>>;
+        body: unknown;
+    }>;
+    view: DeepReadonly<StoreView<MD, VD>>;
+}
+
+export interface ActionApiCommit<
+    MD extends ModelDefinitions,
+    VD extends ViewDefinitions<MD>,
+    K extends keyof MD = keyof MD,
+> {
     model: K;
     mode: ModelOneMode | ModelManyMode;
-    value?: (data: unknown) => unknown;
+    transform?: (data: unknown, context: ActionApiCommitContext<MD, VD>) => unknown;
     options?: ModelOneCommitOptions | ModelManyCommitOptions;
 }
 
@@ -86,7 +101,8 @@ export interface ActionApiCommit<MD extends ModelDefinitions, K extends keyof MD
 
 export type ActionApiCommitReturn<
     MD extends ModelDefinitions,
-    C extends readonly ActionApiCommit<MD>[],
+    VD extends ViewDefinitions<MD>,
+    C extends readonly ActionApiCommit<MD, VD>[],
 > = C extends readonly []
     ? unknown
     : {
@@ -100,7 +116,7 @@ export type ActionApiCommitReturn<
 export interface ActionApiDefinition<
     MD extends ModelDefinitions,
     VD extends ViewDefinitions<MD>,
-    C extends readonly ActionApiCommit<MD>[] = readonly ActionApiCommit<MD>[],
+    C extends readonly ActionApiCommit<MD, VD>[] = readonly ActionApiCommit<MD, VD>[],
 > extends BaseDefinition {
     request: ActionApiRequest<MD, VD>;
     commits: C;
@@ -145,44 +161,44 @@ export type ActionDefinitions<MD extends ModelDefinitions, VD extends ViewDefini
 
 // Factory
 
-type ActionApiCommitTuple<MD extends ModelDefinitions> = readonly [
-    ActionApiCommit<MD, keyof MD>,
-    ...ActionApiCommit<MD, keyof MD>[],
+type ActionApiCommitTuple<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>> = readonly [
+    ActionApiCommit<MD, VD, keyof MD>,
+    ...ActionApiCommit<MD, VD, keyof MD>[],
 ];
 
 export interface ActionApiFactory<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>> {
     (request: ActionApiRequest<MD, VD>): ActionApiDefinition<MD, VD, []>;
-    <const C extends ActionApiCommitTuple<MD>>(
+    <const C extends ActionApiCommitTuple<MD, VD>>(
         request: ActionApiRequest<MD, VD>,
         ...commits: C
     ): ActionApiDefinition<MD, VD, C>;
     get(request: ActionApiRequestShortcut<MD, VD>): ActionApiDefinition<MD, VD, []>;
-    get<const C extends ActionApiCommitTuple<MD>>(
+    get<const C extends ActionApiCommitTuple<MD, VD>>(
         request: ActionApiRequestShortcut<MD, VD>,
         ...commits: C
     ): ActionApiDefinition<MD, VD, C>;
     head(request: ActionApiRequestShortcut<MD, VD>): ActionApiDefinition<MD, VD, []>;
-    head<const C extends ActionApiCommitTuple<MD>>(
+    head<const C extends ActionApiCommitTuple<MD, VD>>(
         request: ActionApiRequestShortcut<MD, VD>,
         ...commits: C
     ): ActionApiDefinition<MD, VD, C>;
     post(request: ActionApiRequestShortcut<MD, VD>): ActionApiDefinition<MD, VD, []>;
-    post<const C extends ActionApiCommitTuple<MD>>(
+    post<const C extends ActionApiCommitTuple<MD, VD>>(
         request: ActionApiRequestShortcut<MD, VD>,
         ...commits: C
     ): ActionApiDefinition<MD, VD, C>;
     put(request: ActionApiRequestShortcut<MD, VD>): ActionApiDefinition<MD, VD, []>;
-    put<const C extends ActionApiCommitTuple<MD>>(
+    put<const C extends ActionApiCommitTuple<MD, VD>>(
         request: ActionApiRequestShortcut<MD, VD>,
         ...commits: C
     ): ActionApiDefinition<MD, VD, C>;
     patch(request: ActionApiRequestShortcut<MD, VD>): ActionApiDefinition<MD, VD, []>;
-    patch<const C extends ActionApiCommitTuple<MD>>(
+    patch<const C extends ActionApiCommitTuple<MD, VD>>(
         request: ActionApiRequestShortcut<MD, VD>,
         ...commits: C
     ): ActionApiDefinition<MD, VD, C>;
     delete(request: ActionApiRequestShortcut<MD, VD>): ActionApiDefinition<MD, VD, []>;
-    delete<const C extends ActionApiCommitTuple<MD>>(
+    delete<const C extends ActionApiCommitTuple<MD, VD>>(
         request: ActionApiRequestShortcut<MD, VD>,
         ...commits: C
     ): ActionApiDefinition<MD, VD, C>;
@@ -289,8 +305,8 @@ export type StoreAction<
     AD extends ActionDefinitions<MD, VD>,
 > = {
     [K in keyof AD]: AD[K] extends ActionApiDefinition<MD, VD, infer C>
-        ? C extends readonly ActionApiCommit<MD>[]
-            ? ActionApiCall<ActionApiCommitReturn<MD, C>>
+        ? C extends readonly ActionApiCommit<MD, VD>[]
+            ? ActionApiCall<ActionApiCommitReturn<MD, VD, C>>
             : ActionApiCall
         : AD[K] extends ActionHandlerDefinition<MD, VD, infer P, infer R>
           ? ActionHandlerCall<P, R>

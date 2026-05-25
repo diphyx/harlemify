@@ -19,6 +19,7 @@ export { ActionStatus, ActionConcurrent, ActionType, ActionApiMethod } from "./c
 export type {
     ActionCall,
     ActionApiCall,
+    ActionApiCommitContext,
     ActionHandlerCall,
     ActionCallOptions,
     ActionCallBaseOptions,

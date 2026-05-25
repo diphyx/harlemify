@@ -20,6 +20,7 @@ test.describe("posts page", () => {
         await page.getByTestId("input-body").fill("New content");
         await page.getByTestId("save-post").click();
         await expect(page.getByTestId("post-count")).toHaveText("4 posts");
+        await expect(page.getByTestId("post-4").getByTestId("post-title")).toHaveText("New Post");
     });
 
     test("edits a post", async ({ page }) => {

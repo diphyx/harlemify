@@ -22,8 +22,8 @@ export function createActionFactory<MD extends ModelDefinitions, VD extends View
 ): ActionFactory<MD, VD> {
     function apiCall(
         request: ActionApiRequest<MD, VD>,
-        ...commits: ActionApiCommit<MD>[]
-    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        ...commits: ActionApiCommit<MD, VD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD, VD>[]> {
         return wrapBaseDefinition({
             request: {
                 endpoint: config?.endpoint,
@@ -40,43 +40,43 @@ export function createActionFactory<MD extends ModelDefinitions, VD extends View
 
     function apiGet(
         request: ActionApiRequestShortcut<MD, VD>,
-        ...commits: ActionApiCommit<MD>[]
-    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        ...commits: ActionApiCommit<MD, VD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD, VD>[]> {
         return apiCall({ ...request, method: ActionApiMethod.GET }, ...commits);
     }
 
     function apiHead(
         request: ActionApiRequestShortcut<MD, VD>,
-        ...commits: ActionApiCommit<MD>[]
-    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        ...commits: ActionApiCommit<MD, VD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD, VD>[]> {
         return apiCall({ ...request, method: ActionApiMethod.HEAD }, ...commits);
     }
 
     function apiPost(
         request: ActionApiRequestShortcut<MD, VD>,
-        ...commits: ActionApiCommit<MD>[]
-    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        ...commits: ActionApiCommit<MD, VD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD, VD>[]> {
         return apiCall({ ...request, method: ActionApiMethod.POST }, ...commits);
     }
 
     function apiPut(
         request: ActionApiRequestShortcut<MD, VD>,
-        ...commits: ActionApiCommit<MD>[]
-    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        ...commits: ActionApiCommit<MD, VD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD, VD>[]> {
         return apiCall({ ...request, method: ActionApiMethod.PUT }, ...commits);
     }
 
     function apiPatch(
         request: ActionApiRequestShortcut<MD, VD>,
-        ...commits: ActionApiCommit<MD>[]
-    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        ...commits: ActionApiCommit<MD, VD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD, VD>[]> {
         return apiCall({ ...request, method: ActionApiMethod.PATCH }, ...commits);
     }
 
     function apiDelete(
         request: ActionApiRequestShortcut<MD, VD>,
-        ...commits: ActionApiCommit<MD>[]
-    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD>[]> {
+        ...commits: ActionApiCommit<MD, VD>[]
+    ): ActionApiDefinition<MD, VD, ActionApiCommit<MD, VD>[]> {
         return apiCall({ ...request, method: ActionApiMethod.DELETE }, ...commits);
     }
 
