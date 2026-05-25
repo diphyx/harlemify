@@ -23,8 +23,10 @@ If you are an AI coding agent working on a project that uses `@diphyx/harlemify`
 ## Install
 
 ```bash
-npm install @diphyx/harlemify
+npm install @diphyx/harlemify zod
 ```
+
+> `zod` is a peer dependency — install it in your project.
 
 ```typescript
 // nuxt.config.ts

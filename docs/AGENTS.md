@@ -30,9 +30,11 @@ Every **action** automatically tracks `loading`, `status`, and `error`. Every **
 ## 2. Installation & Configuration
 
 ```bash
-npm install @diphyx/harlemify
-# or: pnpm add @diphyx/harlemify / yarn add @diphyx/harlemify
+npm install @diphyx/harlemify zod
+# or: pnpm add @diphyx/harlemify zod / yarn add @diphyx/harlemify zod
 ```
+
+`zod` is a **peer dependency** — consumers must install it. `shape()` returns zod schemas, so duplicate copies would silently break `instanceof` checks against the app's own zod (used for forms, validation, etc.).
 
 ```typescript
 // nuxt.config.ts

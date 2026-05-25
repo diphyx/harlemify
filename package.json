@@ -50,16 +50,15 @@
         "test:e2e": "playwright test"
     },
     "peerDependencies": {
-        "@harlem/core": "^3.1.8",
         "zod": "^4.4.3"
     },
     "dependencies": {
+        "@harlem/core": "^3.1.8",
         "@nuxt/kit": "^4.4.6",
         "consola": "^3.4.2",
         "defu": "^6.1.7"
     },
     "devDependencies": {
-        "@harlem/core": "^3.1.8",
         "@nuxt/eslint-config": "^0.6.2",
         "@nuxt/module-builder": "^0.8.4",
         "@nuxt/schema": "^4.4.6",
