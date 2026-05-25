@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@harlem/core':
-        specifier: ^3.1.8
-        version: 3.1.8(vue@3.5.34(typescript@5.9.3))
       '@nuxt/kit':
         specifier: ^4.4.6
         version: 4.4.6(magicast@0.5.3)
@@ -20,10 +17,10 @@ importers:
       defu:
         specifier: ^6.1.7
         version: 6.1.7
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
     devDependencies:
+      '@harlem/core':
+        specifier: ^3.1.8
+        version: 3.1.8(vue@3.5.34(typescript@5.9.3))
       '@nuxt/eslint-config':
         specifier: ^0.6.2
         version: 0.6.2(@typescript-eslint/utils@8.59.4(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
@@ -60,6 +57,9 @@ importers:
       vue:
         specifier: ^3.5.34
         version: 3.5.34(typescript@5.9.3)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
 
 packages:
 
