@@ -80,6 +80,16 @@ test.describe("posts page", () => {
         await expect(pageMeta).toContainText('"limit": 3');
     });
 
+    test("loads one via path params and stamps the param into the transform", async ({ page }) => {
+        const loadedOne = page.getByTestId("loaded-one-title");
+        await expect(loadedOne).toHaveText("");
+
+        await page.getByTestId("load-one").click();
+
+        // url ":id" was filled with 2, and the transform read context.params.id
+        await expect(loadedOne).toHaveText("#2: Second Post");
+    });
+
     test("resets sort action status", async ({ page }) => {
         await page.getByTestId("sort-posts").click();
         await expect(page.getByTestId("status-sort").locator(".action-chip-state")).toHaveText("success");

@@ -11,6 +11,7 @@ import { ActionApiError } from "../src/runtime/core/utils/error";
 import { createStoreState, createStoreModel, createStoreView } from "../src/runtime/core/utils/store";
 import {
     type ActionDefinition,
+    type ActionApiCommitContext,
     ActionStatus,
     ActionConcurrent,
     ActionApiMethod,
@@ -201,6 +202,10 @@ describe("createActionFactory", () => {
 describe("createAction", () => {
     const modelFactory = createModelFactory();
     const viewFactory = createViewFactory();
+
+    // `setup` types its partial as the ActionDefinition union, which defeats contextual
+    // typing of commit `transform` params — annotate them with this alias instead.
+    type CommitContext = ActionApiCommitContext<ModelDefinitions, ViewDefinitions<ModelDefinitions>>;
 
     function setup(partial: Partial<ActionDefinition<ModelDefinitions, ViewDefinitions<ModelDefinitions>>> = {}) {
         let key = "test";
@@ -609,14 +614,14 @@ describe("createAction", () => {
             expect((source.state.users as User[])[0]).toEqual(users[0]);
         });
 
-        it("transform receives request/view context", async () => {
+        it("transform receives request/params/view context", async () => {
             mockFetch.mockResolvedValue({ id: 7 });
 
-            const seen: { data?: unknown; request?: unknown; viewKeys?: string[] } = {};
+            const seen: { data?: unknown; request?: unknown; params?: unknown; viewKeys?: string[] } = {};
 
             const { action } = setup({
                 request: {
-                    url: "/users",
+                    url: "/users/:id",
                     method: ActionApiMethod.POST,
                     headers: { "X-Trace": "abc" },
                     query: { ref: "signup" },
@@ -626,10 +631,47 @@ describe("createAction", () => {
                     {
                         model: "user",
                         mode: ModelOneMode.SET,
-                        transform: (data, context) => {
+                        transform: (data: unknown, context: CommitContext) => {
                             seen.data = data;
                             seen.request = context.request;
+                            seen.params = context.params;
                             seen.viewKeys = Object.keys(context.view);
+                            return data;
+                        },
+                    },
+                ],
+            });
+
+            await action({ params: { id: "7" } });
+
+            expect(seen.data).toEqual({ id: 7 });
+            expect(seen.request).toMatchObject({
+                url: "/users/7",
+                method: ActionApiMethod.POST,
+                headers: { "X-Trace": "abc" },
+                query: { ref: "signup" },
+                body: { name: "Eve", email: "eve@test.com" },
+            });
+            expect(seen.params).toEqual({ id: "7" });
+            expect(seen.viewKeys).toContain("user");
+        });
+
+        it("context.params defaults to an empty object when no params are passed", async () => {
+            mockFetch.mockResolvedValue({ id: 7 });
+
+            const seen: { params?: unknown } = {};
+
+            const { action } = setup({
+                request: {
+                    url: "/users",
+                    method: ActionApiMethod.POST,
+                },
+                commits: [
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                        transform: (data: unknown, context: CommitContext) => {
+                            seen.params = context.params;
                             return data;
                         },
                     },
@@ -638,15 +680,69 @@ describe("createAction", () => {
 
             await action();
 
-            expect(seen.data).toEqual({ id: 7 });
-            expect(seen.request).toMatchObject({
-                url: "/users",
-                method: ActionApiMethod.POST,
-                headers: { "X-Trace": "abc" },
-                query: { ref: "signup" },
-                body: { name: "Eve", email: "eve@test.com" },
+            expect(seen.params).toEqual({});
+        });
+
+        it("transform can stamp a path param into the committed value", async () => {
+            mockFetch.mockResolvedValue({ name: "Patched", email: "p@test.com" });
+
+            const { action, source } = setup({
+                request: {
+                    url: "/users/:id",
+                    method: ActionApiMethod.PATCH,
+                },
+                commits: [
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                        transform: (data: unknown, { params }: CommitContext) => ({
+                            ...(data as Record<string, unknown>),
+                            id: Number(params.id),
+                        }),
+                    },
+                ],
             });
-            expect(seen.viewKeys).toContain("user");
+
+            await action({ params: { id: "99" } });
+
+            expect(source.state.user).toEqual({
+                id: 99,
+                name: "Patched",
+                email: "p@test.com",
+            });
+        });
+
+        it("params accepts numeric values and substitutes them into the url", async () => {
+            mockFetch.mockResolvedValue({});
+
+            const seen: { params?: unknown } = {};
+
+            const { action } = setup({
+                request: {
+                    url: "/users/:id/posts/:postId",
+                    method: ActionApiMethod.GET,
+                },
+                commits: [
+                    {
+                        model: "user",
+                        mode: ModelOneMode.SET,
+                        transform: (data: unknown, { params }: CommitContext) => {
+                            seen.params = params;
+                            return data;
+                        },
+                    },
+                ],
+            });
+
+            await action({ params: { id: 42, postId: 7 } });
+
+            expect(mockFetch).toHaveBeenCalledWith(
+                "/users/42/posts/7",
+                expect.objectContaining({
+                    method: ActionApiMethod.GET,
+                }),
+            );
+            expect(seen.params).toEqual({ id: 42, postId: 7 });
         });
 
         it("transform can merge request body into committed value", async () => {
@@ -662,7 +758,7 @@ describe("createAction", () => {
                     {
                         model: "user",
                         mode: ModelOneMode.SET,
-                        transform: (data, { request }) => ({
+                        transform: (data: unknown, { request }: CommitContext) => ({
                             ...(request.body as Record<string, unknown>),
                             ...(data as Record<string, unknown>),
                         }),
@@ -691,7 +787,7 @@ describe("createAction", () => {
                     {
                         model: "user",
                         mode: ModelOneMode.SET,
-                        transform: (data, { view }) => {
+                        transform: (data: unknown, { view }: CommitContext) => {
                             const existing = (view as unknown as { user: { value: User } }).user.value;
                             return { ...existing, ...(data as User) };
                         },
@@ -728,7 +824,7 @@ describe("createAction", () => {
                     {
                         model: "user",
                         mode: ModelOneMode.SET,
-                        transform: (data, context) => {
+                        transform: (data: unknown, context: CommitContext) => {
                             seen.user = context;
                             return (data as { main: User }).main;
                         },
@@ -736,7 +832,7 @@ describe("createAction", () => {
                     {
                         model: "users",
                         mode: ModelManyMode.SET,
-                        transform: (data, context) => {
+                        transform: (data: unknown, context: CommitContext) => {
                             seen.users = context;
                             return (data as { list: User[] }).list;
                         },

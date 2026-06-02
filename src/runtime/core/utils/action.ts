@@ -481,6 +481,7 @@ export function createAction<MD extends ModelDefinitions, VD extends ViewDefinit
 
                     const context: ActionApiCommitContext<MD, VD> = {
                         request: { url, method, headers, query, body },
+                        params: (options as ActionApiCallOptions)?.params ?? {},
                         view: view as DeepReadonly<StoreView<MD, VD>>,
                     };
 
