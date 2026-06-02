@@ -38,6 +38,8 @@ store.model.user.reset();
 
 > **Note:** State is always initialized to shape defaults (e.g. `{ id: 0, name: "" }`). Provide a custom `default` function to override the initial and reset values.
 
+> **Deep merge:** With `{ deep: true }`, nested objects are merged recursively, while array and scalar fields are replaced (not concatenated).
+
 > **Scalar singletons:** `one(shape)` expects an object shape. For primitive state (counters, totals, tokens, flags), wrap the value in a single-field shape and unwrap via a view. See [Scalar State Pattern](shape.md#scalar-state-pattern).
 
 ## Many (List)
@@ -154,23 +156,38 @@ Attach `pre` and `post` hooks to any model. They fire before and after every mut
 model({ one, many }) {
     return {
         session: one(sessionShape, {
-            pre() {
-                console.log("before mutation");
+            pre({ mode, state }) {
+                console.log("before mutation", mode, state);
             },
-            post() {
-                console.log("after mutation");
+            post({ mode, state }) {
+                console.log("after mutation", mode, state);
             },
         }),
         users: many(userShape, {
-            pre() {
-                console.log("before mutation");
+            pre({ mode, state }) {
+                console.log("before mutation", mode, state);
             },
-            post() {
-                console.log("after mutation");
+            post({ mode, state }) {
+                console.log("after mutation", mode, state);
             },
         }),
     };
 },
+```
+
+Each hook receives a context object describing the mutation:
+
+| Field   | Type                                     | Description                                                                              |
+| ------- | ---------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `mode`  | `set \| reset \| patch \| add \| remove` | Which mutation fired                                                                     |
+| `state` | `S` / `S[]` / `Record<string, S[]>`      | A **detached clone** of the resolved state at hook time (`pre` → before, `post` → after) |
+
+`state` matches the model's own shape — `S` for `one`, `S[]` for `many` lists, `Record<string, S[]>` for `many` records. Because it is a clone, mutating it inside the hook never touches the store. This lets a hook be self-contained — e.g. persist the new value without reading the store back:
+
+```typescript
+post({ state }) {
+    persist(state);
+}
 ```
 
 Hooks are optional and safe — they cannot control the flow of the mutation. A `pre` hook runs before the mutation, not as a guard. Even if a hook throws, the error is caught and logged, and the mutation proceeds normally.

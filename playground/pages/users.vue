@@ -110,8 +110,8 @@ function resetListAction() {
             <h3>{{ editing ? "Edit User" : "Add User" }}</h3>
             <form @submit.prevent="save">
                 <div class="form-row">
-                    <input v-model="form.name" placeholder="Name" required data-testid="input-name" >
-                    <input v-model="form.email" type="email" placeholder="Email" required data-testid="input-email" >
+                    <input v-model="form.name" placeholder="Name" required data-testid="input-name" />
+                    <input v-model="form.email" type="email" placeholder="Email" required data-testid="input-email" />
                     <button type="submit" class="btn btn-sm btn-primary" data-testid="save-user">Save</button>
                     <button type="button" class="btn btn-sm" data-testid="cancel-form" @click="showForm = false">
                         Cancel

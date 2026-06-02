@@ -54,7 +54,7 @@ export default defineNuxtConfig({
         },
         model: { identifier: "id" }, // default identifier for many() arrays
         view: { clone: ViewClone.SHALLOW }, // default clone strategy
-        logger: -999, // Consola level; 999 = verbose, -999 = silent
+        logger: -999, // log level; 999 = verbose, -999 = silent
     },
 });
 ```
@@ -127,7 +127,7 @@ type User = ShapeInfer<typeof userShape>;
 
 ### Defaults
 
-Generate a zero-value object with optional deep-merged overrides (via `defu`):
+Generate a zero-value object with optional deep-merged overrides (nested objects merge; arrays and scalars are replaced):
 
 ```typescript
 userShape.defaults();
@@ -300,13 +300,15 @@ many(userShape, { kind: "record", default: () => ({ "team-a": [createDefaultUser
 
 Fire before/after every mutation. **Do not control flow** — they cannot block a mutation. Thrown errors are caught and logged; mutation still proceeds.
 
+Each hook receives `{ mode, state }`: `mode` is the mutation (`set | reset | patch | add | remove`); `state` is a **detached clone** of the resolved state at hook time (`pre` → before, `post` → after), typed to the model (`S` / `S[]` / `Record<string, S[]>`). Mutating `state` never touches the store.
+
 ```typescript
 one(sessionShape, {
-    pre() {
+    pre({ mode, state }) {
         /* before mutation */
     },
-    post() {
-        /* after mutation  */
+    post({ mode, state }) {
+        persist(state); // self-contained — no store read-back
     },
 });
 ```
@@ -559,7 +561,7 @@ await store.action.list({
 });
 ```
 
-**Option priority:** call-time > definition-time > module config > built-in defaults. Headers are merged via `defu`.
+**Option priority:** call-time > definition-time > module config > built-in defaults. Headers are deep-merged.
 
 ### 6.4 Lifecycle
 
@@ -741,7 +743,7 @@ export const userStore = createStore({
 });
 ```
 
-The returned `store` exposes exactly four properties: `store.model`, `store.view`, `store.action`, `store.compose`. (The `name` you pass in is used for Harlem's source store registry and the Consola logger tag — it is not re-exposed on the returned object.)
+The returned `store` exposes exactly four properties: `store.model`, `store.view`, `store.action`, `store.compose`. (The `name` you pass in is used for Harlem's source store registry and the logger tag — it is not re-exposed on the returned object.)
 
 ---
 
@@ -935,7 +937,7 @@ one(userShape, { default: () => ({ id: 0, name: "", email: "" }) });
 
 Combine with `lazy: true` if defaults depend on Nuxt composables.
 
-### 10.6 Logging (Consola)
+### 10.6 Logging
 
 ```typescript
 harlemify: {
@@ -1015,7 +1017,7 @@ import {
 11. **Status & error persist after a run.** Call `store.action.foo.reset()` or composable `reset()` to clear them.
 12. **Compose tracks `active`, not `status`/`error`.** Errors bubble — wrap calls in `try/catch` if needed.
 13. **Alias remapping is skipped without a `commit` config**, when the shape has no aliases, and for non-object bodies (`FormData`, `Blob`).
-14. **Option priority for actions:** call-time > definition > module config > built-in. Headers merge via `defu`.
+14. **Option priority for actions:** call-time > definition > module config > built-in. Headers deep-merge.
 15. **For autocomplete-style search:** prefer `ActionConcurrent.CANCEL` over hand-rolled `AbortController` — it handles the abort wiring for you.
 16. **For the same action displayed in two UI spots with independent spinners:** use `useStoreAction(..., { isolated: true })` (or `useIsolatedActionStatus()` + `bind`).
 17. **Action return value is keyed by commit `model`.** With 1+ commits, `await store.action.foo()` resolves to `{ [model]: value, … }`. With 0 commits it returns the raw response. Destructure: `const { list } = await store.action.list()`.

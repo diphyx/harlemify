@@ -1,7 +1,7 @@
 <template>
     <div class="container">
         <header class="header">
-            <img src="/icon.svg" alt="Harlemify" class="header-logo" >
+            <img src="/icon.svg" alt="Harlemify" class="header-logo" />
             <h1>Harlemify</h1>
             <p>API State Management for Nuxt 3+</p>
         </header>

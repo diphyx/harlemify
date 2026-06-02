@@ -72,7 +72,7 @@ userShape.defaults({ active: true, name: "John" });
 // { id: 0, name: "John", email: "", active: true }
 ```
 
-Overrides are deep-merged via `defu`, so nested objects are merged rather than replaced.
+Overrides are deep-merged: nested objects are merged recursively, while arrays and scalar values are replaced.
 
 ## Meta
 

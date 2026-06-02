@@ -18,11 +18,11 @@ export const teamStore = createStore({
         return {
             groups: many(teamMemberShape, {
                 kind: ModelManyKind.RECORD,
-                pre() {
-                    console.log("[teams] pre hook");
+                pre({ mode, state }) {
+                    console.log("[teams] pre hook", mode, state);
                 },
-                post() {
-                    console.log("[teams] post hook");
+                post({ mode, state }) {
+                    console.log("[teams] post hook", mode, state);
                 },
             }),
         };

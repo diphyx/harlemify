@@ -44,11 +44,18 @@ export type ModelDefaultIdentifier<S extends Shape> = "id" extends keyof S ? "id
 
 export type AtLeastOne<S extends Shape> = { [K in keyof S]: Pick<S, K> }[keyof S];
 
+// Hook Context
+
+export type ModelHookContext<T> = {
+    mode: ModelOneMode | ModelManyMode;
+    state: T;
+};
+
 // Definition Options
 
-export interface ModelDefinitionOptions {
-    pre?: () => void;
-    post?: () => void;
+export interface ModelDefinitionOptions<T = unknown> {
+    pre?: (context: ModelHookContext<T>) => void;
+    post?: (context: ModelHookContext<T>) => void;
 }
 
 // Definitions
@@ -57,7 +64,7 @@ export interface ModelOneDefinition<S extends Shape> extends BaseDefinition {
     shape: ShapeType<S>;
     type: ModelType.ONE;
     default: () => S;
-    options?: ModelDefinitionOptions;
+    options?: ModelDefinitionOptions<S>;
 }
 
 export interface ModelManyDefinition<
@@ -70,7 +77,7 @@ export interface ModelManyDefinition<
     kind: T;
     identifier: [T] extends [ModelManyKind.LIST] ? I : never;
     default: () => [T] extends [ModelManyKind.LIST] ? S[] : Record<string, S[]>;
-    options?: ModelDefinitionOptions;
+    options?: ModelDefinitionOptions<[T] extends [ModelManyKind.LIST] ? S[] : Record<string, S[]>>;
 }
 
 export type ModelDefinition<S extends Shape> = ModelOneDefinition<S> | ModelManyDefinition<S, any, any>;
@@ -101,13 +108,13 @@ export type ModelDefinitionsInfer<MD extends ModelDefinitions> = {
 export interface ModelFactory {
     one<S extends Shape>(
         shape: ShapeType<S>,
-        options?: ModelDefinitionOptions & {
+        options?: ModelDefinitionOptions<S> & {
             default?: () => S;
         },
     ): ModelOneDefinition<S>;
     many<S extends Shape, I extends keyof S = ModelDefaultIdentifier<S>, T extends ModelManyKind = ModelManyKind.LIST>(
         shape: ShapeType<S>,
-        options?: ModelDefinitionOptions & {
+        options?: ModelDefinitionOptions<[T] extends [ModelManyKind.LIST] ? S[] : Record<string, S[]>> & {
             kind?: T;
             identifier?: [T] extends [ModelManyKind.LIST] ? I : never;
             default?: () => [T] extends [ModelManyKind.LIST] ? S[] : Record<string, S[]>;

@@ -89,7 +89,11 @@ export const postStore = createStore({
             list: api.get({ url: "/posts" }, { model: "list", mode: ModelManyMode.SET }),
             loadPage: api.get(
                 { url: "/posts/page" },
-                { model: "list", mode: ModelManyMode.SET, transform: (data: unknown) => (data as { items: Post[] }).items },
+                {
+                    model: "list",
+                    mode: ModelManyMode.SET,
+                    transform: (data: unknown) => (data as { items: Post[] }).items,
+                },
                 {
                     model: "pageMeta",
                     mode: ModelOneMode.SET,
