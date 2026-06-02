@@ -1058,6 +1058,90 @@ describe("createAction", () => {
             expect((source.state.user as User).name).toBe("primary");
         });
 
+        it("options override at call time (global form)", async () => {
+            const users: User[] = [{ id: 1, name: "Alice", email: "alice@test.com" }];
+            mockFetch.mockResolvedValue({ id: 1, name: "Alice (dupe)", email: "alice@test.com" });
+
+            const { action, source, model } = setup({
+                request: {
+                    url: "/users/1",
+                    method: ActionApiMethod.GET,
+                },
+                commits: [
+                    {
+                        model: "users",
+                        mode: ModelManyMode.ADD,
+                    },
+                ],
+            });
+
+            model.users.set(users);
+
+            await action({
+                commit: { options: { unique: true } },
+            });
+
+            expect(source.state.users as User[]).toHaveLength(1);
+            expect((source.state.users as User[])[0].name).toBe("Alice");
+        });
+
+        it("options override at call time (per-entry record form)", async () => {
+            const seed: User[] = [{ id: 1, name: "Alice", email: "alice@test.com" }];
+            mockFetch.mockResolvedValue({ id: 1, name: "Alice (dupe)", email: "alice@test.com" });
+
+            const { action, source, model } = setup({
+                request: {
+                    url: "/users/1",
+                    method: ActionApiMethod.GET,
+                },
+                commits: [
+                    {
+                        model: "users",
+                        mode: ModelManyMode.ADD,
+                    },
+                ],
+            });
+
+            model.users.set(seed);
+
+            await action({
+                commit: { options: { users: { unique: true } } },
+            });
+
+            expect(source.state.users as User[]).toHaveLength(1);
+            expect((source.state.users as User[])[0].name).toBe("Alice");
+        });
+
+        it("call-time options merge over defined options", async () => {
+            const seed: User[] = [{ id: 1, name: "Alice", email: "alice@test.com" }];
+            mockFetch.mockResolvedValue({ id: 2, name: "Bob", email: "bob@test.com" });
+
+            const { action, source, model } = setup({
+                request: {
+                    url: "/users/2",
+                    method: ActionApiMethod.GET,
+                },
+                commits: [
+                    {
+                        model: "users",
+                        mode: ModelManyMode.ADD,
+                        options: { prepend: true },
+                    },
+                ],
+            });
+
+            model.users.set(seed);
+
+            // adds `unique` at call time; defined `prepend` is preserved
+            await action({
+                commit: { options: { unique: true } },
+            });
+
+            expect(source.state.users as User[]).toHaveLength(2);
+            expect((source.state.users as User[])[0].name).toBe("Bob");
+            expect((source.state.users as User[])[1].name).toBe("Alice");
+        });
+
         it("atomic: pass-1 failure leaves all models untouched", async () => {
             mockFetch.mockResolvedValue({
                 output: [{ id: 1, name: "Alice", email: "alice@test.com" }],

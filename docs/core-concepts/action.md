@@ -324,6 +324,26 @@ await store.action.list({
 });
 ```
 
+### Commit Options Override
+
+Override the commit `options` (`unique`, `prepend`, `by`, `deep`, `silent`) per call, alongside or instead of `mode`. Same two forms as `mode`:
+
+```typescript
+// applies to every commit entry
+await store.action.list({
+    commit: { mode: ModelManyMode.ADD, options: { unique: true, prepend: true } },
+});
+
+// per-entry, keyed by model name
+await store.action.list({
+    commit: { options: { list: { unique: true } } }, // only the "list" entry's options are overridden
+});
+```
+
+Call-time options are merged over the entry's defined `options` — keys you don't pass keep their defined values. The per-entry form is distinguished from the global form by its values being objects (e.g. `{ list: { unique: true } }` is per-entry; `{ unique: true }` is global).
+
+> The form is detected structurally, so a per-entry override targeting a single model still uses the keyed form: `{ options: { list: { unique: true } } }`, not `{ options: { unique: true } }`.
+
 ### Transformer
 
 Transform request and/or response at call time:

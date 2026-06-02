@@ -63,6 +63,12 @@ async function appendFromServer() {
     });
 }
 
+async function appendUniqueFromServer() {
+    await postStore.action.list({
+        commit: { mode: ModelManyMode.ADD, options: { unique: true } },
+    });
+}
+
 async function loadPage() {
     await postStore.action.loadPage();
 }
@@ -90,6 +96,9 @@ function resetSortAction() {
         <div class="toolbar">
             <button class="btn btn-sm" data-testid="sort-posts" @click="sortPosts">Sort A-Z</button>
             <button class="btn btn-sm" data-testid="append-posts" @click="appendFromServer">Append from Server</button>
+            <button class="btn btn-sm" data-testid="append-unique" @click="appendUniqueFromServer">
+                Append Unique
+            </button>
             <button class="btn btn-sm" data-testid="load-page" @click="loadPage">Load Page (multi-commit)</button>
             <button class="btn btn-sm" data-testid="load-one" @click="loadOne">Load #2 (params)</button>
             <button class="btn btn-sm" data-testid="reset-sort" @click="resetSortAction">Reset Sort</button>
@@ -190,6 +199,10 @@ function resetSortAction() {
                 <li>
                     <code>action(&#123; commit: &#123; mode: ActionManyMode.ADD &#125; &#125;)</code> - Call-time
                     commit.mode override
+                </li>
+                <li>
+                    <code>action(&#123; commit: &#123; options: &#123; unique: true &#125; &#125; &#125;)</code> -
+                    Call-time commit.options override
                 </li>
                 <li>
                     <code>api.get(req, commitA, commitB)</code> - Multi-commit: one envelope response into multiple

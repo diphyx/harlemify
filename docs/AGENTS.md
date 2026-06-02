@@ -558,6 +558,9 @@ await store.action.list({
     bind: { status, error }, // isolated tracking refs
     commit: { mode: ModelManyMode.PATCH }, // override mode for every commit entry (API actions only)
     // or per-entry: commit: { mode: { list: ModelManyMode.PATCH } }
+    // override commit options too — same two forms, merged over defined options:
+    // commit: { options: { unique: true } }              // global
+    // commit: { options: { list: { unique: true } } }    // per-entry (keyed by model)
     payload: anyValue, // handler actions only
 });
 ```

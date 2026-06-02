@@ -248,6 +248,10 @@ export interface ActionCallTransformerOptions {
 
 export interface ActionCallCommitOptions {
     mode?: ModelOneMode | ModelManyMode | Record<string, ModelOneMode | ModelManyMode>;
+    options?:
+        | ModelOneCommitOptions
+        | ModelManyCommitOptions
+        | Record<string, ModelOneCommitOptions | ModelManyCommitOptions>;
 }
 
 export interface ActionApiCallOptions extends ActionCallBaseOptions {
