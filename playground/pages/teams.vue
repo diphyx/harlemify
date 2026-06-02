@@ -75,11 +75,11 @@ function resetAll() {
             <h3>Add Team</h3>
             <form @submit.prevent="saveTeam">
                 <div class="form-row" style="margin-bottom: 8px">
-                    <input v-model="newTeamName" placeholder="Team Name" required data-testid="input-team-name" >
+                    <input v-model="newTeamName" placeholder="Team Name" required data-testid="input-team-name" />
                 </div>
                 <div v-for="(member, index) in newMembers" :key="index" class="form-row member-row">
-                    <input v-model="member.name" placeholder="Name" required >
-                    <input v-model="member.role" placeholder="Role" required >
+                    <input v-model="member.name" placeholder="Name" required />
+                    <input v-model="member.role" placeholder="Role" required />
                     <button
                         v-if="newMembers.length > 1"
                         type="button"
@@ -111,8 +111,8 @@ function resetAll() {
                         </li>
                     </ul>
                     <div class="add-member-row">
-                        <input v-model="newMemberName" placeholder="Name" class="input-sm" >
-                        <input v-model="newMemberRole" placeholder="Role" class="input-sm" >
+                        <input v-model="newMemberName" placeholder="Name" class="input-sm" />
+                        <input v-model="newMemberRole" placeholder="Role" class="input-sm" />
                         <button type="button" class="btn btn-sm" @click="addMemberToTeam(name)">Add</button>
                     </div>
                 </div>

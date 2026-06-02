@@ -81,8 +81,8 @@ async function deleteUser(user: User) {
             <h2>Quick Add</h2>
             <p class="subtitle"><code>compose.quickAdd(userName, todoTitle)</code></p>
             <form class="quick-add-form" @submit.prevent="handleQuickAdd">
-                <input v-model="newUserName" placeholder="User name" data-testid="input-user-name" >
-                <input v-model="newTodoTitle" placeholder="Todo title" data-testid="input-todo-title" >
+                <input v-model="newUserName" placeholder="User name" data-testid="input-user-name" />
+                <input v-model="newTodoTitle" placeholder="Todo title" data-testid="input-todo-title" />
                 <button type="submit" class="btn btn-primary" data-testid="quick-add" :disabled="quickAdd.active.value">
                     {{ quickAdd.active.value ? "Adding..." : "Add" }}
                 </button>

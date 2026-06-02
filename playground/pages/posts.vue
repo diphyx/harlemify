@@ -94,7 +94,7 @@ function resetSortAction() {
             <h3>{{ editing ? "Edit Post" : "Add Post" }}</h3>
             <form @submit.prevent="save">
                 <div class="form-row">
-                    <input v-model="form.title" placeholder="Title" required data-testid="input-title" >
+                    <input v-model="form.title" placeholder="Title" required data-testid="input-title" />
                     <button type="submit" class="btn btn-sm btn-primary" data-testid="save-post">Save</button>
                     <button type="button" class="btn btn-sm" data-testid="cancel-form" @click="showForm = false">
                         Cancel

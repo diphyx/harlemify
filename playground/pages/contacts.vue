@@ -70,9 +70,9 @@ function clearSelection() {
             <h3>{{ editing ? "Edit Contact" : "Add Contact" }}</h3>
             <form @submit.prevent="save">
                 <div class="form-row">
-                    <input v-model="form.first_name" placeholder="First Name" required data-testid="input-first-name" >
-                    <input v-model="form.last_name" placeholder="Last Name" required data-testid="input-last-name" >
-                    <input v-model="form.email" type="email" placeholder="Email" required data-testid="input-email" >
+                    <input v-model="form.first_name" placeholder="First Name" required data-testid="input-first-name" />
+                    <input v-model="form.last_name" placeholder="Last Name" required data-testid="input-last-name" />
+                    <input v-model="form.email" type="email" placeholder="Email" required data-testid="input-email" />
                     <button type="submit" class="btn btn-sm btn-primary" data-testid="save-contact">Save</button>
                     <button type="button" class="btn btn-sm" data-testid="cancel-form" @click="showForm = false">
                         Cancel

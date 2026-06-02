@@ -85,7 +85,7 @@ async function silentUpdate() {
                     <strong>Language</strong>
                 </div>
                 <form class="config-input" @submit.prevent="updateLanguage">
-                    <input v-model="languageInput" type="text" data-testid="language-input" >
+                    <input v-model="languageInput" type="text" data-testid="language-input" />
                     <button type="submit" class="btn btn-sm" data-testid="update-language">Update</button>
                 </form>
             </div>

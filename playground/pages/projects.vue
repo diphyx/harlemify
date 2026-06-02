@@ -166,8 +166,8 @@ async function handleTriggerError() {
             <h3>Create Project</h3>
             <form @submit.prevent="handleCreate">
                 <div class="form-row">
-                    <input v-model="form.name" placeholder="Project name" required data-testid="input-name" >
-                    <input v-model="form.description" placeholder="Description" data-testid="input-description" >
+                    <input v-model="form.name" placeholder="Project name" required data-testid="input-name" />
+                    <input v-model="form.description" placeholder="Description" data-testid="input-description" />
                     <button type="submit" class="btn btn-sm btn-primary" data-testid="save-project">Create</button>
                     <button type="button" class="btn btn-sm" data-testid="cancel-form" @click="showForm = false">
                         Cancel
