@@ -30,11 +30,11 @@ export const configStore = createStore({
                     language: "en",
                     notifications: true,
                 }),
-                pre() {
-                    console.log("[config] pre hook");
+                pre({ mode, state }) {
+                    console.log("[config] pre hook", mode, state);
                 },
-                post() {
-                    console.log("[config] post hook");
+                post({ mode, state }) {
+                    console.log("[config] post hook", mode, state);
                 },
             }),
             meta: one(metaShape, {

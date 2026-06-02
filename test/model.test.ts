@@ -4,7 +4,7 @@ import { createStore } from "@harlem/core";
 import { shape } from "../src/runtime/core/layers/shape";
 import { createModelFactory } from "../src/runtime/core/layers/model";
 import { createStoreState, createStoreModel } from "../src/runtime/core/utils/store";
-import { ModelType, ModelManyKind, ModelOneMode, ModelSilent } from "../src/runtime/core/types/model";
+import { ModelType, ModelManyKind, ModelOneMode, ModelManyMode, ModelSilent } from "../src/runtime/core/types/model";
 import type { ShapeInfer } from "../src/runtime/core/types/shape";
 
 // Setup
@@ -1318,6 +1318,114 @@ describe("createStoreModel", () => {
             model.user.set(user);
 
             expect(source.state.user).toEqual(user);
+        });
+    });
+
+    describe("hook context", () => {
+        function setupOne(hooks: { pre?: (ctx: any) => void; post?: (ctx: any) => void }) {
+            const modelDefs = {
+                user: factory.one(UserShape, hooks),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-hook-ctx-one-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            return { source, model };
+        }
+
+        function setupMany(hooks: { pre?: (ctx: any) => void; post?: (ctx: any) => void }) {
+            const modelDefs = {
+                users: factory.many(UserShape, hooks),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-hook-ctx-many-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            return { source, model };
+        }
+
+        it("passes mode to hooks", () => {
+            const post = vi.fn();
+            const { model } = setupOne({ post });
+
+            model.user.set({ id: 1, name: "Alice", email: "alice@test.com" });
+            model.user.patch({ name: "Bob" });
+            model.user.reset();
+
+            expect(post.mock.calls.map((call) => call[0].mode)).toEqual([
+                ModelOneMode.SET,
+                ModelOneMode.PATCH,
+                ModelOneMode.RESET,
+            ]);
+        });
+
+        it("passes many-only modes to hooks", () => {
+            const post = vi.fn();
+            const { model } = setupMany({ post });
+
+            model.users.add({ id: 1, name: "Alice", email: "alice@test.com" });
+            model.users.remove({ id: 1 });
+
+            expect(post.mock.calls.map((call) => call[0].mode)).toEqual([ModelManyMode.ADD, ModelManyMode.REMOVE]);
+        });
+
+        it("pre receives state before the mutation, post after", () => {
+            let preState: User | undefined;
+            let postState: User | undefined;
+            const { model } = setupOne({
+                pre: (ctx) => {
+                    preState = ctx.state;
+                },
+                post: (ctx) => {
+                    postState = ctx.state;
+                },
+            });
+            const user: User = { id: 1, name: "Alice", email: "alice@test.com" };
+
+            model.user.set(user);
+
+            expect(preState).toEqual({ id: 0, name: "", email: "" });
+            expect(postState).toEqual(user);
+        });
+
+        it("state is a detached clone, not the live store state", () => {
+            let captured: User | undefined;
+            const { source, model } = setupOne({
+                post: (ctx) => {
+                    captured = ctx.state;
+                },
+            });
+            const user: User = { id: 1, name: "Alice", email: "alice@test.com" };
+
+            model.user.set(user);
+            captured!.name = "Mutated";
+
+            expect(source.state.user).toEqual(user);
+            expect((source.state.user as User).name).toBe("Alice");
+        });
+
+        it("passes the resolved collection as state for many models", () => {
+            let captured: User[] | undefined;
+            const { model } = setupMany({
+                post: (ctx) => {
+                    captured = ctx.state;
+                },
+            });
+            const users: User[] = [{ id: 1, name: "Alice", email: "alice@test.com" }];
+
+            model.users.set(users);
+
+            expect(captured).toEqual(users);
         });
     });
 

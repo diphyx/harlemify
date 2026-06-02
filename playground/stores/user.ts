@@ -26,11 +26,11 @@ export const userStore = createStore({
         return {
             current: one(userShape),
             list: many(userShape, {
-                pre() {
-                    console.log("[users] pre hook");
+                pre({ mode, state }) {
+                    console.log("[users] pre hook", mode, state);
                 },
-                post() {
-                    console.log("[users] post hook");
+                post({ mode, state }) {
+                    console.log("[users] post hook", mode, state);
                 },
             }),
         };

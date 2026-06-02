@@ -1,6 +1,6 @@
 import type { Store as SourceStore, BaseState, Mutation } from "@harlem/core";
 
-import { ensureArray, merge } from "./base";
+import { ensureArray, snapshot, merge } from "./base";
 import { resolveShapeAliases } from "./shape";
 
 import type { Shape } from "../types/shape";
@@ -14,6 +14,7 @@ import {
     type ModelManyListCommit,
     type ModelManyRecordCommit,
     type ModelCall,
+    type ModelHookContext,
     ModelType,
     ModelManyKind,
     ModelOneMode,
@@ -25,15 +26,24 @@ import {
 
 function callHook<S extends Shape>(
     definition: ModelDefinition<S>,
+    source: SourceStore<BaseState>,
     hook: ModelSilent,
+    mode: ModelOneMode | ModelManyMode,
     silent?: true | ModelSilent,
 ): void {
     if (silent === true || silent === hook) {
         return;
     }
 
+    const handler = definition.options?.[hook] as ((context: ModelHookContext<unknown>) => void) | undefined;
+    if (!handler) {
+        return;
+    }
+
     try {
-        definition.options?.[hook]?.();
+        const state = snapshot(source.state[definition.key]);
+
+        handler({ mode, state });
     } catch (error) {
         definition.logger?.error(`Model ${hook} hook error`, {
             model: definition.key,
@@ -44,18 +54,19 @@ function callHook<S extends Shape>(
 
 function wrapOperation<S extends Shape>(
     definition: ModelDefinition<S>,
-    mutation: string,
+    source: SourceStore<BaseState>,
+    mode: ModelOneMode | ModelManyMode,
     operation: () => void,
     silent?: true | ModelSilent,
 ): void {
     definition.logger?.debug("Model mutation", {
         model: definition.key,
-        mutation,
+        mutation: mode,
     });
 
-    callHook(definition, ModelSilent.PRE, silent);
+    callHook(definition, source, ModelSilent.PRE, mode, silent);
     operation();
-    callHook(definition, ModelSilent.POST, silent);
+    callHook(definition, source, ModelSilent.POST, mode, silent);
 }
 
 // Create One Commit
@@ -92,13 +103,19 @@ function createOneCommit<S extends Shape>(
 
     return {
         set(payload: S, options?: ModelOneCommitOptions) {
-            wrapOperation(definition, "set", () => setOperation({ payload }), options?.silent);
+            wrapOperation(definition, source, ModelOneMode.SET, () => setOperation({ payload }), options?.silent);
         },
         reset(options?: Pick<ModelOneCommitOptions, "silent">) {
-            wrapOperation(definition, "reset", () => resetOperation(), options?.silent);
+            wrapOperation(definition, source, ModelOneMode.RESET, () => resetOperation(), options?.silent);
         },
         patch(payload: Partial<S>, options?: ModelOneCommitOptions) {
-            wrapOperation(definition, "patch", () => patchOperation({ payload, options }), options?.silent);
+            wrapOperation(
+                definition,
+                source,
+                ModelOneMode.PATCH,
+                () => patchOperation({ payload, options }),
+                options?.silent,
+            );
         },
     };
 }
@@ -196,19 +213,37 @@ function createManyListCommit<S extends Shape>(
 
     return {
         set(payload: S[], options?: ModelManyCommitOptions) {
-            wrapOperation(definition, "set", () => setOperation({ payload }), options?.silent);
+            wrapOperation(definition, source, ModelManyMode.SET, () => setOperation({ payload }), options?.silent);
         },
         reset(options?: Pick<ModelManyCommitOptions, "silent">) {
-            wrapOperation(definition, "reset", () => resetOperation(), options?.silent);
+            wrapOperation(definition, source, ModelManyMode.RESET, () => resetOperation(), options?.silent);
         },
         patch(payload: Partial<S> | Partial<S>[], options?: ModelManyCommitOptions) {
-            wrapOperation(definition, "patch", () => patchOperation({ payload, options }), options?.silent);
+            wrapOperation(
+                definition,
+                source,
+                ModelManyMode.PATCH,
+                () => patchOperation({ payload, options }),
+                options?.silent,
+            );
         },
         remove(payload: Partial<S> | Partial<S>[], options?: ModelManyCommitOptions) {
-            wrapOperation(definition, "remove", () => removeOperation({ payload }), options?.silent);
+            wrapOperation(
+                definition,
+                source,
+                ModelManyMode.REMOVE,
+                () => removeOperation({ payload }),
+                options?.silent,
+            );
         },
         add(payload: S | S[], options?: ModelManyCommitOptions) {
-            wrapOperation(definition, "add", () => addOperation({ payload, options }), options?.silent);
+            wrapOperation(
+                definition,
+                source,
+                ModelManyMode.ADD,
+                () => addOperation({ payload, options }),
+                options?.silent,
+            );
         },
     } as ModelManyListCommit<S, any>;
 }
@@ -272,19 +307,31 @@ function createManyRecordCommit<S extends Shape>(
 
     return {
         set(payload: Record<string, S[]>, options?: ModelOneCommitOptions) {
-            wrapOperation(definition, "set", () => setOperation({ payload }), options?.silent);
+            wrapOperation(definition, source, ModelManyMode.SET, () => setOperation({ payload }), options?.silent);
         },
         reset(options?: Pick<ModelOneCommitOptions, "silent">) {
-            wrapOperation(definition, "reset", () => resetOperation(), options?.silent);
+            wrapOperation(definition, source, ModelManyMode.RESET, () => resetOperation(), options?.silent);
         },
         patch(payload: Record<string, S[]>, options?: ModelOneCommitOptions) {
-            wrapOperation(definition, "patch", () => patchOperation({ payload, options }), options?.silent);
+            wrapOperation(
+                definition,
+                source,
+                ModelManyMode.PATCH,
+                () => patchOperation({ payload, options }),
+                options?.silent,
+            );
         },
         remove(payload: string, options?: ModelOneCommitOptions) {
-            wrapOperation(definition, "remove", () => removeOperation({ payload }), options?.silent);
+            wrapOperation(
+                definition,
+                source,
+                ModelManyMode.REMOVE,
+                () => removeOperation({ payload }),
+                options?.silent,
+            );
         },
         add(payload: { key: string; value: S[] }, options?: ModelOneCommitOptions) {
-            wrapOperation(definition, "add", () => addOperation({ payload }), options?.silent);
+            wrapOperation(definition, source, ModelManyMode.ADD, () => addOperation({ payload }), options?.silent);
         },
     } as ModelManyRecordCommit<S>;
 }

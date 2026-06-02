@@ -111,6 +111,21 @@ test.describe("users page", () => {
         await expect(page.getByTestId("user-count")).toHaveText("4 users");
     });
 
+    test("model hook receives the mutation context", async ({ page }) => {
+        const logs: string[] = [];
+        page.on("console", (message) => logs.push(message.text()));
+
+        await page.getByTestId("add-user").click();
+        await page.getByTestId("input-name").fill("Hook User");
+        await page.getByTestId("input-email").fill("hook@example.com");
+        await page.getByTestId("save-user").click();
+        await expect(page.getByTestId("user-count")).toHaveText("4 users");
+
+        await expect
+            .poll(() => logs.some((line) => line.includes("[users] post hook") && line.includes("add")))
+            .toBe(true);
+    });
+
     test("clear all uses silent reset", async ({ page }) => {
         await page.getByTestId("clear-all-users").click();
         await expect(page.getByTestId("user-count")).toHaveText("0 users");
