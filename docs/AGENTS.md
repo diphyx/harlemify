@@ -436,10 +436,11 @@ HTTP methods: `api.get`, `api.head`, `api.post`, `api.put`, `api.patch`, `api.de
 }
 ```
 
-`transform`'s `context` exposes the resolved `request` (`Readonly<{ url, method, headers, query, body }>`) and the read-only `view` (`DeepReadonly<StoreView>`). `data` (first arg) is the API response. Two canonical uses:
+`transform`'s `context` exposes the resolved `request` (`Readonly<{ url, method, headers, query, body }>`), the call `params` (`Readonly<Record<string, string | number>>` — the path params passed to the call), and the read-only `view` (`DeepReadonly<StoreView>`). `data` (first arg) is the API response. Canonical uses:
 
 - Merge request body back when server returns sparse `{ id }`: `transform: (data, { request }) => ({ ...request.body, ...data })`
 - Patch on top of existing store state: `transform: (data, { view }) => ({ ...view.user.value, ...data })`
+- Stamp the committed record with a path param: `transform: (data, { params }) => ({ ...data, id: params.id })`
 
 `context` is read-only; `transform` must be synchronous (no Promise returns). In multi-commit chains every transform receives the same `context` instance. TS quirk: inference through the factory's overloaded generics doesn't reach the `context` param — annotate explicitly via the exported `ActionApiCommitContext` type or a minimal inline shape if your editor flags it as `any`.
 

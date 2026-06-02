@@ -111,6 +111,17 @@ export const postStore = createStore({
                     }),
                 },
             ),
+            loadOne: api.get(
+                { url: "/posts/:id" },
+                {
+                    model: "current",
+                    mode: ModelOneMode.SET,
+                    transform: (data: unknown, { params }: { params: Record<string, string | number> }) => ({
+                        ...(data as Post),
+                        title: `#${params.id}: ${(data as Post).title}`,
+                    }),
+                },
+            ),
             update: api.patch(
                 {
                     url(view) {

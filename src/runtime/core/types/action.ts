@@ -83,6 +83,7 @@ export interface ActionApiCommitContext<MD extends ModelDefinitions, VD extends 
         query: Readonly<Record<string, unknown>>;
         body: unknown;
     }>;
+    params: Readonly<Record<string, string | number>>;
     view: DeepReadonly<StoreView<MD, VD>>;
 }
 
@@ -250,7 +251,7 @@ export interface ActionCallCommitOptions {
 }
 
 export interface ActionApiCallOptions extends ActionCallBaseOptions {
-    params?: Record<string, string>;
+    params?: Record<string, string | number>;
     headers?: Record<string, string>;
     query?: Record<string, unknown>;
     body?: unknown;

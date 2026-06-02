@@ -101,12 +101,13 @@ Each commit applies independently. Pass `transform` to extract the slice that be
 
 ### Commit Context
 
-`transform` receives a second `context` argument exposing the resolved request and the read-only view:
+`transform` receives a second `context` argument exposing the resolved request, the call params, and the read-only view:
 
 ```typescript
 transform(data, context) {
     // data         — the API response (what would be committed if no transform)
     context.request; // Readonly<{ url, method, headers, query, body }> — the resolved request
+    context.params;  // Readonly<Record<string, string | number>> — the path params passed to the call
     context.view;    // DeepReadonly<StoreView> — read store state during the commit
 }
 ```
@@ -145,7 +146,7 @@ api.patch(
 
 **Rules.**
 
-- `context.request` and `context.view` are read-only — use them to read, not to mutate.
+- `context.request`, `context.params`, and `context.view` are read-only — use them to read, not to mutate.
 - `transform` must be synchronous; returning a Promise is not supported.
 - `context.view` is a snapshot at the moment the commit phase begins — reading it inside one transform won't observe writes another transform makes later.
 

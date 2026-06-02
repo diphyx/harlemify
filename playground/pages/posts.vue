@@ -67,6 +67,10 @@ async function loadPage() {
     await postStore.action.loadPage();
 }
 
+async function loadOne() {
+    await postStore.action.loadOne({ params: { id: 2 } });
+}
+
 function resetSortAction() {
     postStore.action.sort.reset();
 }
@@ -87,6 +91,7 @@ function resetSortAction() {
             <button class="btn btn-sm" data-testid="sort-posts" @click="sortPosts">Sort A-Z</button>
             <button class="btn btn-sm" data-testid="append-posts" @click="appendFromServer">Append from Server</button>
             <button class="btn btn-sm" data-testid="load-page" @click="loadPage">Load Page (multi-commit)</button>
+            <button class="btn btn-sm" data-testid="load-one" @click="loadOne">Load #2 (params)</button>
             <button class="btn btn-sm" data-testid="reset-sort" @click="resetSortAction">Reset Sort</button>
         </div>
 
@@ -160,6 +165,11 @@ function resetSortAction() {
                 <pre class="aside-pre">{{ JSON.stringify(postStore.view.pageMeta.value, null, 2) }}</pre>
             </div>
 
+            <div class="aside-panel" data-testid="loaded-one">
+                <div class="aside-panel-title">view.post (loaded via params)</div>
+                <pre class="aside-pre" data-testid="loaded-one-title">{{ postStore.view.post.value.title }}</pre>
+            </div>
+
             <ActionStatus
                 :actions="{
                     list: postStore.action.list,
@@ -187,6 +197,10 @@ function resetSortAction() {
                 </li>
                 <li><code>action.sort.reset()</code> - Reset action state</li>
                 <li><code>action(&#123; body &#125;)</code> - Call-time payload with body data</li>
+                <li>
+                    <code>action(&#123; params: &#123; id &#125; &#125;)</code> - Path params fill <code>:id</code> and
+                    reach the commit <code>context.params</code>
+                </li>
                 <li><code>shape.defaults()</code> - Auto-generate zero-value form data from shape</li>
             </FeatureInfo>
         </template>
