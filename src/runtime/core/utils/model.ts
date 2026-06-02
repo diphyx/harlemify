@@ -1,7 +1,6 @@
-import { defu } from "defu";
 import type { Store as SourceStore, BaseState, Mutation } from "@harlem/core";
 
-import { ensureArray } from "./base";
+import { ensureArray, merge } from "./base";
 import { resolveShapeAliases } from "./shape";
 
 import type { Shape } from "../types/shape";
@@ -80,7 +79,7 @@ function createOneCommit<S extends Shape>(
         options?: ModelOneCommitOptions;
     }> = source.mutation(`${definition.key}:patch`, (state, { payload, options }) => {
         if (options?.deep) {
-            state[definition.key] = defu(payload, state[definition.key]) as S;
+            state[definition.key] = merge(payload, state[definition.key]) as S;
 
             return;
         }
@@ -137,7 +136,7 @@ function createManyListCommit<S extends Shape>(
             }
 
             if (options?.deep) {
-                return defu(found, item) as S;
+                return merge(found, item) as S;
             }
 
             return {
@@ -235,7 +234,7 @@ function createManyRecordCommit<S extends Shape>(
         options?: ModelOneCommitOptions;
     }> = source.mutation(`${definition.key}:patch`, (state, { payload, options }) => {
         if (options?.deep) {
-            state[definition.key] = defu(payload, state[definition.key]) as Record<string, S[]>;
+            state[definition.key] = merge(payload, state[definition.key]) as Record<string, S[]>;
 
             return;
         }

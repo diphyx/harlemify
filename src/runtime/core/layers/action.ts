@@ -1,5 +1,4 @@
-import type { ConsolaInstance } from "consola";
-
+import type { Logger } from "../types/base";
 import type { ModelDefinitions } from "../types/model";
 import type { ViewDefinitions } from "../types/view";
 import { wrapBaseDefinition } from "../utils/base";
@@ -18,7 +17,7 @@ import {
 
 export function createActionFactory<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
     config?: RuntimeActionConfig,
-    logger?: ConsolaInstance,
+    logger?: Logger,
 ): ActionFactory<MD, VD> {
     function apiCall(
         request: ActionApiRequest<MD, VD>,

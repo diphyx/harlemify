@@ -1,5 +1,7 @@
 import type { Store as SourceStore, BaseState } from "@harlem/core";
 
+import { snapshot } from "./base";
+
 import type { ModelDefinitions } from "../types/model";
 import { type ViewDefinition, type ViewCall, ViewClone } from "../types/view";
 
@@ -11,7 +13,7 @@ function resolveClonedValue<MD extends ModelDefinitions>(definition: ViewDefinit
     }
 
     if (definition.options.clone === ViewClone.DEEP) {
-        return JSON.parse(JSON.stringify(value));
+        return snapshot(value);
     }
 
     if (Array.isArray(value)) {

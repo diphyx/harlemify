@@ -1,5 +1,4 @@
-import type { ConsolaInstance } from "consola";
-
+import type { Logger } from "../types/base";
 import type { Shape, ShapeType } from "../types/shape";
 import { wrapBaseDefinition } from "../utils/base";
 import { resolveShapeIdentifier } from "../utils/shape";
@@ -14,7 +13,7 @@ import {
     ModelManyKind,
 } from "../types/model";
 
-export function createModelFactory(config?: RuntimeModelConfig, logger?: ConsolaInstance): ModelFactory {
+export function createModelFactory(config?: RuntimeModelConfig, logger?: Logger): ModelFactory {
     function one<S extends Shape>(
         shape: ShapeType<S>,
         options?: ModelDefinitionOptions & {

@@ -1,5 +1,4 @@
-import type { ConsolaInstance } from "consola";
-
+import type { Logger } from "../types/base";
 import type { ModelDefinitions, ModelDefinitionInfer } from "../types/model";
 import { wrapBaseDefinition } from "../utils/base";
 import type {
@@ -14,7 +13,7 @@ import type {
 
 export function createViewFactory<MD extends ModelDefinitions>(
     config?: RuntimeViewConfig,
-    logger?: ConsolaInstance,
+    logger?: Logger,
 ): ViewFactory<MD> {
     function from<K extends keyof MD, R = ModelDefinitionInfer<MD, K>>(
         model: K,

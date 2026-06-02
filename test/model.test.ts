@@ -302,7 +302,7 @@ describe("createStoreModel", () => {
             });
         });
 
-        it("patch with deep option uses defu", () => {
+        it("patch with deep option deep-merges nested objects", () => {
             const NestedShape = shape((factory) => {
                 return {
                     id: factory.number(),
@@ -336,6 +336,32 @@ describe("createStoreModel", () => {
 
             expect((source.state.settings as any).config.theme).toBe("light");
             expect((source.state.settings as any).config.notifications).toBe(true);
+        });
+
+        it("patch with deep option replaces arrays instead of concatenating", () => {
+            const TaggedShape = shape((factory) => {
+                return {
+                    id: factory.number(),
+                    tags: factory.array(factory.string()),
+                };
+            });
+
+            const modelDefs = {
+                tagged: factory.one(TaggedShape),
+            };
+
+            for (const [k, def] of Object.entries(modelDefs)) {
+                def.key = k;
+            }
+
+            const state = createStoreState(modelDefs);
+            const source = createStore("test-deep-array-" + Math.random(), state);
+            const model = createStoreModel(modelDefs, source);
+
+            model.tagged.set({ id: 1, tags: ["a", "b"] });
+            model.tagged.patch({ tags: ["c"] } as any, { deep: true });
+
+            expect((source.state.tagged as any).tags).toEqual(["c"]);
         });
 
         it("patch merges into shape defaults when no set called", () => {
@@ -731,7 +757,7 @@ describe("createStoreModel", () => {
             expect(source.state.users).toHaveLength(1);
         });
 
-        it("patch with deep option uses defu", () => {
+        it("patch with deep option deep-merges nested objects", () => {
             const NestedItemShape = shape((factory) => {
                 return {
                     id: factory.number(),
@@ -1094,7 +1120,7 @@ describe("createStoreModel", () => {
             expect(Object.keys(source.state.grouped as Record<string, User[]>)).toHaveLength(2);
         });
 
-        it("patch with deep option uses defu", () => {
+        it("patch with deep option deep-merges nested objects", () => {
             const { source, model } = setup();
             model.grouped.set({
                 "team-a": [{ id: 1, name: "Alice", email: "alice@test.com" }],

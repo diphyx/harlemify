@@ -1,4 +1,3 @@
-import { defu } from "defu";
 import { type DeepReadonly, type Ref, ref, computed, readonly, toValue, nextTick } from "vue";
 
 import { type StoreModel, type ModelDefinitions, type ModelCall, ModelOneMode, ModelManyMode } from "../types/model";
@@ -22,7 +21,7 @@ import {
     ActionStatus,
     ActionConcurrent,
 } from "../types/action";
-import { trimStart, trimEnd, isEmptyRecord, isPlainObject } from "./base";
+import { trimStart, trimEnd, isEmptyRecord, isPlainObject, merge } from "./base";
 import {
     ActionApiError,
     ActionHandlerError,
@@ -74,7 +73,7 @@ function resolveApiHeaders<MD extends ModelDefinitions, VD extends ViewDefinitio
     const initial = resolveValue(definition.request.headers, view, {});
     const custom = options?.headers ?? {};
 
-    return defu(custom, initial);
+    return merge(custom, initial);
 }
 
 function resolveApiQuery<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
@@ -85,7 +84,7 @@ function resolveApiQuery<MD extends ModelDefinitions, VD extends ViewDefinitions
     const initial = resolveValue(definition.request.query, view, {});
     const custom = options?.query ?? {};
 
-    return defu(custom, initial);
+    return merge(custom, initial);
 }
 
 function resolveApiBody<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
@@ -101,7 +100,7 @@ function resolveApiBody<MD extends ModelDefinitions, VD extends ViewDefinitions<
     const initial = resolveValue(definition.request.body, view, {});
     const custom = options?.body ?? {};
 
-    const body = defu(custom as Record<string, unknown>, initial);
+    const body = merge(custom as Record<string, unknown>, initial);
     if (!isPlainObject(body)) {
         return body;
     }

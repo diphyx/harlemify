@@ -1,4 +1,3 @@
-import { defu } from "defu";
 import { z } from "zod";
 
 import type {
@@ -10,7 +9,7 @@ import type {
     ShapeType,
     ZodFieldDefinition,
 } from "../types/shape";
-import { isPlainObject, isEmptyRecord } from "./base";
+import { isPlainObject, isEmptyRecord, merge } from "./base";
 
 // Internal utils
 
@@ -241,7 +240,7 @@ export function decorateShape<T extends ShapeRawDefinition>(object: z.ZodObject<
         defaults(overrides?: Partial<ShapeInfer<typeof object>>) {
             const zero = resolveZeroValues(object);
             if (overrides) {
-                return defu(overrides, zero) as ShapeInfer<typeof object>;
+                return merge(overrides, zero) as ShapeInfer<typeof object>;
             }
 
             return zero;

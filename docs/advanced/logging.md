@@ -1,6 +1,6 @@
 # Logging
 
-Harlemify provides per-store debug logging via [Consola](https://github.com/unjs/consola) to help troubleshoot store operations.
+Harlemify provides per-store debug logging to help troubleshoot store operations. It uses a lightweight built-in logger that writes to the `console`, gated by a numeric level — no external logging dependency.
 
 ## Enable Logging
 
@@ -16,7 +16,7 @@ export default defineNuxtConfig({
 
 ## Log Levels
 
-The `logger` value maps to Consola log levels:
+The `logger` value sets the verbosity threshold — a message is emitted when its level is at or below the configured value:
 
 | Level   | Value  | Description                  |
 | ------- | ------ | ---------------------------- |
@@ -29,7 +29,7 @@ The `logger` value maps to Consola log levels:
 
 ## What Gets Logged
 
-Each store creates a tagged logger with the format `harlemify:{storeName}`. The following operations are logged:
+Each store creates a tagged logger with the format `harlemify:{storeName}`, and every line is prefixed with that tag. In the samples below, the parenthetical (e.g. `(debug)`) denotes the level at which the line is emitted — it is not part of the printed output. The following operations are logged:
 
 ### Store Lifecycle
 

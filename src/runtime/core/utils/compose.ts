@@ -1,6 +1,6 @@
-import type { ConsolaInstance } from "consola";
 import { ref, readonly } from "vue";
 
+import type { Logger } from "../types/base";
 import type { ComposeCallback, ComposeCall, ComposeDefinitions, StoreCompose } from "../types/compose";
 
 // Create Compose Action
@@ -8,7 +8,7 @@ import type { ComposeCallback, ComposeCall, ComposeDefinitions, StoreCompose } f
 function createComposeAction<A extends any[]>(
     key: string,
     callback: ComposeCallback<A>,
-    logger?: ConsolaInstance,
+    logger?: Logger,
 ): ComposeCall<A> {
     logger?.debug("Registering compose action", {
         action: key,
@@ -46,7 +46,7 @@ function createComposeAction<A extends any[]>(
 export function createStoreCompose<CD extends ComposeDefinitions>(
     composeConfig: ((...args: any[]) => CD) | undefined,
     context: Record<string, unknown>,
-    logger?: ConsolaInstance,
+    logger?: Logger,
 ): StoreCompose<CD> {
     const output = {} as StoreCompose<CD>;
     if (!composeConfig) {

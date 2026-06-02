@@ -307,7 +307,7 @@ await store.action.fetch({
 });
 ```
 
-> **Option priority:** Call-time options override definition-time values, which override module config, which override built-in defaults. Headers are merged via `defu`.
+> **Option priority:** Call-time options override definition-time values, which override module config, which override built-in defaults. Headers are deep-merged.
 
 ### Commit Mode Override
 

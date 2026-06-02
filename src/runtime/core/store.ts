@@ -1,5 +1,4 @@
 import { effectScope } from "vue";
-import { createConsola } from "consola";
 import { createStore as createStoreSource } from "@harlem/core";
 
 import { runtimeConfig } from "../config";
@@ -10,6 +9,7 @@ import { createActionFactory } from "./layers/action";
 
 import { createStoreState, createStoreModel, createStoreView, createStoreAction } from "./utils/store";
 import { createStoreCompose } from "./utils/compose";
+import { createLogger } from "./utils/logger";
 
 import type { ModelDefinitions } from "./types/model";
 import type { ViewDefinitions } from "./types/view";
@@ -24,12 +24,7 @@ export function createStore<
     CD extends ComposeDefinitions = ComposeDefinitions,
 >(config: StoreConfig<MD, VD, AD, CD>): Store<MD, VD, AD, CD> {
     function init(): Store<MD, VD, AD, CD> {
-        const logger = createConsola({
-            level: runtimeConfig.logger,
-            defaults: {
-                tag: `harlemify:${config.name}`,
-            },
-        });
+        const logger = createLogger(`harlemify:${config.name}`, runtimeConfig.logger);
 
         logger.info("Creating store");
 

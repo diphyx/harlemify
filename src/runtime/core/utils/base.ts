@@ -1,4 +1,12 @@
+import { objectClone, typeIsObject } from "@harlem/utilities";
+
 import type { BaseDefinition } from "../types/base";
+
+// Clone
+
+export function snapshot<T>(value: T): T {
+    return objectClone(value) as T;
+}
 
 // Base Definition
 
@@ -38,19 +46,11 @@ export function ensureArray<T>(value: T | T[]): T[] {
 // Object
 
 export function isObject(value: unknown): value is object {
-    return value != null && typeof value === "object";
+    return typeIsObject(value);
 }
 
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
-    if (!isObject(value)) {
-        return false;
-    }
-
-    if (Array.isArray(value)) {
-        return false;
-    }
-
-    return true;
+    return isObject(value);
 }
 
 export function isEmptyRecord(record: Record<string, unknown> | undefined): record is undefined {
@@ -63,6 +63,26 @@ export function isEmptyRecord(record: Record<string, unknown> | undefined): reco
     }
 
     return false;
+}
+
+// Merge
+
+export function merge<T>(priority: unknown, base: T): T {
+    if (!isPlainObject(priority) || !isPlainObject(base)) {
+        return priority as T;
+    }
+
+    const output: Record<string, unknown> = { ...base };
+    for (const key of Object.keys(priority)) {
+        const value = priority[key];
+        if (value === null || value === undefined) {
+            continue;
+        }
+
+        output[key] = merge(value, output[key]);
+    }
+
+    return output as T;
 }
 
 // Timing
