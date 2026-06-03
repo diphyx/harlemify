@@ -4,6 +4,12 @@ import { todoStore, type Todo } from "../stores/todo";
 
 const { execute, status, loading, error, reset } = useStoreAction(todoStore, "list");
 const isolatedAction = useStoreAction(todoStore, "list", { isolated: true });
+const {
+    execute: captureExecute,
+    params: captureParams,
+    query: captureQuery,
+    reset: captureReset,
+} = useStoreAction(todoStore, "list", { isolated: true });
 const deleteAction = useStoreAction(todoStore, "delete");
 const toggleAction = useStoreAction(todoStore, "toggle");
 const renameAction = useStoreAction(todoStore, "rename");
@@ -202,6 +208,31 @@ function clearTrackLog() {
                     <button class="btn btn-sm" data-testid="isolated-reset" @click="isolatedAction.reset()">
                         reset()
                     </button>
+                </div>
+            </div>
+
+            <div class="demo-box">
+                <h4>Isolated Call Capture</h4>
+                <p class="desc"><code>isolated mode exposes the in-flight call's params / query</code></p>
+                <div class="kv-grid">
+                    <div class="kv">
+                        <span class="kv-k">params.id</span
+                        ><span class="kv-v" data-testid="capture-params">{{ captureParams?.id ?? "-" }}</span>
+                    </div>
+                    <div class="kv">
+                        <span class="kv-k">query.page</span
+                        ><span class="kv-v" data-testid="capture-query">{{ captureQuery?.page ?? "-" }}</span>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button
+                        class="btn btn-sm"
+                        data-testid="capture-execute"
+                        @click="captureExecute({ params: { id: 7 }, query: { page: 3 } })"
+                    >
+                        execute(params, query)
+                    </button>
+                    <button class="btn btn-sm" data-testid="capture-reset" @click="captureReset()">reset()</button>
                 </div>
             </div>
         </div>

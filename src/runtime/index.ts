@@ -58,7 +58,7 @@ export type { UseStoreCompose } from "./composables/compose";
 
 // Composables
 export { useIsolatedActionStatus, useIsolatedActionError, useStoreAction } from "./composables/action";
-export type { UseStoreActionOptions, UseStoreAction } from "./composables/action";
+export type { UseStoreActionOptions, UseStoreAction, IsolatedActionCall } from "./composables/action";
 export { useStoreModel } from "./composables/model";
 export type { UseStoreModelOptions, UseStoreModel } from "./composables/model";
 export { useStoreView } from "./composables/view";

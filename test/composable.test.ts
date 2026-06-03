@@ -240,6 +240,52 @@ describe("useStoreAction", () => {
             expect(second.status.value).toBe(ActionStatus.IDLE);
         });
     });
+
+    describe("isolated call capture", () => {
+        it("exposes params/query of the in-flight call (api action)", async () => {
+            const store = setup();
+            const { execute, params, query } = useStoreAction(store, "get", { isolated: true });
+
+            await execute({ params: { id: "42" }, query: { page: 1 } });
+
+            expect(params.value).toEqual({ id: "42" });
+            expect(query.value).toEqual({ page: 1 });
+        });
+
+        it("exposes payload of the in-flight call (handler action)", async () => {
+            const store = setup();
+            const { execute, payload } = useStoreAction(store, "list", { isolated: true });
+
+            await execute({ payload: "target" });
+
+            expect(payload.value).toBe("target");
+        });
+
+        it("reset clears the captured call", async () => {
+            const store = setup();
+            const { execute, params, query, reset } = useStoreAction(store, "get", { isolated: true });
+
+            await execute({ params: { id: "42" }, query: { page: 1 } });
+            reset();
+
+            expect(params.value).toBeUndefined();
+            expect(query.value).toBeUndefined();
+        });
+
+        it("captures an independent deep-cloned snapshot", async () => {
+            const store = setup();
+            const { execute, payload } = useStoreAction(store, "list", { isolated: true });
+
+            const original = { id: 1, nested: { value: "a" } };
+
+            await execute({ payload: original });
+
+            original.id = 99;
+            original.nested.value = "b";
+
+            expect(payload.value).toEqual({ id: 1, nested: { value: "a" } });
+        });
+    });
 });
 
 // Model

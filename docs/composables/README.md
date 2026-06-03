@@ -4,7 +4,7 @@ Vue composables for working with store layers in components. Each composable wra
 
 ## [useStoreAction](use-store-action.md)
 
-Reactive action execution with status, loading, error tracking, and optional isolated mode.
+Reactive action execution with status, loading, error tracking, and optional isolated mode (with per-target in-flight call tracking).
 
 ```typescript
 const { execute, status, loading, error, reset } = useStoreAction(store, "list");

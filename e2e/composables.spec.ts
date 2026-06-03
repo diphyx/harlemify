@@ -110,6 +110,21 @@ test.describe("composables page", () => {
         await expect(page.getByTestId("isolated-status")).toHaveText("idle");
     });
 
+    test("action: isolated mode exposes the in-flight call params/query", async ({ page }) => {
+        await expect(page.getByTestId("capture-params")).toHaveText("-");
+        await expect(page.getByTestId("capture-query")).toHaveText("-");
+        await page.getByTestId("capture-execute").click();
+        await expect(page.getByTestId("capture-params")).toHaveText("7");
+        await expect(page.getByTestId("capture-query")).toHaveText("3");
+    });
+
+    test("action: isolated call capture is cleared by reset", async ({ page }) => {
+        await page.getByTestId("capture-execute").click();
+        await expect(page.getByTestId("capture-params")).toHaveText("7");
+        await page.getByTestId("capture-reset").click();
+        await expect(page.getByTestId("capture-params")).toHaveText("-");
+    });
+
     // useStoreModel
 
     test("model destructured: setCurrent sets value", async ({ page }) => {

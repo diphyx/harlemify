@@ -785,7 +785,7 @@ await execute({ body: data, query: { page: 1 } }); // ActionCallOptions
 reset(); // status → IDLE, error → null
 ```
 
-**Options:** `{ isolated: boolean = false }` — when `true`, creates independent `status`/`error` refs scoped to this composable instance. Multiple components calling the same action each maintain their own loading/error state. The store's global `action.status` and `action.error` remain unchanged. The composable wires `bind` internally — you cannot pass `bind` through `execute()` (it is `Omit<O, "bind">`).
+**Options:** `{ isolated: boolean = false }` — when `true`, creates independent `status`/`error` refs scoped to this composable instance. Multiple components calling the same action each maintain their own loading/error state. The store's global `action.status` and `action.error` remain unchanged. The composable wires `bind` internally — you cannot pass `bind` through `execute()` (it is `Omit<O, "bind">`). Isolated mode also exposes a deep-cloned **in-flight call snapshot** (`params`/`query` for api actions, `payload` for handlers), captured at call time and cleared by `reset()` — use it to match the shared `loading` to a specific target, e.g. `:loading="loading && params?.['job-id'] === row.id"` for per-row spinners in a table. Guarded against concurrency-blocked calls (assumes one call in flight, the default `BLOCK`). These fields appear only with a literal `{ isolated: true }`.
 
 **Return type:**
 
@@ -797,6 +797,10 @@ type UseStoreAction<T, O = ActionCallOptions> = {
     error: Readonly<Ref<Error | null>>;
     reset: () => void;
 };
+
+// with { isolated: true }, the return is intersected with IsolatedActionCall<A[K]>:
+//   api action     → { params: Readonly<Ref<…>>; query: Readonly<Ref<…>> }
+//   handler action → { payload: Readonly<Ref<P | undefined>> }
 ```
 
 ### 9.2 `useStoreModel(store, key, options?)`
@@ -1021,6 +1025,7 @@ import {
     type ViewDefinitionOptions,
     type ComposeContext,
     type UseStoreAction,
+    type IsolatedActionCall,
     type UseStoreModel,
     type UseStoreView,
     type UseStoreCompose,
@@ -1046,7 +1051,7 @@ import {
 13. **Alias remapping is skipped without a `commit` config**, when the shape has no aliases, and for non-object bodies (`FormData`, `Blob`).
 14. **Option priority for actions:** call-time > definition > module config > built-in. Headers deep-merge.
 15. **For autocomplete-style search:** prefer `ActionConcurrent.CANCEL` over hand-rolled `AbortController` — it handles the abort wiring for you.
-16. **For the same action displayed in two UI spots with independent spinners:** use `useStoreAction(..., { isolated: true })` (or `useIsolatedActionStatus()` + `bind`).
+16. **For the same action displayed in two UI spots with independent spinners:** use `useStoreAction(..., { isolated: true })` (or `useIsolatedActionStatus()` + `bind`). **For the same action repeated across rows of a list/table** (per-row spinner), use isolated mode's in-flight call snapshot: `:loading="loading && params?.['job-id'] === row.id"` — one composable, one row lights up.
 17. **Action return value is keyed by commit `model`.** With 1+ commits, `await store.action.foo()` resolves to `{ [model]: value, … }`. With 0 commits it returns the raw response. Destructure: `const { list } = await store.action.list()`.
 18. **Multi-commit with `transform()` is the answer to envelope responses** (`{ data, meta, pagination }`). Don't reach for `handler` just to slice a response across models — `api.*` with multiple commits keeps the URL/param/alias machinery you'd lose with a handler.
 
@@ -1155,7 +1160,7 @@ async function add() {
 - **"How do I fetch data?"** → `action.api.{get,post,patch,…}` with a commit config.
 - **"How do I implement a custom async op or non-JSON request?"** → `action.handler`.
 - **"How do I sequence multiple actions or combine actions + mutations?"** → `compose`.
-- **"How do I track loading per-button independently?"** → `useStoreAction(..., { isolated: true })`.
+- **"How do I track loading per-button independently?"** → `useStoreAction(..., { isolated: true })`; for per-row spinners in one component, match the snapshot: `loading && params?.['job-id'] === row.id`.
 - **"How do I cancel a search request?"** → `ActionConcurrent.CANCEL` (preferred) or pass an `AbortSignal`.
 - **"My factory needs `useRoute`/`useCookie`."** → `lazy: true`.
 - **"My API uses different key names than my code."** → `.meta({ alias: "…" })` on the shape fields.
