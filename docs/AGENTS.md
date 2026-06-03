@@ -1170,8 +1170,6 @@ async function add() {
 | Vue        | `^3.5.0`              |
 | Zod        | `^4.0.0`              |
 
-> Early Nuxt 4 versions (e.g. 4.1.x) may fail to resolve the `#build/harlemify.config` alias — upgrade to the latest Nuxt 4 release.
-
 Official docs: https://diphyx.github.io/harlemify/
 Repo: https://github.com/diphyx/harlemify
 License: MIT

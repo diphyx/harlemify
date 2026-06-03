@@ -99,8 +99,6 @@ await execute();
 | Vue        | `^3.5.0`              |
 | Zod        | `^4.0.0`              |
 
-> **Note:** Early Nuxt 4 versions (e.g., 4.1.x) may have issues resolving the `#build` alias for module templates. If you encounter build errors related to `#build/harlemify.config`, upgrade to the latest Nuxt 4 release.
-
 ## Documentation
 
 [https://diphyx.github.io/harlemify/](https://diphyx.github.io/harlemify/)
