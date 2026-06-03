@@ -2,6 +2,8 @@
 
 Wraps a store action with reactive `status`, `loading`, `error`, and `reset`. Supports isolated mode for independent status tracking.
 
+> **Related:** [Action](../core-concepts/action.md) — define the action this composable wraps.
+
 ## Basic Usage
 
 ```typescript

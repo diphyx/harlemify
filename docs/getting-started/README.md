@@ -34,18 +34,7 @@ export default defineNuxtConfig({
 });
 ```
 
-## Configuration Options
-
-| Option              | Type                      | Description                                        |
-| ------------------- | ------------------------- | -------------------------------------------------- |
-| `action.endpoint`   | `string`                  | Base endpoint URL prepended to all action API URLs |
-| `action.headers`    | `Record<string, string>`  | Default headers for all API requests               |
-| `action.query`      | `Record<string, unknown>` | Default query parameters for all API requests      |
-| `action.timeout`    | `number`                  | Request timeout in milliseconds                    |
-| `action.concurrent` | `ActionConcurrent`        | Default concurrency strategy for all actions       |
-| `model.identifier`  | `string`                  | Default identifier field for array mutations       |
-| `view.clone`        | `ViewClone`               | Default clone strategy for all views               |
-| `logger`            | `number`                  | Log level (`-999` = silent, `999` = verbose)       |
+See **[Configuration](configuration.md)** for the full list of module options (`action.*`, `model.identifier`, `view.clone`, `logger`).
 
 ## Auto-Imports
 

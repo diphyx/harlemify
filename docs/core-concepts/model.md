@@ -2,6 +2,8 @@
 
 Models define the state containers in a store. The model factory provides `one` for single items and `many` for collections.
 
+> **Related:** [`useStoreModel`](../composables/use-store-model.md) — mutate this model from a component.
+
 ```typescript
 model({ one, many }) {
     return {
@@ -11,6 +13,20 @@ model({ one, many }) {
     };
 },
 ```
+
+## Definition Options
+
+Both `one(shape, options?)` and `many(shape, options?)` accept an options object as the second argument:
+
+| Option       | Type                                  | Applies to   | Description                                                                                                                    |
+| ------------ | ------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `default`    | `() => S \| S[] \| Record<…>`         | `one` `many` | Function returning the initial and `reset()` value (defaults to shape zero-values) — see [Function Default](#function-default) |
+| `kind`       | `ModelManyKind` (`"list"`/`"record"`) | `many`       | Collection shape; `list` (default) or keyed `record` — see [Many (Record)](#many-record)                                       |
+| `identifier` | `keyof S`                             | `many` list  | Field used to match items in `patch`/`add`/`remove` (defaults to shape `identifier` meta, else `id`)                           |
+| `pre`        | `(context) => void`                   | `one` `many` | Hook fired before every mutation — see [Pre/Post Hooks](#prepost-hooks)                                                        |
+| `post`       | `(context) => void`                   | `one` `many` | Hook fired after every mutation — see [Pre/Post Hooks](#prepost-hooks)                                                         |
+
+> Per-mutation options (`deep`, `silent`, `by`, `prepend`, `unique`) are passed at **call time** to the mutation methods, not here — see the mutation tables below and [Silent Option](#silent-option).
 
 ## One
 

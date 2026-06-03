@@ -2,6 +2,8 @@
 
 Returns reactive view data as a `ComputedRef` (optionally transformed by a resolver) and a `track` method for watching changes.
 
+> **Related:** [View](../core-concepts/view.md) — define the view this composable reads.
+
 ## Basic Usage
 
 ```typescript

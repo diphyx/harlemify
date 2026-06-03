@@ -2,6 +2,7 @@
 - Getting Started
     - [Installation](/getting-started/README.md)
     - [Your First Store](/getting-started/first-store.md)
+    - [Configuration](/getting-started/configuration.md)
 - Core Concepts
     - [Overview](/core-concepts/README.md)
     - [Shape](/core-concepts/shape.md)
@@ -23,3 +24,5 @@
     - [Lazy Store](/advanced/lazy-store.md)
     - [SSR](/advanced/ssr.md)
     - [Logging](/advanced/logging.md)
+- Reference
+    - [AI Agent Reference](/AGENTS.md)

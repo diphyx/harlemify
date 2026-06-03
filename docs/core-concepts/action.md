@@ -2,6 +2,8 @@
 
 Actions define async operations. The action factory provides two entry points: `api` for HTTP requests and `handler` for custom logic.
 
+> **Related:** [`useStoreAction`](../composables/use-store-action.md) — call this action from a component.
+
 ```typescript
 action({ api, handler }) {
     return {
@@ -44,6 +46,23 @@ api.delete({ url: "/users/1" });
 > `GET` and `HEAD` requests always have their `body` set to `undefined`, even if a body is provided at definition or call time.
 
 > API actions use `$fetch` with `responseType: "json"` and are designed for JSON APIs. For non-JSON responses (blobs, streams, text), use a [handler action](#handler-actions) with a direct `$fetch` call instead.
+
+### Request Options
+
+The request object (first argument) accepts these fields at definition time. `endpoint`, `headers`, `query`, and `timeout` fall back to module config (see [Configuration](../getting-started/configuration.md#module-configuration)) and can be overridden per call.
+
+| Option       | Type                           | Description                                                             |
+| ------------ | ------------------------------ | ----------------------------------------------------------------------- |
+| `url`        | `string \| (view) => string`   | Request path; supports `:param` placeholders and view-derived functions |
+| `method`     | `ActionApiMethod`              | HTTP method (set automatically by the `api.get`/`post`/… shortcuts)     |
+| `endpoint`   | `string`                       | Base URL prepended to `url`; falls back to module `action.endpoint`     |
+| `headers`    | `Record \| (view) => Record`   | Request headers; deep-merged with module + call-time headers            |
+| `query`      | `Record \| (view) => Record`   | Query parameters; merged with module + call-time query                  |
+| `body`       | `unknown \| (view) => unknown` | Request body (ignored for `GET`/`HEAD`); merged with call-time body     |
+| `timeout`    | `number \| (view) => number`   | Request timeout in ms; falls back to module `action.timeout`            |
+| `concurrent` | `ActionConcurrent`             | Concurrency strategy; falls back to module `action.concurrent`          |
+
+> Fields typed `(view) => T` are resolved against the read-only view at call time, so they can derive from current store state.
 
 ### Dynamic URLs
 
@@ -309,6 +328,27 @@ await store.action.fetch({
 ```
 
 > **Option priority:** Call-time options override definition-time values, which override module config, which override built-in defaults. Headers are deep-merged.
+
+### Option Levels
+
+Most request options can be set at more than one level. The effective value is resolved highest-priority-first:
+
+**Module** (`nuxt.config`) → **Definition** (`api.*` request) → **Call** (`store.action.x({ ... })`).
+
+| Option        | Module | Definition | Call | Resolution                                                |
+| ------------- | :----: | :--------: | :--: | --------------------------------------------------------- |
+| `endpoint`    |   ✅   |     ✅     |  —   | Definition overrides module                               |
+| `headers`     |   ✅   |     ✅     |  ✅  | Deep-merged across all three (call wins on conflict)      |
+| `query`       |   ✅   |     ✅     |  ✅  | Merged across all three (call wins on conflict)           |
+| `body`        |   —    |     ✅     |  ✅  | Merged; call wins (ignored for `GET`/`HEAD`)              |
+| `timeout`     |   ✅   |     ✅     |  ✅  | Call → definition → module                                |
+| `concurrent`  |   ✅   |     ✅     |  ✅  | Call → definition → module → default (`BLOCK`)            |
+| `params`      |   —    |     —      |  ✅  | Call only — fills `:param` placeholders in `url`          |
+| `signal`      |   —    |     —      |  ✅  | Call only — otherwise a managed `AbortController` is used |
+| `transformer` |   —    |     —      |  ✅  | Call only — request/response transforms                   |
+| `commit`      |   —    |     —      |  ✅  | Call only — override commit `mode` / `options`            |
+
+> Module-level defaults are folded into each definition when the store is built, so a definition value always wins over module config.
 
 ### Commit Mode Override
 

@@ -2,6 +2,8 @@
 
 Views are reactive computed properties derived from model state. They are Vue `ComputedRef` values that automatically update when the underlying model changes.
 
+> **Related:** [`useStoreView`](../composables/use-store-view.md) — read this view from a component.
+
 ## from
 
 `from(model)` creates a direct view mirroring a model:

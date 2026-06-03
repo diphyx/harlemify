@@ -2,6 +2,8 @@
 
 Wraps a store compose function with reactive `execute` and `active` tracking.
 
+> **Related:** [Compose](../core-concepts/compose.md) — define the compose function this composable wraps.
+
 ## Basic Usage
 
 ```typescript

@@ -2,6 +2,8 @@
 
 Returns typed mutation methods for a store model. Supports both `one` and `many` models, with optional debounce and throttle.
 
+> **Related:** [Model](../core-concepts/model.md) — define the model this composable mutates.
+
 ## One Model
 
 ```typescript
