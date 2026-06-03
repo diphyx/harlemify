@@ -17,6 +17,9 @@ const modelLog = ref<string[]>([]);
 const pendingView = useStoreView(todoStore, "pending");
 const todoView = useStoreView(todoStore, "todo");
 const todosView = useStoreView(todoStore, "todos");
+const doneTitlesView = useStoreView(todoStore, "todos", (todos: Todo[]) =>
+    todos.filter((todo) => todo.done).map((todo) => todo.title),
+);
 const trackLog = ref<string[]>([]);
 
 onMounted(() => execute());
@@ -287,6 +290,24 @@ function clearTrackLog() {
             </div>
 
             <div class="demo-box">
+                <h4>Resolver</h4>
+                <p class="desc">
+                    <code
+                        >useStoreView(store, "todos", (todos) => todos.filter((t) => t.done).map((t) => t.title))</code
+                    >
+                </p>
+                <div class="kv-grid">
+                    <div class="kv">
+                        <span class="kv-k">done count</span
+                        ><span class="kv-v" data-testid="view-resolved-count">{{
+                            doneTitlesView.data.value.length
+                        }}</span>
+                    </div>
+                </div>
+                <pre data-testid="view-resolved">{{ JSON.stringify(doneTitlesView.data.value, null, 2) }}</pre>
+            </div>
+
+            <div class="demo-box">
                 <h4>Track</h4>
                 <p class="desc"><code>todoView.track(handler)</code></p>
                 <div class="btn-row">
@@ -317,6 +338,7 @@ function clearTrackLog() {
                 <li><code>useStoreModel</code> many - { add, remove }</li>
                 <li><code>{ debounce }</code> / <code>{ throttle }</code> - Rate-limited mutations</li>
                 <li><code>useStoreView(store, key)</code> - { data, track }</li>
+                <li><code>useStoreView(store, key, resolver)</code> - Transform data via resolver</li>
                 <li><code>track(handler)</code> - Watch view changes</li>
             </FeatureInfo>
         </template>

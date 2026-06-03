@@ -30,6 +30,11 @@ export type {
     ActionCallCommitOptions,
     ActionHandlerOptions,
     ActionResolvedApi,
+    ActionHooks,
+    ActionHookPreContext,
+    ActionHookPostContext,
+    ActionHookRequest,
+    ActionHookResponse,
 } from "./core/types/action";
 export {
     ActionApiError,

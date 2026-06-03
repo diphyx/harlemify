@@ -2,6 +2,8 @@
 
 Compose defines orchestration functions that combine actions, models, and views. The compose layer is **optional** and runs after all other layers are fully resolved, so it receives fully typed access with autocomplete.
 
+> **Related:** [`useStoreCompose`](../composables/use-store-compose.md) — run this compose function from a component.
+
 ```typescript
 compose({ model, view, action }) {
     return {

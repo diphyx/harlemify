@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ModelManyMode } from "../../src/runtime";
-import { postStore, postShape, type Post } from "../stores/post";
+import { postStore, postShape, postHooks, type Post } from "../stores/post";
 
 const showForm = ref(false);
 const editing = ref<Post | null>(null);
@@ -63,6 +63,12 @@ async function appendFromServer() {
     });
 }
 
+async function appendUniqueFromServer() {
+    await postStore.action.list({
+        commit: { mode: ModelManyMode.ADD, options: { unique: true } },
+    });
+}
+
 async function loadPage() {
     await postStore.action.loadPage();
 }
@@ -90,6 +96,9 @@ function resetSortAction() {
         <div class="toolbar">
             <button class="btn btn-sm" data-testid="sort-posts" @click="sortPosts">Sort A-Z</button>
             <button class="btn btn-sm" data-testid="append-posts" @click="appendFromServer">Append from Server</button>
+            <button class="btn btn-sm" data-testid="append-unique" @click="appendUniqueFromServer">
+                Append Unique
+            </button>
             <button class="btn btn-sm" data-testid="load-page" @click="loadPage">Load Page (multi-commit)</button>
             <button class="btn btn-sm" data-testid="load-one" @click="loadOne">Load #2 (params)</button>
             <button class="btn btn-sm" data-testid="reset-sort" @click="resetSortAction">Reset Sort</button>
@@ -170,6 +179,12 @@ function resetSortAction() {
                 <pre class="aside-pre" data-testid="loaded-one-title">{{ postStore.view.post.value.title }}</pre>
             </div>
 
+            <div class="aside-panel" data-testid="request-hooks">
+                <div class="aside-panel-title">list action hooks (pre / post)</div>
+                <pre class="aside-pre">pre count: <span data-testid="hook-pre-count">{{ postHooks.preCount }}</span>
+last status: <span data-testid="hook-status">{{ postHooks.lastStatus }}</span></pre>
+            </div>
+
             <ActionStatus
                 :actions="{
                     list: postStore.action.list,
@@ -190,6 +205,14 @@ function resetSortAction() {
                 <li>
                     <code>action(&#123; commit: &#123; mode: ActionManyMode.ADD &#125; &#125;)</code> - Call-time
                     commit.mode override
+                </li>
+                <li>
+                    <code>action(&#123; commit: &#123; options: &#123; unique: true &#125; &#125; &#125;)</code> -
+                    Call-time commit.options override
+                </li>
+                <li>
+                    <code>api.get(&#123; hooks: &#123; pre, post &#125; &#125;)</code> - Definition-level request
+                    lifecycle hooks
                 </li>
                 <li>
                     <code>api.get(req, commitA, commitB)</code> - Multi-commit: one envelope response into multiple

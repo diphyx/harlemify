@@ -1,3 +1,5 @@
+import { reactive } from "vue";
+
 import {
     createStore,
     shape,
@@ -7,6 +9,10 @@ import {
     ViewClone,
     type ShapeInfer,
 } from "../../src/runtime";
+
+// Definition-level request hooks observe the request lifecycle (here: count
+// sends and capture the last response status) without mutating the request.
+export const postHooks = reactive({ preCount: 0, lastStatus: 0 });
 
 export const postShape = shape((factory) => {
     return {
@@ -86,7 +92,22 @@ export const postStore = createStore({
     },
     action({ api, handler }) {
         return {
-            list: api.get({ url: "/posts" }, { model: "list", mode: ModelManyMode.SET }),
+            list: api.get(
+                {
+                    url: "/posts",
+                    hooks: {
+                        pre() {
+                            postHooks.preCount++;
+                        },
+                        post({ response }) {
+                            if (response) {
+                                postHooks.lastStatus = response.status;
+                            }
+                        },
+                    },
+                },
+                { model: "list", mode: ModelManyMode.SET },
+            ),
             loadPage: api.get(
                 { url: "/posts/page" },
                 {

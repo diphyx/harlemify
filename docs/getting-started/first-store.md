@@ -131,6 +131,8 @@ export const userStore = createStore({
 });
 ```
 
+> See [Configuration › Store Definition Options](configuration.md#store-definition-options) for every `createStore` field, and [Configuration](configuration.md) for module-level defaults.
+
 ## Step 7: Use in a Component
 
 ```vue

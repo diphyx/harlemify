@@ -422,6 +422,10 @@ HTTP methods: `api.get`, `api.head`, `api.post`, `api.put`, `api.patch`, `api.de
     body?:    unknown,
     timeout?: number,
     concurrent?: ActionConcurrent,
+    hooks?: {                                // definition-level lifecycle hooks (§6.7)
+        pre?:  (ctx: { request }) => void | Promise<void>,
+        post?: (ctx: { request, response? }) => void | Promise<void>,
+    },
 }
 ```
 
@@ -558,6 +562,9 @@ await store.action.list({
     bind: { status, error }, // isolated tracking refs
     commit: { mode: ModelManyMode.PATCH }, // override mode for every commit entry (API actions only)
     // or per-entry: commit: { mode: { list: ModelManyMode.PATCH } }
+    // override commit options too — same two forms, merged over defined options:
+    // commit: { options: { unique: true } }              // global
+    // commit: { options: { list: { unique: true } } }    // per-entry (keyed by model)
     payload: anyValue, // handler actions only
 });
 ```
@@ -612,6 +619,21 @@ try {
     } else throw error;
 }
 ```
+
+### 6.7 Hooks
+
+Definition-level `pre`/`post` lifecycle hooks on an API request (`hooks: { pre, post }`). **Definition-level only** — for per-call shaping use `transformer` instead.
+
+- `pre({ request })` — runs before send; **awaited** (use `await` to gate/delay — rate-limit windows, throttling).
+- `post({ request, response? })` — runs after the attempt, on success **and** failure:
+    - success → `response: { status, headers, data }`
+    - server-side error → `response: { status, headers, data }` — detect via `response.status >= 400`
+    - client-side error (never sent) → `request.error` set, `response` undefined
+- **Observe, don't mutate** — for cross-cutting concerns (rate-limiting, telemetry, syncing from response headers). Change _what_ is sent via `transformer.request`.
+- **Throw-safe** — a throwing hook is caught and logged; it never changes the action outcome.
+- Implemented over ofetch's native interceptors (`onRequest`/`onResponse`/`onRequestError`/`onResponseError`).
+
+> Hook state in module scope is shared across requests on the server (SSR) — fine for global concerns, not per-user data.
 
 ---
 
@@ -808,6 +830,10 @@ patch({ name: "X" }, { silent: ModelSilent.PRE });
 const { data, track } = useStoreView(userStore, "user");
 data.value; // User (auto-unwrapped in templates)
 
+// optional resolver as last arg transforms `data` itself (mirrors `from(model, resolver)`)
+const { data: name } = useStoreView(userStore, "user", (user) => user.name); // ComputedRef<string>
+// reactive values read inside the resolver (refs, props) are tracked automatically
+
 const stop = track((value) => console.log("changed:", value), {
     immediate: true,
     deep: true,
@@ -817,7 +843,7 @@ const stop = track((value) => console.log("changed:", value), {
 stop(); // teardown
 ```
 
-**Return:** `{ data: ComputedRef<T>; track(handler, options?): WatchStopHandle }`.
+**Return:** `{ data: ComputedRef<T>; track(handler, options?): WatchStopHandle }`. An optional 3rd `resolver` arg makes `data` the resolved value (and `track` operates on it). Use the resolver for derived values, `track` for side-effects; for multiple shapes call `useStoreView` once per shape, and for derivations shared across components prefer a store-side view (`from`/`merge`).
 
 ### 9.4 `useStoreCompose(store, key)`
 
@@ -1143,8 +1169,6 @@ async function add() {
 | Nuxt       | `^3.14.0` or `^4.0.0` |
 | Vue        | `^3.5.0`              |
 | Zod        | `^4.0.0`              |
-
-> Early Nuxt 4 versions (e.g. 4.1.x) may fail to resolve the `#build/harlemify.config` alias — upgrade to the latest Nuxt 4 release.
 
 Official docs: https://diphyx.github.io/harlemify/
 Repo: https://github.com/diphyx/harlemify

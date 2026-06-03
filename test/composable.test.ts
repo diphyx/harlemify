@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { nextTick } from "vue";
+import { nextTick, ref } from "vue";
 
 import { createStore } from "../src/runtime/core/store";
 import { shape } from "../src/runtime/core/layers/shape";
@@ -438,6 +438,62 @@ describe("useStoreView", () => {
 
             expect(data.value).toEqual({ id: 0, name: "" });
             expect((data as any).effect).toBeDefined();
+        });
+    });
+
+    describe("resolver argument", () => {
+        it("data is the resolved value when a resolver is passed", () => {
+            const store = setup();
+            const { data } = useStoreView(store, "user", (user) => user.name);
+
+            store.model.user.set({ id: 1, name: "Alice" });
+
+            expect(data.value).toBe("Alice");
+        });
+
+        it("resolved data recomputes on view change", () => {
+            const store = setup();
+            const { data } = useStoreView(store, "users", (users) => users.length);
+
+            expect(data.value).toBe(0);
+
+            store.model.users.set([
+                { id: 1, name: "Alice" },
+                { id: 2, name: "Bob" },
+            ]);
+
+            expect(data.value).toBe(2);
+        });
+
+        it("track observes the resolved value", async () => {
+            const store = setup();
+            const cb = vi.fn();
+            const { track } = useStoreView(store, "user", (user) => user.name);
+
+            track(cb);
+
+            store.model.user.set({ id: 1, name: "Alice" });
+
+            await nextTick();
+
+            expect(cb).toHaveBeenCalledWith("Alice");
+        });
+
+        it("tracks extra reactive deps read inside the resolver", () => {
+            const store = setup();
+            const query = ref("");
+            const { data } = useStoreView(store, "users", (users) => users.filter((u) => u.name.includes(query.value)));
+
+            store.model.users.set([
+                { id: 1, name: "Alice" },
+                { id: 2, name: "Bob" },
+            ]);
+
+            expect(data.value).toHaveLength(2);
+
+            query.value = "Ali";
+            expect(data.value).toHaveLength(1);
+            expect(data.value[0].name).toBe("Alice");
         });
     });
 

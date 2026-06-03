@@ -1,6 +1,14 @@
 import { type DeepReadonly, type Ref, ref, computed, readonly, toValue, nextTick } from "vue";
 
-import { type StoreModel, type ModelDefinitions, type ModelCall, ModelOneMode, ModelManyMode } from "../types/model";
+import {
+    type StoreModel,
+    type ModelDefinitions,
+    type ModelCall,
+    type ModelOneCommitOptions,
+    type ModelManyCommitOptions,
+    ModelOneMode,
+    ModelManyMode,
+} from "../types/model";
 import type { Shape } from "../types/shape";
 import type { StoreView, ViewDefinitions } from "../types/view";
 import {
@@ -16,6 +24,7 @@ import {
     type ActionHandlerDefinition,
     type ActionResolvedApi,
     type ActionResolvedHandler,
+    type ActionHooks,
     ActionApiMethod,
     ActionType,
     ActionStatus,
@@ -178,6 +187,29 @@ function resolveCommitMode<MD extends ModelDefinitions, VD extends ViewDefinitio
     return commit.mode;
 }
 
+function resolveCommitOptions<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
+    commit: ActionApiCommit<MD, VD>,
+    options?: ActionApiCallOptions,
+): ModelOneCommitOptions | ModelManyCommitOptions | undefined {
+    const override = options?.commit?.options;
+    if (!override) {
+        return commit.options;
+    }
+
+    const values = Object.values(override);
+    const perModel = values.length > 0 && values.every((value) => isPlainObject(value));
+
+    const resolved = perModel
+        ? (override as Record<string, ModelOneCommitOptions | ModelManyCommitOptions>)[commit.model as string]
+        : (override as ModelOneCommitOptions | ModelManyCommitOptions);
+
+    if (!resolved) {
+        return commit.options;
+    }
+
+    return merge(resolved, commit.options);
+}
+
 function resolveCommitTransform<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>>(
     commit: ActionApiCommit<MD, VD>,
     data: unknown,
@@ -225,6 +257,35 @@ function resolveConcurrent<MD extends ModelDefinitions, VD extends ViewDefinitio
     return ActionConcurrent.BLOCK;
 }
 
+// Execute Hook
+
+async function executeHook<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>, K extends keyof ActionHooks>(
+    definition: ActionApiDefinition<MD, VD>,
+    hooks: ActionHooks | undefined,
+    key: K,
+    context: Parameters<NonNullable<ActionHooks[K]>>[0],
+): Promise<void> {
+    const hook = hooks?.[key];
+    if (!hook) {
+        return;
+    }
+
+    definition.logger?.debug("Action API hook", {
+        action: definition.key,
+        hook: key,
+    });
+
+    try {
+        await (hook as (context: Parameters<NonNullable<ActionHooks[K]>>[0]) => void | Promise<void>)(context);
+    } catch (error: unknown) {
+        definition.logger?.error("Action API hook error", {
+            action: definition.key,
+            hook: key,
+            error,
+        });
+    }
+}
+
 // Execute Api
 
 async function executeApi<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>, R>(
@@ -251,6 +312,31 @@ async function executeApi<MD extends ModelDefinitions, VD extends ViewDefinition
             timeout: api.timeout,
             signal: api.signal,
             responseType: "json" as const,
+            async onRequest() {
+                await executeHook(definition, definition.request.hooks, "pre", {
+                    request: api,
+                });
+            },
+            async onResponse({ response }) {
+                await executeHook(definition, definition.request.hooks, "post", {
+                    request: api,
+                    response: {
+                        status: response.status,
+                        headers: Object.fromEntries(response.headers),
+                        data: response._data,
+                    },
+                });
+            },
+            async onRequestError({ error }) {
+                await executeHook(definition, definition.request.hooks, "post", {
+                    request: {
+                        ...api,
+                        error,
+                    },
+                });
+
+                throw error;
+            },
         });
 
         definition.logger?.debug("Action API response received", {
@@ -312,6 +398,7 @@ interface CommitPlanEntry<MD extends ModelDefinitions, VD extends ViewDefinition
     commit: ActionApiCommit<MD, VD>;
     target: ModelCall<Shape>;
     mode: ModelOneMode | ModelManyMode;
+    options: ModelOneCommitOptions | ModelManyCommitOptions | undefined;
     value: unknown;
 }
 
@@ -339,13 +426,14 @@ function executeCommit<MD extends ModelDefinitions, VD extends ViewDefinitions<M
             }
 
             const mode = resolveCommitMode(commit, options);
+            const commitOptions = resolveCommitOptions(commit, options);
 
             let value = resolveCommitTransform(commit, data, context);
             if (!isEmptyRecord(target.aliases())) {
                 value = resolveAliasInbound(value, target.aliases());
             }
 
-            plan.push({ commit, target, mode, value });
+            plan.push({ commit, target, mode, options: commitOptions, value });
         }
     } catch (error: unknown) {
         const commitError = toError(error, ActionCommitError);
@@ -368,7 +456,7 @@ function executeCommit<MD extends ModelDefinitions, VD extends ViewDefinitions<M
         });
 
         try {
-            entry.target.commit(entry.mode, entry.value, entry.commit.options);
+            entry.target.commit(entry.mode, entry.value, entry.options);
         } catch (error: unknown) {
             const commitError = toError(error, ActionCommitError);
 

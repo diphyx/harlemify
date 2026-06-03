@@ -2,6 +2,8 @@
 
 Actions define async operations. The action factory provides two entry points: `api` for HTTP requests and `handler` for custom logic.
 
+> **Related:** [`useStoreAction`](../composables/use-store-action.md) — call this action from a component.
+
 ```typescript
 action({ api, handler }) {
     return {
@@ -44,6 +46,24 @@ api.delete({ url: "/users/1" });
 > `GET` and `HEAD` requests always have their `body` set to `undefined`, even if a body is provided at definition or call time.
 
 > API actions use `$fetch` with `responseType: "json"` and are designed for JSON APIs. For non-JSON responses (blobs, streams, text), use a [handler action](#handler-actions) with a direct `$fetch` call instead.
+
+### Request Options
+
+The request object (first argument) accepts these fields at definition time. `endpoint`, `headers`, `query`, and `timeout` fall back to module config (see [Configuration](../getting-started/configuration.md#module-configuration)) and can be overridden per call.
+
+| Option       | Type                           | Description                                                             |
+| ------------ | ------------------------------ | ----------------------------------------------------------------------- |
+| `url`        | `string \| (view) => string`   | Request path; supports `:param` placeholders and view-derived functions |
+| `method`     | `ActionApiMethod`              | HTTP method (set automatically by the `api.get`/`post`/… shortcuts)     |
+| `endpoint`   | `string`                       | Base URL prepended to `url`; falls back to module `action.endpoint`     |
+| `headers`    | `Record \| (view) => Record`   | Request headers; deep-merged with module + call-time headers            |
+| `query`      | `Record \| (view) => Record`   | Query parameters; merged with module + call-time query                  |
+| `body`       | `unknown \| (view) => unknown` | Request body (ignored for `GET`/`HEAD`); merged with call-time body     |
+| `timeout`    | `number \| (view) => number`   | Request timeout in ms; falls back to module `action.timeout`            |
+| `concurrent` | `ActionConcurrent`             | Concurrency strategy; falls back to module `action.concurrent`          |
+| `hooks`      | `{ pre?, post? }`              | Lifecycle hooks around the request — see [Hooks](#hooks)                |
+
+> Fields typed `(view) => T` are resolved against the read-only view at call time, so they can derive from current store state.
 
 ### Dynamic URLs
 
@@ -214,6 +234,44 @@ User transformers see alias keys outbound and original API keys inbound. The sto
 - Models whose shape has no aliases defined
 - Non-object body types (`FormData`, `Blob`, etc.)
 
+### Hooks
+
+Attach `pre`/`post` lifecycle hooks to an API action. `pre` runs before the request is sent; `post` runs after the attempt completes — on success **and** failure.
+
+```typescript
+api.get(
+    {
+        url: "/users",
+        hooks: {
+            pre({ request }) {
+                // before send — observe the resolved request
+            },
+            post({ request, response }) {
+                // after attempt — observe the outcome
+            },
+        },
+    },
+    { model: "list", mode: ModelManyMode.SET },
+);
+```
+
+**Context.** Both hooks receive the resolved `request` ([`ActionResolvedApi`](#calling-actions): `url`, `method`, `headers`, `query`, `body`, …). `post` additionally receives `response` whenever the server responded, and surfaces a client-side failure via `request.error`:
+
+| Outcome                          | `request.error` | `response`                                              |
+| -------------------------------- | --------------- | ------------------------------------------------------- |
+| success                          | —               | `{ status, headers, data }`                             |
+| server-side (HTTP error status)  | —               | `{ status, headers, data }` — inspect `response.status` |
+| client-side (request never sent) | the error       | `undefined`                                             |
+
+**Behavior.**
+
+- **Definition-level only.** Hooks live on the request definition — for per-call shaping use [`transformer`](#transformer) instead.
+- **Observe, don't mutate.** Hooks are for cross-cutting concerns (rate-limiting, telemetry, syncing from response headers). Use [`transformer.request`](#transformer) to change _what_ is sent.
+- **`pre` is awaited** — `await` inside it to gate or delay every request (e.g. throttling / rate-limit windows).
+- **Throw-safe.** A hook that throws is caught and logged; it does not change the action's outcome.
+
+> **SSR state safety.** A hook that closes over module-scoped state (a counter, a timestamp, a token-bucket) shares that state across **all** requests on the server, since one server process serves every user. Keep only **global** concerns there (e.g. an app-wide rate-limit window). For **per-user or per-request** state, scope it to the request instead (`useState`, the event context) — never a module-level variable.
+
 ## Handler Actions
 
 Custom async logic with direct access to model, view, and payload. Use handlers when you need to mutate multiple models, transform data locally, or make non-JSON HTTP requests.
@@ -310,6 +368,28 @@ await store.action.fetch({
 
 > **Option priority:** Call-time options override definition-time values, which override module config, which override built-in defaults. Headers are deep-merged.
 
+### Option Levels
+
+Most request options can be set at more than one level. The effective value is resolved highest-priority-first:
+
+**Module** (`nuxt.config`) → **Definition** (`api.*` request) → **Call** (`store.action.x({ ... })`).
+
+| Option        | Module | Definition | Call | Resolution                                                |
+| ------------- | :----: | :--------: | :--: | --------------------------------------------------------- |
+| `endpoint`    |   ✅   |     ✅     |  —   | Definition overrides module                               |
+| `headers`     |   ✅   |     ✅     |  ✅  | Deep-merged across all three (call wins on conflict)      |
+| `query`       |   ✅   |     ✅     |  ✅  | Merged across all three (call wins on conflict)           |
+| `body`        |   —    |     ✅     |  ✅  | Merged; call wins (ignored for `GET`/`HEAD`)              |
+| `timeout`     |   ✅   |     ✅     |  ✅  | Call → definition → module                                |
+| `concurrent`  |   ✅   |     ✅     |  ✅  | Call → definition → module → default (`BLOCK`)            |
+| `params`      |   —    |     —      |  ✅  | Call only — fills `:param` placeholders in `url`          |
+| `signal`      |   —    |     —      |  ✅  | Call only — otherwise a managed `AbortController` is used |
+| `transformer` |   —    |     —      |  ✅  | Call only — request/response transforms                   |
+| `commit`      |   —    |     —      |  ✅  | Call only — override commit `mode` / `options`            |
+| `hooks`       |   —    |     ✅     |  —   | Definition only — `pre`/`post` lifecycle hooks            |
+
+> Module-level defaults are folded into each definition when the store is built, so a definition value always wins over module config.
+
 ### Commit Mode Override
 
 Override the commit `mode` per call. Two forms:
@@ -323,6 +403,26 @@ await store.action.list({
     commit: { mode: { list: ModelManyMode.ADD } }, // only the "list" entry is overridden; others keep their defined mode
 });
 ```
+
+### Commit Options Override
+
+Override the commit `options` (`unique`, `prepend`, `by`, `deep`, `silent`) per call, alongside or instead of `mode`. Same two forms as `mode`:
+
+```typescript
+// applies to every commit entry
+await store.action.list({
+    commit: { mode: ModelManyMode.ADD, options: { unique: true, prepend: true } },
+});
+
+// per-entry, keyed by model name
+await store.action.list({
+    commit: { options: { list: { unique: true } } }, // only the "list" entry's options are overridden
+});
+```
+
+Call-time options are merged over the entry's defined `options` — keys you don't pass keep their defined values. The per-entry form is distinguished from the global form by its values being objects (e.g. `{ list: { unique: true } }` is per-entry; `{ unique: true }` is global).
+
+> The form is detected structurally, so a per-entry override targeting a single model still uses the keyed form: `{ options: { list: { unique: true } } }`, not `{ options: { unique: true } }`.
 
 ### Transformer
 
