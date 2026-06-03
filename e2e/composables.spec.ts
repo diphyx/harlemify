@@ -209,6 +209,20 @@ test.describe("composables page", () => {
         await expect(page.getByTestId("view-pending")).not.toContainText("Buy groceries");
     });
 
+    test("view resolver: data is transformed by the resolver", async ({ page }) => {
+        // seed has one done todo ("Write tests")
+        await expect(page.getByTestId("view-resolved-count")).toHaveText("1");
+        await expect(page.getByTestId("view-resolved")).toContainText("Write tests");
+        await expect(page.getByTestId("view-resolved")).not.toContainText("Buy groceries");
+    });
+
+    test("view resolver: resolved data recomputes after toggle", async ({ page }) => {
+        await expect(page.getByTestId("view-resolved-count")).toHaveText("1");
+        await page.getByTestId("todo-1").getByTestId("toggle-todo").click();
+        await expect(page.getByTestId("view-resolved-count")).toHaveText("2");
+        await expect(page.getByTestId("view-resolved")).toContainText("Buy groceries");
+    });
+
     test("sections are visible", async ({ page }) => {
         await expect(page.getByTestId("action-section")).toBeVisible();
         await expect(page.getByTestId("model-section")).toBeVisible();

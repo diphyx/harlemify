@@ -1,6 +1,6 @@
 # useStoreView
 
-Returns reactive view data as a `ComputedRef` and a `track` method for watching changes.
+Returns reactive view data as a `ComputedRef` (optionally transformed by a resolver) and a `track` method for watching changes.
 
 ## Basic Usage
 
@@ -20,6 +20,30 @@ In templates, Vue auto-unwraps the `ComputedRef`, so `.value` is not needed:
     <p>{{ data.email }}</p>
 </template>
 ```
+
+## Resolver Argument
+
+Pass an optional resolver as the last argument to transform the view value — `data` then becomes the resolved result (mirrors the store-side `from(model, resolver)`):
+
+```typescript
+const { data } = useStoreView(userStore, "users", (users) => users.filter((u) => u.active));
+// data: ComputedRef<User[]> — already filtered
+
+const { data: name } = useStoreView(userStore, "user", (user) => user.name);
+// data: ComputedRef<string>
+```
+
+`data` stays reactive and recomputes on every view change, and `track` operates on the resolved value. Any other reactive value read inside the resolver (a `ref`, a prop) is tracked automatically by Vue:
+
+```typescript
+const query = ref("");
+const { data } = useStoreView(userStore, "users", (users) => users.filter((u) => u.name.includes(query.value)));
+// recomputes when the view OR `query` changes
+```
+
+For multiple shapes of the same view, call `useStoreView` once per shape. Prefer a store-side view (`from`/`merge`) when the derivation is shared across components.
+
+> Use the resolver for derived **values**; use `track` for **side-effects**.
 
 ## Track
 
@@ -82,6 +106,10 @@ onMounted(() => {
 ## Return Type
 
 ```typescript
+// without resolver: T is the view value; with resolver: T is the resolved result
+function useStoreView(store, key): UseStoreView<T>;
+function useStoreView(store, key, resolver: (value: T) => R): UseStoreView<R>;
+
 type UseStoreView<T> = {
     data: ComputedRef<T>;
     track: (handler: (value: T) => void, options?: UseStoreViewTrackOptions) => WatchStopHandle;

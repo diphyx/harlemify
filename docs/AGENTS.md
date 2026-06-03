@@ -811,6 +811,10 @@ patch({ name: "X" }, { silent: ModelSilent.PRE });
 const { data, track } = useStoreView(userStore, "user");
 data.value; // User (auto-unwrapped in templates)
 
+// optional resolver as last arg transforms `data` itself (mirrors `from(model, resolver)`)
+const { data: name } = useStoreView(userStore, "user", (user) => user.name); // ComputedRef<string>
+// reactive values read inside the resolver (refs, props) are tracked automatically
+
 const stop = track((value) => console.log("changed:", value), {
     immediate: true,
     deep: true,
@@ -820,7 +824,7 @@ const stop = track((value) => console.log("changed:", value), {
 stop(); // teardown
 ```
 
-**Return:** `{ data: ComputedRef<T>; track(handler, options?): WatchStopHandle }`.
+**Return:** `{ data: ComputedRef<T>; track(handler, options?): WatchStopHandle }`. An optional 3rd `resolver` arg makes `data` the resolved value (and `track` operates on it). Use the resolver for derived values, `track` for side-effects; for multiple shapes call `useStoreView` once per shape, and for derivations shared across components prefer a store-side view (`from`/`merge`).
 
 ### 9.4 `useStoreCompose(store, key)`
 
