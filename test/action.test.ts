@@ -1859,4 +1859,146 @@ describe("createAction", () => {
             });
         });
     });
+
+    describe("hooks", () => {
+        // The runtime drives ofetch's native interceptors; the mock emulates that
+        // lifecycle so the definition-level pre/post hooks are exercised.
+        function mockSuccess(data: unknown, init?: { status?: number; headers?: Record<string, string> }) {
+            mockFetch.mockImplementationOnce(async (url: string, options: any) => {
+                await options.onRequest?.({ request: url, options });
+                await options.onResponse?.({
+                    request: url,
+                    options,
+                    response: {
+                        status: init?.status ?? 200,
+                        headers: new Headers(init?.headers ?? {}),
+                        _data: data,
+                    },
+                });
+
+                return data;
+            });
+        }
+
+        it("pre runs before the request with the resolved request", async () => {
+            mockSuccess({ ok: true });
+
+            const pre = vi.fn();
+            const { action } = setup({
+                request: { url: "/users", method: ActionApiMethod.GET, hooks: { pre } },
+            });
+
+            await action();
+
+            expect(pre).toHaveBeenCalledTimes(1);
+            expect(pre.mock.calls[0][0].request).toMatchObject({ url: "/users", method: "GET" });
+        });
+
+        it("post runs on success with status, headers, and data", async () => {
+            mockSuccess({ id: 1 }, { status: 201, headers: { "x-total": "7" } });
+
+            const post = vi.fn();
+            const { action } = setup({
+                request: { url: "/users", method: ActionApiMethod.GET, hooks: { post } },
+            });
+
+            await action();
+
+            const context = post.mock.calls[0][0];
+            expect(context.response.status).toBe(201);
+            expect(context.response.headers["x-total"]).toBe("7");
+            expect(context.response.data).toEqual({ id: 1 });
+            expect(context.response.error).toBeUndefined();
+        });
+
+        it("post observes the response on a server-side error (status >= 400)", async () => {
+            // ofetch fires onResponse for every response (incl. 4xx/5xx), then throws.
+            mockFetch.mockImplementationOnce(async (url: string, options: any) => {
+                await options.onResponse?.({
+                    request: url,
+                    options,
+                    response: { status: 500, headers: new Headers(), _data: { message: "boom" } },
+                });
+
+                throw new Error("server error");
+            });
+
+            const post = vi.fn();
+            const { action } = setup({
+                request: { url: "/users", method: ActionApiMethod.GET, hooks: { post } },
+            });
+
+            await expect(action()).rejects.toThrow();
+
+            const context = post.mock.calls[0][0];
+            expect(context.response.status).toBe(500);
+            expect(context.response.data).toEqual({ message: "boom" });
+            expect(context.request.error).toBeUndefined();
+        });
+
+        it("post receives request.error on a client-side error", async () => {
+            const networkError = new Error("network down");
+            mockFetch.mockImplementationOnce(async (url: string, options: any) => {
+                await options.onRequestError?.({ request: url, options, error: networkError });
+
+                throw networkError;
+            });
+
+            const post = vi.fn();
+            const { action } = setup({
+                request: { url: "/users", method: ActionApiMethod.GET, hooks: { post } },
+            });
+
+            await expect(action()).rejects.toThrow();
+
+            const context = post.mock.calls[0][0];
+            expect(context.request.error).toBe(networkError);
+            expect(context.response).toBeUndefined();
+        });
+
+        it("a throwing hook is caught and does not break the action", async () => {
+            mockSuccess({ ok: true });
+
+            const { action } = setup({
+                request: {
+                    url: "/users",
+                    method: ActionApiMethod.GET,
+                    hooks: {
+                        post: () => {
+                            throw new Error("hook boom");
+                        },
+                    },
+                },
+            });
+
+            await expect(action()).resolves.toEqual({ ok: true });
+        });
+
+        it("pre is awaited before the request proceeds", async () => {
+            const order: string[] = [];
+            mockFetch.mockImplementationOnce(async (url: string, options: any) => {
+                await options.onRequest?.({ request: url, options });
+                order.push("fetch");
+
+                return { ok: true };
+            });
+
+            const { action } = setup({
+                request: {
+                    url: "/users",
+                    method: ActionApiMethod.GET,
+                    hooks: {
+                        pre: async () => {
+                            await new Promise((resolve) => setTimeout(resolve, 10));
+                            order.push("pre");
+                        },
+                    },
+                },
+            });
+
+            await action();
+
+            expect(order).toEqual(["pre", "fetch"]);
+        });
+    });
 });

@@ -422,6 +422,10 @@ HTTP methods: `api.get`, `api.head`, `api.post`, `api.put`, `api.patch`, `api.de
     body?:    unknown,
     timeout?: number,
     concurrent?: ActionConcurrent,
+    hooks?: {                                // definition-level lifecycle hooks (§6.7)
+        pre?:  (ctx: { request }) => void | Promise<void>,
+        post?: (ctx: { request, response? }) => void | Promise<void>,
+    },
 }
 ```
 
@@ -615,6 +619,21 @@ try {
     } else throw error;
 }
 ```
+
+### 6.7 Hooks
+
+Definition-level `pre`/`post` lifecycle hooks on an API request (`hooks: { pre, post }`). **Definition-level only** — for per-call shaping use `transformer` instead.
+
+- `pre({ request })` — runs before send; **awaited** (use `await` to gate/delay — rate-limit windows, throttling).
+- `post({ request, response? })` — runs after the attempt, on success **and** failure:
+    - success → `response: { status, headers, data }`
+    - server-side error → `response: { status, headers, data }` — detect via `response.status >= 400`
+    - client-side error (never sent) → `request.error` set, `response` undefined
+- **Observe, don't mutate** — for cross-cutting concerns (rate-limiting, telemetry, syncing from response headers). Change _what_ is sent via `transformer.request`.
+- **Throw-safe** — a throwing hook is caught and logged; it never changes the action outcome.
+- Implemented over ofetch's native interceptors (`onRequest`/`onResponse`/`onRequestError`/`onResponseError`).
+
+> Hook state in module scope is shared across requests on the server (SSR) — fine for global concerns, not per-user data.
 
 ---
 

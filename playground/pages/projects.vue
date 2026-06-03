@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ActionConcurrent, useIsolatedActionStatus, useIsolatedActionError } from "../../src/runtime";
-import { projectStore, projectShape, type Project, type ProjectMilestone } from "../stores/project";
+import { projectStore, projectShape, errorHook, type Project, type ProjectMilestone } from "../stores/project";
 
 const showForm = ref(false);
 const form = ref(projectShape.defaults());
@@ -316,6 +316,9 @@ async function handleTriggerError() {
                     <div v-if="errorResult" class="error-box" data-testid="error-result">
                         <strong>{{ errorResult.name }}</strong
                         >: {{ errorResult.message }}
+                    </div>
+                    <div class="status-text">
+                        post hook status: <span data-testid="error-hook-status">{{ errorHook.status }}</span>
                     </div>
                 </div>
             </div>

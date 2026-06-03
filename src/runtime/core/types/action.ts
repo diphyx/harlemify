@@ -66,6 +66,7 @@ export interface ActionApiRequest<MD extends ModelDefinitions, VD extends ViewDe
     body?: ActionApiRequestValue<MD, VD, unknown>;
     timeout?: ActionApiRequestValue<MD, VD, number>;
     concurrent?: ActionConcurrent;
+    hooks?: ActionHooks;
 }
 
 export type ActionApiRequestShortcut<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>> = Omit<
@@ -239,6 +240,32 @@ export interface ActionResolvedApi {
     body?: Record<string, unknown> | BodyInit | null;
     timeout?: number;
     signal: AbortSignal;
+}
+
+// Api Hooks
+
+export interface ActionHookRequest extends ActionResolvedApi {
+    error?: Error;
+}
+
+export interface ActionHookResponse {
+    status: number;
+    headers: Record<string, string>;
+    data: unknown;
+}
+
+export interface ActionHookPreContext {
+    request: Readonly<ActionResolvedApi>;
+}
+
+export interface ActionHookPostContext {
+    request: Readonly<ActionHookRequest>;
+    response?: Readonly<ActionHookResponse>;
+}
+
+export interface ActionHooks {
+    pre?: (context: ActionHookPreContext) => void | Promise<void>;
+    post?: (context: ActionHookPostContext) => void | Promise<void>;
 }
 
 export interface ActionCallTransformerOptions {

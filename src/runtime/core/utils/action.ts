@@ -24,6 +24,7 @@ import {
     type ActionHandlerDefinition,
     type ActionResolvedApi,
     type ActionResolvedHandler,
+    type ActionHooks,
     ActionApiMethod,
     ActionType,
     ActionStatus,
@@ -256,6 +257,35 @@ function resolveConcurrent<MD extends ModelDefinitions, VD extends ViewDefinitio
     return ActionConcurrent.BLOCK;
 }
 
+// Execute Hook
+
+async function executeHook<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>, K extends keyof ActionHooks>(
+    definition: ActionApiDefinition<MD, VD>,
+    hooks: ActionHooks | undefined,
+    key: K,
+    context: Parameters<NonNullable<ActionHooks[K]>>[0],
+): Promise<void> {
+    const hook = hooks?.[key];
+    if (!hook) {
+        return;
+    }
+
+    definition.logger?.debug("Action API hook", {
+        action: definition.key,
+        hook: key,
+    });
+
+    try {
+        await (hook as (context: Parameters<NonNullable<ActionHooks[K]>>[0]) => void | Promise<void>)(context);
+    } catch (error: unknown) {
+        definition.logger?.error("Action API hook error", {
+            action: definition.key,
+            hook: key,
+            error,
+        });
+    }
+}
+
 // Execute Api
 
 async function executeApi<MD extends ModelDefinitions, VD extends ViewDefinitions<MD>, R>(
@@ -282,6 +312,31 @@ async function executeApi<MD extends ModelDefinitions, VD extends ViewDefinition
             timeout: api.timeout,
             signal: api.signal,
             responseType: "json" as const,
+            async onRequest() {
+                await executeHook(definition, definition.request.hooks, "pre", {
+                    request: api,
+                });
+            },
+            async onResponse({ response }) {
+                await executeHook(definition, definition.request.hooks, "post", {
+                    request: api,
+                    response: {
+                        status: response.status,
+                        headers: Object.fromEntries(response.headers),
+                        data: response._data,
+                    },
+                });
+            },
+            async onRequestError({ error }) {
+                await executeHook(definition, definition.request.hooks, "post", {
+                    request: {
+                        ...api,
+                        error,
+                    },
+                });
+
+                throw error;
+            },
         });
 
         definition.logger?.debug("Action API response received", {

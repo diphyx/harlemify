@@ -111,6 +111,8 @@ test.describe("projects page", () => {
         await page.getByTestId("trigger-error").click();
         await expect(page.getByTestId("error-result")).toBeVisible();
         await expect(page.getByTestId("error-result")).toContainText("ActionApiError");
+        // post hook observes the server-error response (status >= 400), not just successes
+        await expect(page.getByTestId("error-hook-status")).toHaveText("422");
     });
 
     test("loads options with deep patch", async ({ page }) => {

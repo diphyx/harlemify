@@ -61,6 +61,7 @@ The request object (first argument) accepts these fields at definition time. `en
 | `body`       | `unknown \| (view) => unknown` | Request body (ignored for `GET`/`HEAD`); merged with call-time body     |
 | `timeout`    | `number \| (view) => number`   | Request timeout in ms; falls back to module `action.timeout`            |
 | `concurrent` | `ActionConcurrent`             | Concurrency strategy; falls back to module `action.concurrent`          |
+| `hooks`      | `{ pre?, post? }`              | Lifecycle hooks around the request — see [Hooks](#hooks)                |
 
 > Fields typed `(view) => T` are resolved against the read-only view at call time, so they can derive from current store state.
 
@@ -233,6 +234,44 @@ User transformers see alias keys outbound and original API keys inbound. The sto
 - Models whose shape has no aliases defined
 - Non-object body types (`FormData`, `Blob`, etc.)
 
+### Hooks
+
+Attach `pre`/`post` lifecycle hooks to an API action. `pre` runs before the request is sent; `post` runs after the attempt completes — on success **and** failure.
+
+```typescript
+api.get(
+    {
+        url: "/users",
+        hooks: {
+            pre({ request }) {
+                // before send — observe the resolved request
+            },
+            post({ request, response }) {
+                // after attempt — observe the outcome
+            },
+        },
+    },
+    { model: "list", mode: ModelManyMode.SET },
+);
+```
+
+**Context.** Both hooks receive the resolved `request` ([`ActionResolvedApi`](#calling-actions): `url`, `method`, `headers`, `query`, `body`, …). `post` additionally receives `response` whenever the server responded, and surfaces a client-side failure via `request.error`:
+
+| Outcome                          | `request.error` | `response`                                              |
+| -------------------------------- | --------------- | ------------------------------------------------------- |
+| success                          | —               | `{ status, headers, data }`                             |
+| server-side (HTTP error status)  | —               | `{ status, headers, data }` — inspect `response.status` |
+| client-side (request never sent) | the error       | `undefined`                                             |
+
+**Behavior.**
+
+- **Definition-level only.** Hooks live on the request definition — for per-call shaping use [`transformer`](#transformer) instead.
+- **Observe, don't mutate.** Hooks are for cross-cutting concerns (rate-limiting, telemetry, syncing from response headers). Use [`transformer.request`](#transformer) to change _what_ is sent.
+- **`pre` is awaited** — `await` inside it to gate or delay every request (e.g. throttling / rate-limit windows).
+- **Throw-safe.** A hook that throws is caught and logged; it does not change the action's outcome.
+
+> **SSR state safety.** A hook that closes over module-scoped state (a counter, a timestamp, a token-bucket) shares that state across **all** requests on the server, since one server process serves every user. Keep only **global** concerns there (e.g. an app-wide rate-limit window). For **per-user or per-request** state, scope it to the request instead (`useState`, the event context) — never a module-level variable.
+
 ## Handler Actions
 
 Custom async logic with direct access to model, view, and payload. Use handlers when you need to mutate multiple models, transform data locally, or make non-JSON HTTP requests.
@@ -347,6 +386,7 @@ Most request options can be set at more than one level. The effective value is r
 | `signal`      |   —    |     —      |  ✅  | Call only — otherwise a managed `AbortController` is used |
 | `transformer` |   —    |     —      |  ✅  | Call only — request/response transforms                   |
 | `commit`      |   —    |     —      |  ✅  | Call only — override commit `mode` / `options`            |
+| `hooks`       |   —    |     ✅     |  —   | Definition only — `pre`/`post` lifecycle hooks            |
 
 > Module-level defaults are folded into each definition when the store is built, so a definition value always wins over module config.
 

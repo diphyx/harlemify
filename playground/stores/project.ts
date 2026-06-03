@@ -1,4 +1,10 @@
+import { reactive } from "vue";
+
 import { createStore, shape, ModelOneMode, ModelManyMode, ViewClone, type ShapeInfer } from "../../src/runtime";
+
+// Captured by the triggerError action's post hook — proves post observes a
+// server-error response (status >= 400), not just successful ones.
+export const errorHook = reactive({ status: 0 });
 
 export const projectShape = shape((factory) => {
     return {
@@ -169,6 +175,13 @@ export const projectStore = createStore({
 
         const triggerError = api.get({
             url: "/projects/error",
+            hooks: {
+                post({ response }) {
+                    if (response) {
+                        errorHook.status = response.status;
+                    }
+                },
+            },
         });
 
         return {

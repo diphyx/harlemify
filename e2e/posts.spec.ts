@@ -84,6 +84,16 @@ test.describe("posts page", () => {
         await expect(page.getByTestId("post-count")).toHaveText("4 posts");
     });
 
+    test("request hooks observe the list action lifecycle", async ({ page }) => {
+        // list runs on mount: pre fires before send, post captures the response status
+        await expect(page.getByTestId("hook-status")).toHaveText("200");
+        await expect(page.getByTestId("hook-pre-count")).not.toHaveText("0");
+
+        const before = Number(await page.getByTestId("hook-pre-count").textContent());
+        await page.getByTestId("append-posts").click();
+        await expect(page.getByTestId("hook-pre-count")).toHaveText(String(before + 1));
+    });
+
     test("loads page via multi-commit and populates both list and pageMeta", async ({ page }) => {
         const pageMeta = page.getByTestId("page-meta");
         await expect(pageMeta).toContainText('"total": 0');
