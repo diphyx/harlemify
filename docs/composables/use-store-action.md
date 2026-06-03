@@ -1,6 +1,6 @@
 # useStoreAction
 
-Wraps a store action with reactive `status`, `loading`, `error`, and `reset`. Supports isolated mode for independent status tracking.
+Wraps a store action with reactive `status`, `loading`, `error`, and `reset`. Supports isolated mode for independent status tracking, including a read-only snapshot of the in-flight call.
 
 > **Related:** [Action](../core-concepts/action.md) — define the action this composable wraps.
 
@@ -88,11 +88,52 @@ createAction.error.value; // Error | null — only reflects this instance
 
 > For manual control over isolated refs without this composable, see [Isolated Status](../advanced/isolated-status.md).
 
+### In-Flight Call Tracking
+
+In isolated mode, the composable also exposes a **read-only snapshot of the in-flight call** — `params` and `query` for api actions, `payload` for handler actions. Use it to match the shared loading state to a specific target, such as a single row in a list.
+
+```vue
+<script setup lang="ts">
+const { loading, params, execute } = useStoreAction(userStore, "remove", { isolated: true });
+
+function remove(user: User) {
+    return execute({ params: { id: user.id } });
+}
+</script>
+
+<template>
+    <!-- only the row whose in-flight call matches reflects loading -->
+    <button v-for="user in users" :key="user.id" :disabled="loading && params?.id === user.id" @click="remove(user)">
+        {{ loading && params?.id === user.id ? "Removing..." : "Remove" }}
+    </button>
+</template>
+```
+
+For **handler actions** the snapshot is `payload` instead of `params`/`query`, since that is how a handler is addressed:
+
+```vue
+<script setup lang="ts">
+const { loading, payload, execute } = useStoreAction(todoStore, "toggle", { isolated: true });
+
+function toggle(todo: Todo) {
+    return execute({ payload: todo });
+}
+</script>
+
+<template>
+    <button v-for="todo in todos" :key="todo.id" :disabled="loading && payload?.id === todo.id" @click="toggle(todo)">
+        {{ loading && payload?.id === todo.id ? "Saving..." : "Toggle" }}
+    </button>
+</template>
+```
+
+The snapshot is captured at call time (a deep-cloned, independent copy of the object you passed), reflects the running call, and is cleared by `reset()`. It is guarded so a [concurrency](../advanced/concurrency.md)-blocked call cannot overwrite the one that is actually running — which assumes one call in flight at a time (the default `BLOCK` strategy). These fields are present **only** with `{ isolated: true }`, and which fields appear depends on the action kind — `params`/`query` for api actions, `payload` for handlers.
+
 ## Options
 
-| Option     | Type      | Default | Description                          |
-| ---------- | --------- | ------- | ------------------------------------ |
-| `isolated` | `boolean` | `false` | Create independent status/error refs |
+| Option     | Type      | Default | Description                                                                                     |
+| ---------- | --------- | ------- | ----------------------------------------------------------------------------------------------- |
+| `isolated` | `boolean` | `false` | Independent `status`/`error` refs, plus an in-flight call snapshot (`params`/`query`/`payload`) |
 
 ## Return Type
 
@@ -104,6 +145,11 @@ type UseStoreAction<T> = {
     error: Readonly<Ref<Error | null>>;
     reset: () => void;
 };
+
+// with { isolated: true }, the return additionally includes (IsolatedActionCall):
+//   api action     → params: Readonly<Ref<Record<string, string | number> | undefined>>
+//                    query:  Readonly<Ref<Record<string, unknown> | undefined>>
+//   handler action → payload: Readonly<Ref<P | undefined>>
 ```
 
 ## Next Steps
