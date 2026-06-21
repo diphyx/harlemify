@@ -194,6 +194,32 @@ const raw = await store.action.fire();
 // raw = whatever $fetch returned
 ```
 
+#### Mode-aware typing
+
+Each committed value is **what was passed to the model commit**, not the model's full state — so its static type follows the commit `mode`, matching the model's own commit signatures. For a `many` (LIST) model:
+
+| mode     | resolved value type               |
+| -------- | --------------------------------- |
+| `SET`    | `S[]`                             |
+| `ADD`    | `S \| S[]`                        |
+| `PATCH`  | `Partial<S> \| Partial<S>[]`      |
+| `REMOVE` | `Pick<S, I> \| Pick<S, I>[] \| …` |
+| `RESET`  | `unknown`                         |
+
+and for a `one` model: `SET → S`, `PATCH → Partial<S>`, `RESET → unknown`.
+
+```typescript
+// list: api.get(..., { model: "list", mode: ModelManyMode.SET })
+const all = await store.action.list();
+all.list; // User[]  — the endpoint returns an array
+
+// create: api.post(..., { model: "list", mode: ModelManyMode.ADD })
+const created = await store.action.create({ body });
+created.list; // User | User[]  — a single-entity ADD returns one User at runtime
+```
+
+When a commit has a `transform`, the resolved type is the **`transform`'s return type** (the value it actually commits), overriding the mode-derived type.
+
 ### Atomic Commits
 
 Commits resolve in two phases:

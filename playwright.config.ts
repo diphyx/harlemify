@@ -12,7 +12,7 @@ export default defineConfig({
         timeout: 5000,
     },
     use: {
-        baseURL: "http://localhost:3000",
+        baseURL: "http://127.0.0.1:3333",
         trace: "off",
         video: "off",
         screenshot: "off",
@@ -29,7 +29,7 @@ export default defineConfig({
     ],
     webServer: {
         command: "pnpm dev",
-        url: "http://localhost:3000",
+        url: "http://127.0.0.1:3333",
         reuseExistingServer: !process.env.CI,
         timeout: 120000,
     },

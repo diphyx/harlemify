@@ -152,6 +152,8 @@ type UseStoreAction<T> = {
 //   handler action → payload: Readonly<Ref<P | undefined>>
 ```
 
+`T` is inferred from the action: handler actions return their callback's result, and api actions return the committed value(s). For api actions `T` is **mode-aware** — a single-entity `ADD` resolves to `S | S[]`, not `S[]`. See [Action → Return Value](../core-concepts/action.md#return-value) for the full mode-to-type table.
+
 ## Next Steps
 
 - [useStoreModel](use-store-model.md) — Reactive model mutations

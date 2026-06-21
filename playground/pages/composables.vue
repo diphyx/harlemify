@@ -13,6 +13,9 @@ const {
 const deleteAction = useStoreAction(todoStore, "delete");
 const toggleAction = useStoreAction(todoStore, "toggle");
 const renameAction = useStoreAction(todoStore, "rename");
+const createAction = useStoreAction(todoStore, "create");
+
+const lastCreatedId = ref<number | null>(null);
 
 const { set: setCurrent, patch: patchCurrent, reset: resetCurrent } = useStoreModel(todoStore, "current");
 const { add: addList, remove: removeList } = useStoreModel(todoStore, "list");
@@ -62,6 +65,13 @@ async function renameTodo(todo: Todo) {
 async function renameDefault(todo: Todo) {
     setCurrent(todo);
     await renameAction.execute();
+}
+async function createTodo() {
+    const result = await createAction.execute({ body: { title: "Created via composable", done: false } });
+    const created = Array.isArray(result.list) ? result.list[0] : result.list;
+    if (created) {
+        lastCreatedId.value = created.id;
+    }
 }
 
 function modelSet() {
@@ -233,6 +243,22 @@ function clearTrackLog() {
                         execute(params, query)
                     </button>
                     <button class="btn btn-sm" data-testid="capture-reset" @click="captureReset()">reset()</button>
+                </div>
+            </div>
+
+            <div class="demo-box">
+                <h4>Create (mode-aware return)</h4>
+                <p class="desc">
+                    <code>const { list } = await create.execute({ body }) // list: Todo | Todo[]</code>
+                </p>
+                <div class="kv-grid">
+                    <div class="kv">
+                        <span class="kv-k">created id</span
+                        ><span class="kv-v" data-testid="create-result-id">{{ lastCreatedId ?? "-" }}</span>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-sm" data-testid="create-execute" @click="createTodo()">create()</button>
                 </div>
             </div>
         </div>
