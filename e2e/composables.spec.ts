@@ -125,6 +125,13 @@ test.describe("composables page", () => {
         await expect(page.getByTestId("capture-params")).toHaveText("-");
     });
 
+    test("action: create returns the single created todo (mode-aware ADD)", async ({ page }) => {
+        await expect(page.getByTestId("create-result-id")).toHaveText("-");
+        await page.getByTestId("create-execute").click();
+        await expect(page.getByTestId("create-result-id")).toHaveText("4");
+        await expect(page.getByTestId("todo-count")).toHaveText("4 todos");
+    });
+
     // useStoreModel
 
     test("model destructured: setCurrent sets value", async ({ page }) => {

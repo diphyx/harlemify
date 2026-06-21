@@ -3,12 +3,17 @@ import type { ComputedRef, DeepReadonly, MaybeRefOrGetter, Ref } from "vue";
 import type { BaseDefinition } from "./base";
 import type {
     ModelDefinitions,
-    ModelDefinitionInfer,
+    ModelOneDefinition,
+    ModelManyDefinition,
+    ModelManyKind,
+    ModelOneCommit,
+    ModelManyCommit,
     ModelOneCommitOptions,
     ModelManyCommitOptions,
     StoreModel,
 } from "./model";
 import { ModelOneMode, ModelManyMode } from "./model";
+import type { Shape } from "./shape";
 import type { ViewDefinitions, StoreView } from "./view";
 
 // Config
@@ -101,6 +106,43 @@ export interface ActionApiCommit<
 
 // Api Commit Return
 
+type ActionOneCommitValue<S extends Shape, M> = [M] extends [ModelOneMode.SET | ModelManyMode.SET]
+    ? Parameters<ModelOneCommit<S>["set"]>[0]
+    : [M] extends [ModelOneMode.PATCH | ModelManyMode.PATCH]
+      ? Parameters<ModelOneCommit<S>["patch"]>[0]
+      : unknown;
+
+type ActionManyCommitValue<S extends Shape, I extends keyof S, T extends ModelManyKind, M> = [M] extends [
+    ModelOneMode.SET | ModelManyMode.SET,
+]
+    ? Parameters<ModelManyCommit<S, I, T>["set"]>[0]
+    : [M] extends [ModelManyMode.ADD]
+      ? Parameters<ModelManyCommit<S, I, T>["add"]>[0]
+      : [M] extends [ModelOneMode.PATCH | ModelManyMode.PATCH]
+        ? Parameters<ModelManyCommit<S, I, T>["patch"]>[0]
+        : [M] extends [ModelManyMode.REMOVE]
+          ? Parameters<ModelManyCommit<S, I, T>["remove"]>[0]
+          : unknown;
+
+type ActionApiCommitValue<MD extends ModelDefinitions, E> = E extends {
+    transform: (...args: never[]) => infer R;
+}
+    ? [unknown] extends [R]
+        ? ActionApiCommitModeValue<MD, E>
+        : R
+    : ActionApiCommitModeValue<MD, E>;
+
+type ActionApiCommitModeValue<MD extends ModelDefinitions, E> = E extends {
+    model: infer K extends keyof MD;
+    mode: infer M;
+}
+    ? MD[K] extends ModelOneDefinition<infer S>
+        ? ActionOneCommitValue<S, M>
+        : MD[K] extends ModelManyDefinition<infer S, infer I, infer T>
+          ? ActionManyCommitValue<S, I, T, M>
+          : never
+    : never;
+
 export type ActionApiCommitReturn<
     MD extends ModelDefinitions,
     VD extends ViewDefinitions<MD>,
@@ -108,9 +150,7 @@ export type ActionApiCommitReturn<
 > = C extends readonly []
     ? unknown
     : {
-          [E in C[number] as E["model"] & string]: E["model"] extends keyof MD
-              ? ModelDefinitionInfer<MD, E["model"]>
-              : never;
+          [E in C[number] as E["model"] & string]: E["model"] extends keyof MD ? ActionApiCommitValue<MD, E> : never;
       };
 
 // Api Definition

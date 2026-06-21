@@ -476,6 +476,14 @@ const result = await store.action.list();
 // 0 commits: raw response
 ```
 
+**Mode-aware typing:** each committed value's static type follows the commit `mode` (it is the value passed to the model commit, not the full model state). For a `many`/LIST model: `SET → S[]`, `ADD → S | S[]`, `PATCH → Partial<S> | Partial<S>[]`, `REMOVE → Pick<S, I> | … `, `RESET → unknown`; for a `one` model: `SET → S`, `PATCH → Partial<S>`, `RESET → unknown`. A `transform`'s return type overrides the mode-derived type.
+
+```typescript
+// ADD a single entity → typed S | S[] (not S[])
+const created = await store.action.create({ body });
+created.list; // User | User[]
+```
+
 **URL forms:**
 
 ```typescript
