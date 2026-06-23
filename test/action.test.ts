@@ -7,7 +7,7 @@ import { createViewFactory } from "../src/runtime/core/layers/view";
 import { createActionFactory } from "../src/runtime/core/layers/action";
 import { createAction } from "../src/runtime/core/utils/action";
 import { wrapBaseDefinition } from "../src/runtime/core/utils/base";
-import { ActionApiError } from "../src/runtime/core/utils/error";
+import { ActionApiError, ActionCommitError } from "../src/runtime/core/utils/error";
 import { createStoreState, createStoreModel, createStoreView } from "../src/runtime/core/utils/store";
 import {
     type ActionDefinition,
@@ -509,6 +509,23 @@ describe("createAction", () => {
             expect(action.error.value?.name).toBe("ActionApiError");
         });
 
+        it("ActionApiError keeps the original error as source/cause", async () => {
+            const original = { message: "Not Found", status: 404, statusText: "Not Found" };
+            mockFetch.mockRejectedValue(original);
+
+            const { action } = setup({
+                request: {
+                    url: "/users/999",
+                    method: ActionApiMethod.GET,
+                },
+            });
+
+            await expect(action()).rejects.toThrow();
+
+            const error = action.error.value as ActionApiError;
+            expect(error.cause).toBe(original);
+        });
+
         it("prepends endpoint to url", async () => {
             mockFetch.mockResolvedValue({});
 
@@ -866,6 +883,27 @@ describe("createAction", () => {
 
             await expect(action()).rejects.toThrow();
             expect(action.error.value?.name).toBe("ActionCommitError");
+        });
+
+        it("ActionCommitError exposes its source/cause", async () => {
+            const { action } = setup({
+                request: {
+                    url: "/users/1",
+                    method: ActionApiMethod.GET,
+                },
+                commits: [
+                    {
+                        model: "nonexistent",
+                        mode: ModelOneMode.SET,
+                    },
+                ],
+            });
+            mockFetch.mockResolvedValue({ id: 1, name: "Alice", email: "alice@test.com" });
+
+            await expect(action()).rejects.toThrow();
+
+            const error = action.error.value as ActionCommitError;
+            expect(error.cause).toBeDefined();
         });
 
         it("mode override at call time", async () => {
