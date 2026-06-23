@@ -615,6 +615,8 @@ Template-friendly:
 - `ActionConcurrentError` — blocked by `ActionConcurrent.BLOCK`.
 - `AbortError` (DOM) — request was cancelled via `signal` or `ActionConcurrent.CANCEL`.
 
+The three wrapping errors (`ActionApiError`/`ActionHandlerError`/`ActionCommitError`) preserve the original failure on the native `cause` (e.g. `error.cause` is the `$fetch` FetchError).
+
 ```typescript
 try {
     await store.action.list();

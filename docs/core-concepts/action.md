@@ -527,6 +527,16 @@ try {
 }
 ```
 
+`ActionApiError`, `ActionHandlerError`, and `ActionCommitError` wrap the original failure on the native `cause`, so you can inspect it — e.g. the `$fetch` `FetchError` with its `request`/`response`:
+
+```typescript
+catch (error) {
+    if (error instanceof ActionApiError) {
+        error.cause; // the original $fetch FetchError
+    }
+}
+```
+
 ## Next Steps
 
 - [Compose](compose.md) — Orchestrate multiple actions and model mutations
